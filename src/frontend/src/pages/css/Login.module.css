@@ -1,0 +1,263 @@
+/* Login.module.css */
+
+/* ===== Variáveis ===== */
+:root {
+  --brand-green: #028133;
+  --brand-green-dark: #026B2A;
+  --background: #f5f7fb;
+  --card-bg: #ffffff;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border: #000000;
+}
+
+/* ===== Reset ===== */
+.container *,
+.container *::before,
+.container *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ===== Container ===== */
+.loginPage {
+  width: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* ===== Card ===== */
+.loginCard {
+  background: var(--card-bg);
+  border-radius: 14px;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.06);
+  border: 2px solid var(--border);
+  padding: 32px;
+}
+
+/* ===== Header ===== */
+.loginHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+/* ===== Logo ===== */
+.logo {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #028133, #03a347);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 10px 20px rgba(2, 129, 51, 0.25);
+  margin-bottom: 14px;
+}
+
+.logo .materialSymbolsOutlined {
+  font-size: 28px;
+}
+
+.appTitle {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.appSubtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ===== Form ===== */
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.formTitle {
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+/* ===== Inputs ===== */
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inputGroup label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.inputWrapper {
+  position: relative;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 18px;
+}
+
+.inputField {
+  width: 100%;
+  height: 46px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 0 14px 0 40px;
+  font-size: 14px;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+}
+
+.inputField:focus {
+  outline: none;
+  border-color: var(--brand-green);
+  box-shadow: 0 0 0 3px rgba(2, 129, 51, 0.15);
+  background: white;
+}
+
+/* Mensagem de erro */
+.errorMessage {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* ===== Botão ===== */
+.loginButton {
+  margin-top: 8px;
+  height: 46px;
+  width: 100%;
+  background: linear-gradient(135deg, #028133, #03a347);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(2, 129, 51, 0.2);
+  transition: all 0.2s ease;
+}
+
+.loginButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 24px rgba(2, 129, 51, 0.25);
+}
+
+.loginButton:active {
+  transform: scale(0.97);
+}
+
+.loginButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 5px 10px rgba(2, 129, 51, 0.1);
+}
+
+.buttonContent {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ===== Footer ===== */
+.loginFooter {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.forgotLink {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.forgotLink:hover {
+  color: var(--brand-green);
+}
+
+.divider {
+  width: 100%;
+  height: 1px;
+  background: var(--border);
+}
+
+.signupText {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.signupLink {
+  color: var(--brand-green);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.signupLink:hover {
+  color: var(--brand-green-dark);
+}
+
+/* ===== Copyright ===== */
+.copyright {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* ===== Material Symbols Outlined ===== */
+.materialSymbolsOutlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
