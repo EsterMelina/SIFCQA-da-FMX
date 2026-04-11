@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
@@ -12,6 +12,47 @@ const Login: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Estado do tema: null = sistema, 'light' = claro, 'dark' = escuro
+  const [theme, setTheme] = useState<'light' | 'dark' | null>(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved === "light" || saved === "dark") return saved;
+    return null;
+  });
+
+  // Aplica a classe 'dark' no container de acordo com o tema
+  useEffect(() => {
+    const container = document.querySelector(`.${styles.container}`);
+    if (!container) return;
+
+    const isDark =
+      theme === "dark" ||
+      (theme === null &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+    if (isDark) {
+      container.classList.add(styles.dark);
+    } else {
+      container.classList.remove(styles.dark);
+    }
+  }, [theme]);
+
+  // Salva a preferência no localStorage
+  const handleThemeToggle = () => {
+    setTheme((prev) => {
+      if (prev === "light") return "dark";
+      if (prev === "dark") return null;
+      return "light";
+    });
+  };
+
+  useEffect(() => {
+    if (theme) {
+      localStorage.setItem("theme", theme);
+    } else {
+      localStorage.removeItem("theme");
+    }
+  }, [theme]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -52,6 +93,28 @@ const Login: React.FC = () => {
 
   return (
     <div className={styles.container}>
+      {/* Botão de alternância de tema */}
+      <button
+        className={styles.themeToggle}
+        onClick={handleThemeToggle}
+        aria-label="Alternar tema"
+        title={
+          theme === "light"
+            ? "Tema claro (clique para escuro)"
+            : theme === "dark"
+            ? "Tema escuro (clique para automático)"
+            : "Tema automático (clique para claro)"
+        }
+      >
+        <span className={styles.materialSymbolsOutlined}>
+          {theme === "light"
+            ? "light_mode"
+            : theme === "dark"
+            ? "dark_mode"
+            : "routine"}
+        </span>
+      </button>
+
       <main className={styles.main}>
         {/* Fundos decorativos */}
         <div className={styles.chessPattern}></div>
