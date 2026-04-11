@@ -1,108 +1,237 @@
 /* Login.module.css */
 
-/* ===== Variáveis ===== */
-:root {
-  --brand-green: #028133;
-  --brand-green-dark: #026B2A;
-  --background: #f5f7fb;
-  --card-bg: #ffffff;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --border: #000000;
+/* ===== VARIÁVEIS DE CORES (VERMELHO FMX) ===== */
+.container {
+  --color-primary: #ae0011;
+  --color-primary-container: #d71920;
+  --color-on-primary-container: #ffece9;
+  --color-secondary: #006e2d;
+  --color-tertiary: #00588f;
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  --color-surface: #eee8e8;
+  --color-surface-dim: #dadada;
+  --color-surface-bright: #f9f9f9;
+  --color-surface-container: #eeeeee;
+  --color-surface-container-low: #f3f3f3;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e8e8e8;
+  --color-surface-container-highest: #e2e2e2;
+  --color-background: #f9f9f9;
+
+  --color-on-surface: #1b1b1b;
+  --color-on-surface-variant: #5d3f3c;
+  --color-on-background: #1b1b1b;
+
+  --color-outline-variant: hsl(7, 48%, 81%);
+
+  /* Fontes ajustadas conforme solicitado */
+  --font-headline: "Manrope", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-label: "Inter", sans-serif;
 }
 
-/* ===== Reset ===== */
+/* ===== RESET ===== */
 .container *,
 .container *::before,
 .container *::after {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
 }
 
-/* ===== Container ===== */
-.loginPage {
+/* ===== CONTAINER PRINCIPAL ===== */
+.main {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  font-family: var(--font-body);
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+}
+
+/* ===== FUNDOS DECORATIVOS (PADRÃO XADREZ) ===== */
+.chessPattern {
+  position: absolute;
+  inset: 0;
+  background-color: transparent;
+  background-image: 
+    linear-gradient(45deg, #e2e2e2 25%, transparent 25%),
+    linear-gradient(-45deg, #e2e2e2 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e2e2e2 75%),
+    linear-gradient(-45deg, transparent 75%, #e2e2e2 75%);
+  background-size: 80px 80px;
+  background-position: 0 0, 0 40px, 40px 40px, 40px 0;
+  opacity: 0.03;
+  z-index: 0;
+}
+
+.blurCircleTop {
+  position: absolute;
+  top: -10%;
+  right: -5%;
+  width: 40rem;
+  height: 40rem;
+  background-color: rgba(174, 0, 17, 0.05); /* primary/5 */
+  border-radius: 9999px;
+  filter: blur(100px);
+  z-index: 0;
+}
+
+.blurCircleBottom {
+  position: absolute;
+  bottom: -10%;
+  left: -5%;
+  width: 30rem;
+  height: 30rem;
+  background-color: rgba(0, 110, 45, 0.05); /* secondary/5 */
+  border-radius: 9999px;
+  filter: blur(80px);
+  z-index: 0;
+}
+
+/* ===== WRAPPER DO CONTEÚDO ===== */
+.contentWrapper {
   width: 100%;
-  max-width: 430px;
-  margin: 0 auto;
+  max-width: 28rem; /* max-w-md */
+  z-index: 10;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 20px;
+  gap: 2rem; /* gap-8 */
 }
 
-/* ===== Card ===== */
-.loginCard {
-  background: var(--card-bg);
-  border-radius: 14px;
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.06);
-  border: 2px solid var(--border);
-  padding: 32px;
-}
-
-/* ===== Header ===== */
-.loginHeader {
+/* ===== LOGO ===== */
+.logoSection {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 28px;
+  gap: 1rem;
 }
 
-/* ===== Logo ===== */
-.logo {
-  width: 60px;
-  height: 60px;
-  background: linear-gradient(135deg, #028133, #03a347);
-  border-radius: 14px;
+.logoIconWrapper {
+  padding: 1rem;
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.01);
+}
+
+.logoIcon {
+  width: 4rem;
+  height: 4rem;
+  background-color: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 0.5rem;
+}
+
+.logoIcon span {
   color: white;
-  box-shadow: 0 10px 20px rgba(2, 129, 51, 0.25);
-  margin-bottom: 14px;
+  font-size: 2.25rem;
 }
 
-.logo .materialSymbolsOutlined {
-  font-size: 28px;
-}
-
-.appTitle {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.appSubtitle {
-  font-size: 14px;
-  color: var(--text-secondary);
+.titleSection {
   text-align: center;
 }
 
-/* ===== Form ===== */
-.loginForm {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+.mainTitle {
+  font-family: var(--font-headline);
+  font-weight: 800;
+  font-size: 1.875rem;
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+  color: var(--color-on-surface);
+  line-height: 1.2;
 }
 
-.formTitle {
-  font-size: 18px;
-  font-weight: 700;
-  text-align: center;
-  color: var(--text-primary);
-}
-
-/* ===== Inputs ===== */
-.inputGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.inputGroup label {
-  font-size: 14px;
+.subtitle {
+  font-family: var(--font-label);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
   font-weight: 600;
-  color: var(--text-primary);
+  margin-top: 0.25rem;
+  color: var(--color-on-surface-variant);
+}
+
+/* ===== CARD DE LOGIN ===== */
+.loginCard {
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  padding: 2rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.cardHeader {
+  margin-bottom: 2rem;
+}
+
+.cardTitle {
+  font-family: var(--font-headline);
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--color-on-surface);
+}
+
+.cardDescription {
+  color: var(--color-on-surface-variant);
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+/* ===== FORMULÁRIO ===== */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-family: var(--font-label);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-on-surface-variant);
+  margin-left: 0.25rem;
+}
+
+.labelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.forgotLink {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.forgotLink:hover {
+  color: var(--color-primary-container);
 }
 
 .inputWrapper {
@@ -111,82 +240,93 @@
 
 .inputIcon {
   position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  font-size: 18px;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  padding-left: 1rem;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
 }
 
-.inputField {
+.inputIcon span {
+  color: var(--color-on-surface-variant);
+  font-size: 1.125rem;
+}
+
+.input {
+  display: block;
   width: 100%;
-  height: 46px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  padding: 0 14px 0 40px;
-  font-size: 14px;
-  background: #f8fafc;
-  transition: all 0.2s ease;
+  padding: 1rem 1rem 1rem 3rem;
+  background-color: var(--color-surface-container-highest);
+  border: none;
+  border-radius: 0.5rem;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--color-on-surface);
+  outline: none;
+  transition: box-shadow 0.2s;
 }
 
-.inputField:focus {
-  outline: none;
-  border-color: var(--brand-green);
-  box-shadow: 0 0 0 3px rgba(2, 129, 51, 0.15);
-  background: white;
+.input::placeholder {
+  color: rgba(93, 63, 60, 0.5);
+  font-weight: 400;
+}
+
+.input:focus {
+  box-shadow: 0 0 0 2px rgba(174, 0, 17, 0.4);
 }
 
 /* Mensagem de erro */
 .errorMessage {
-  background-color: #fee2e2;
-  color: #b91c1c;
-  padding: 12px 14px;
-  border-radius: 8px;
-  font-size: 13px;
+  background-color: var(--color-error-container);
+  color: var(--color-on-error-container);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  text-align: center;
 }
 
-/* ===== Botão ===== */
-.loginButton {
-  margin-top: 8px;
-  height: 46px;
+/* Botão de submit */
+.submitButton {
   width: 100%;
-  background: linear-gradient(135deg, #028133, #03a347);
-  color: white;
+  background-color: var(--color-primary-container);
+  color: var(--color-on-primary-container);
+  padding: 1rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 0.5rem;
+  font-family: var(--font-headline);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  box-shadow: 0 10px 15px -3px rgba(215, 25, 32, 0.2);
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  cursor: pointer;
-  box-shadow: 0 10px 20px rgba(2, 129, 51, 0.2);
-  transition: all 0.2s ease;
+  gap: 0.5rem;
+  transition: all 0.15s;
 }
 
-.loginButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 24px rgba(2, 129, 51, 0.25);
+.submitButton:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: white;
 }
 
-.loginButton:active {
-  transform: scale(0.97);
+.submitButton:active:not(:disabled) {
+  transform: scale(0.95);
 }
 
-.loginButton:disabled {
-  opacity: 0.6;
+.submitButton:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: 0 5px 10px rgba(2, 129, 51, 0.1);
 }
 
 .buttonContent {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.5rem;
 }
 
 .spinner {
@@ -198,55 +338,103 @@
   to { transform: rotate(360deg); }
 }
 
-/* ===== Footer ===== */
-.loginFooter {
-  margin-top: 20px;
+/* Link para registro */
+.signupSection {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-surface-container-highest);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 14px;
-}
-
-.forgotLink {
-  font-size: 14px;
-  color: var(--text-secondary);
-  text-decoration: none;
-}
-
-.forgotLink:hover {
-  color: var(--brand-green);
-}
-
-.divider {
-  width: 100%;
-  height: 1px;
-  background: var(--border);
+  justify-content: center;
 }
 
 .signupText {
-  font-size: 14px;
-  color: var(--text-secondary);
+  font-size: 0.875rem;
+  color: var(--color-on-surface-variant);
 }
 
 .signupLink {
-  color: var(--brand-green);
-  font-weight: 600;
+  color: var(--color-primary);
+  font-weight: 700;
   text-decoration: none;
 }
 
 .signupLink:hover {
-  color: var(--brand-green-dark);
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
-/* ===== Copyright ===== */
-.copyright {
-  margin-top: 18px;
-  text-align: center;
-  font-size: 12px;
-  color: #94a3b8;
+/* ===== RODAPÉ ===== */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
 }
 
-/* ===== Material Symbols Outlined ===== */
+.footerLinks {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.footerLink {
+  font-family: var(--font-label);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-on-surface-variant);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: color 0.2s;
+}
+
+.footerLink:hover {
+  color: var(--color-primary);
+}
+
+.footerLink span {
+  font-size: 0.875rem;
+}
+
+.version {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0.5;
+}
+
+.version span {
+  font-family: var(--font-label);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-on-surface-variant);
+}
+
+/* ===== MARCA D'ÁGUA ===== */
+.watermark {
+  position: fixed;
+  bottom: -10%;
+  right: -5%;
+  opacity: 0.02;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.watermark span {
+  font-size: 40rem;
+  line-height: 1;
+  font-variation-settings: "FILL" 1;
+}
+
+/* ===== MATERIAL SYMBOLS OUTLINED ===== */
 .materialSymbolsOutlined {
   font-family: 'Material Symbols Outlined';
   font-weight: normal;

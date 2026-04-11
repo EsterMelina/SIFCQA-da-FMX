@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { http } from "@/services/http"; // ajuste o caminho
-import { endpoints } from "@/services/endpoints"; // ajuste o caminho
+import { http } from "@/services/http";
+import { endpoints } from "@/services/endpoints";
 import styles from "./css/Login.module.css";
 
 const Login: React.FC = () => {
@@ -52,108 +52,148 @@ const Login: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.loginPage}>
-        <div className={styles.loginCard}>
-          {/* Header com logo */}
-          <div className={styles.loginHeader}>
-            <div className={styles.logo}>
-              <span className={styles.materialSymbolsOutlined}>chess</span>
-            </div>
-            <h1 className={styles.appTitle}>SIFCQA-FMX</h1>
-            <p className={styles.appSubtitle}>
-              Federação Moçambicana de Xadrez
-            </p>
-          </div>
+      <main className={styles.main}>
+        {/* Fundos decorativos */}
+        <div className={styles.chessPattern}></div>
+        <div className={styles.blurCircleTop}></div>
+        <div className={styles.blurCircleBottom}></div>
 
-          {/* Formulário */}
-          <form onSubmit={handleSubmit} className={styles.loginForm}>
-            <h2 className={styles.formTitle}>Iniciar Sessão</h2>
-
-            {/* Campo Email */}
-            <div className={styles.inputGroup}>
-              <label htmlFor="email">Email Institucional</label>
-              <div className={styles.inputWrapper}>
-                <span className={`${styles.inputIcon} ${styles.materialSymbolsOutlined}`}>
-                  mail
-                </span>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className={styles.inputField}
-                  placeholder="exemplo@fmx.org.mz"
-                />
+        {/* Conteúdo centralizado */}
+        <div className={styles.contentWrapper}>
+          {/* Logo */}
+          <div className={styles.logoSection}>
+            <div className={styles.logoIconWrapper}>
+              <div className={styles.logoIcon}>
+                <span className={styles.materialSymbolsOutlined}>chess</span>
               </div>
             </div>
+            <div className={styles.titleSection}>
+              <h1 className={styles.mainTitle}>SIFCQA-FMX</h1>
+              <p className={styles.subtitle}>
+                Federação Moçambicana de Xadrez
+              </p>
+            </div>
+          </div>
 
-            {/* Campo Senha */}
-            <div className={styles.inputGroup}>
-              <label htmlFor="password">Palavra-passe</label>
-              <div className={styles.inputWrapper}>
-                <span className={`${styles.inputIcon} ${styles.materialSymbolsOutlined}`}>
-                  lock
-                </span>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className={styles.inputField}
-                  placeholder="••••••••"
-                />
-              </div>
+          {/* Card de Login */}
+          <div className={styles.loginCard}>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>Iniciar Sessão</h2>
+              <p className={styles.cardDescription}>
+                Sistema Integrado de Filiação e Controlo de Quotas das Associações
+                da Federação Moçambicana de Xadrez
+              </p>
             </div>
 
-            {/* Mensagem de erro */}
-            {error && <div className={styles.errorMessage}>{error}</div>}
-
-            {/* Botão de login */}
-            <button
-              type="submit"
-              disabled={loading}
-              className={styles.loginButton}
-            >
-              {loading ? (
-                <div className={styles.buttonContent}>
-                  <span>Autenticando...</span>
-                  <span className={`${styles.materialSymbolsOutlined} ${styles.spinner}`}>
-                    progress_activity
-                  </span>
+            <form onSubmit={handleSubmit} className={styles.form}>
+              {/* Email */}
+              <div className={styles.fieldGroup}>
+                <label htmlFor="email" className={styles.label}>
+                  Email Institucional
+                </label>
+                <div className={styles.inputWrapper}>
+                  <div className={styles.inputIcon}>
+                    <span className={styles.materialSymbolsOutlined}>mail</span>
+                  </div>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={styles.input}
+                    placeholder="exemplo@fmx.org.mz"
+                  />
                 </div>
-              ) : (
-                <div className={styles.buttonContent}>
-                  <span>Entrar</span>
-                  <span className={styles.materialSymbolsOutlined}>login</span>
-                </div>
-              )}
-            </button>
-          </form>
+              </div>
 
-          {/* Footer do card */}
-          <div className={styles.loginFooter}>
-            <Link to="/forgot-password" className={styles.forgotLink}>
-              Esqueceu a senha?
-            </Link>
-            <div className={styles.divider}></div>
-            <p className={styles.signupText}>
-              Não tem uma conta?{" "}
-              <Link to="/register" className={styles.signupLink}>
-                Criar Conta
-              </Link>
-            </p>
+              {/* Senha */}
+              <div className={styles.fieldGroup}>
+                <div className={styles.labelRow}>
+                  <label htmlFor="password" className={styles.label}>
+                    Palavra-passe
+                  </label>
+                  <Link to="/forgot-password" className={styles.forgotLink}>
+                    Esqueceu a senha?
+                  </Link>
+                </div>
+                <div className={styles.inputWrapper}>
+                  <div className={styles.inputIcon}>
+                    <span className={styles.materialSymbolsOutlined}>lock</span>
+                  </div>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    value={formData.password}
+                    onChange={handleChange}
+                    className={styles.input}
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              {/* Erro */}
+              {error && <div className={styles.errorMessage}>{error}</div>}
+
+              {/* Botão */}
+              <button
+                type="submit"
+                disabled={loading}
+                className={styles.submitButton}
+              >
+                {loading ? (
+                  <div className={styles.buttonContent}>
+                    <span>Autenticando...</span>
+                    <span
+                      className={`${styles.materialSymbolsOutlined} ${styles.spinner}`}
+                    >
+                      progress_activity
+                    </span>
+                  </div>
+                ) : (
+                  <div className={styles.buttonContent}>
+                    <span>Entrar</span>
+                    <span className={styles.materialSymbolsOutlined}>login</span>
+                  </div>
+                )}
+              </button>
+            </form>
+
+            {/* Criar conta */}
+            <div className={styles.signupSection}>
+              <p className={styles.signupText}>
+                Não tem uma conta?{" "}
+                <Link to="/register" className={styles.signupLink}>
+                  Criar Conta
+                </Link>
+              </p>
+            </div>
           </div>
+
+          {/* Rodapé */}
+          <footer className={styles.footer}>
+            <div className={styles.footerLinks}>
+              <a href="#" className={styles.footerLink}>
+                <span className={styles.materialSymbolsOutlined}>help</span> Support
+              </a>
+              <a href="#" className={styles.footerLink}>
+                <span className={styles.materialSymbolsOutlined}>gavel</span> Termos
+              </a>
+            </div>
+            <div className={styles.version}>
+              <span>Versão 2.4.0</span>
+            </div>
+          </footer>
         </div>
 
-        {/* Copyright */}
-        <div className={styles.copyright}>
-          © {new Date().getFullYear()} FMX. Todos os direitos reservados.
+        {/* Marca d'água */}
+        <div className={styles.watermark}>
+          <span className={styles.materialSymbolsOutlined}>chess_king</span>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
