@@ -1,0 +1,76 @@
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.sectionHeader h4 {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 900;
+  color: var(--color-on-surface);
+}
+
+.exportButton {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--color-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.tableWrapper {
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background-color: var(--color-surface-container-lowest);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  padding: 1rem;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  opacity: 0.6;
+  background-color: var(--color-surface-container-low);
+  text-align: left;
+}
+
+.table td {
+  padding: 1rem;
+  font-size: 0.75rem;
+  border-top: 1px solid var(--color-surface-container-low);
+}
+
+.success {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  background-color: rgba(0, 99, 40, 0.1);
+  color: var(--color-tertiary);
+  font-size: 0.5625rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.error {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  background-color: rgba(186, 26, 26, 0.1);
+  color: var(--color-error);
+  font-size: 0.5625rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}

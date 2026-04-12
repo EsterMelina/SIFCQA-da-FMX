@@ -1,0 +1,57 @@
+.card {
+  background-color: var(--color-surface-container-lowest);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.icon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 1rem;
+  opacity: 0.1;
+}
+
+.icon span {
+  font-size: 6rem;
+}
+
+.label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  opacity: 0.6;
+  margin-bottom: 0.25rem;
+}
+
+.value {
+  font-size: 1.875rem;
+  font-weight: 900;
+  color: var(--color-on-surface);
+}
+
+.progressBar {
+  margin-top: 1rem;
+  width: 100%;
+  height: 0.25rem;
+  background-color: var(--color-surface-container-low);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background-color: var(--color-tertiary);
+  border-radius: 9999px;
+}
+
+.trend {
+  font-size: 0.625rem;
+  margin-top: 0.5rem;
+  color: var(--color-tertiary);
+  font-weight: 700;
+}

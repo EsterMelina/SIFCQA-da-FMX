@@ -1,30 +1,82 @@
-import { createContext, useEffect, useState } from "react";
-import { me } from "@/features/auth/services/authService";
+// app/providers/AuthProvider.tsx
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { http } from "@/services/http";
+import { endpoints } from "@/services/endpoints";
 
-type AuthContextType = {
-  user: any;
-  loading: boolean;
-};
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: "admin" | "association" | "player" | "fmx";
+  association_id?: number;
+  player_id?: number;
+}
 
-export const AuthContext = createContext<AuthContextType>({
-  user: null,
-  loading: true,
-});
+interface AuthContextType {
+  user: User | null;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+}
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+useEffect(() => {
+  setUser({
+    id: 1,
+    name: "Admin",
+    email: "admin@test.com",
+    role: "admin"
+  });
+  setIsLoading(false);
+}, []);
+
 
   useEffect(() => {
-    me()
-      .then((res) => setUser(res.data))
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+    const token = localStorage.getItem("token");
+    if (token) {
+      http.get(endpoints.auth.me)
+        .then(res => setUser(res.data))
+        .catch(() => localStorage.removeItem("token"))
+        .finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
+    }
   }, []);
 
+  const login = async (email: string, password: string) => {
+    const res = await http.post(endpoints.auth.login, { email, password });
+    localStorage.setItem("token", res.data.token);
+    setUser(res.data.user);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  return context;
+};
+
+function setIsLoading(arg0: boolean) {
+  throw new Error("Function not implemented.");
 }
+function setUser(arg0: { id: number; name: string; email: string; role: string; }) {
+  throw new Error("Function not implemented.");
+}
+

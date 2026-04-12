@@ -1,0 +1,138 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 256px;
+  background-color: var(--sidebar-bg);
+  padding: 2rem 0;
+  position: sticky;
+  top: 0;
+}
+
+.sidebarHeader {
+  padding: 0 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.brandWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logoIcon {
+  width: 2.5rem;
+  height: 2.5rem;
+  background-color: var(--color-primary-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+}
+
+.logoIcon span {
+  color: var(--color-on-primary-container);
+}
+
+.brandWrapper h1 {
+  font-size: 1.125rem;
+  font-weight: 900;
+  color: var(--color-on-surface);
+  line-height: 1.2;
+}
+
+.brandWrapper p {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+.nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  color: var(--color-on-surface);
+  text-decoration: none;
+  opacity: 0.8;
+  transition: all 0.2s;
+  border-left: 4px solid transparent;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+}
+
+.navLink:hover {
+  background-color: var(--sidebar-hover);
+}
+
+.navLink.active {
+  background-color: var(--color-surface-container-lowest);
+  color: var(--color-primary-container);
+  border-left-color: var(--color-primary-container);
+  transform: translateX(4px);
+}
+
+.sidebarFooter {
+  padding: 0 1.5rem;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.reportButton {
+  width: 100%;
+  background-color: var(--color-primary-container);
+  color: var(--color-on-primary-container);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.footerLinks {
+  padding-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.footerLink {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  color: var(--color-on-surface);
+  opacity: 0.7;
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+}
+
+.footerLink:hover {
+  color: var(--color-primary-container);
+}
