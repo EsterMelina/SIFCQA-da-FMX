@@ -11,13 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-      Schema::create('associations', function (Blueprint $table) {
+       Schema::create('players', function (Blueprint $table) {
     $table->id();
-    $table->string('name');
 
-    $table->foreignId('province_id')->constrained();
+    $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+    $table->foreignId('association_id')->constrained();
+
+    $table->string('full_name');
+    $table->date('birth_date');
+    $table->string('nationality');
 
     $table->boolean('status')->default(true);
+
     $table->timestamps();
 });
     }
@@ -27,6 +32,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('associations');
+        Schema::dropIfExists('players');
     }
 };

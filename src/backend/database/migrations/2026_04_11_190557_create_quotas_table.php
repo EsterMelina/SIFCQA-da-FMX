@@ -11,13 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-      Schema::create('associations', function (Blueprint $table) {
+      Schema::create('quotas', function (Blueprint $table) {
     $table->id();
-    $table->string('name');
 
-    $table->foreignId('province_id')->constrained();
+    $table->foreignId('player_id')->constrained()->cascadeOnDelete();
 
-    $table->boolean('status')->default(true);
+    $table->string('month');
+    $table->integer('year');
+
+    $table->decimal('amount', 10, 2);
+
+    $table->enum('status', ['paid', 'unpaid'])->default('unpaid');
+
     $table->timestamps();
 });
     }
@@ -27,6 +32,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('associations');
+        Schema::dropIfExists('quotas');
     }
 };

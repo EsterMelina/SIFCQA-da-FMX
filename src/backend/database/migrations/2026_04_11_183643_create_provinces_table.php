@@ -11,13 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-      Schema::create('associations', function (Blueprint $table) {
+        Schema::create('provinces', function (Blueprint $table) {
     $table->id();
     $table->string('name');
-
-    $table->foreignId('province_id')->constrained();
-
-    $table->boolean('status')->default(true);
     $table->timestamps();
 });
     }
@@ -27,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('associations');
+        Schema::dropIfExists('provinces');
     }
 };

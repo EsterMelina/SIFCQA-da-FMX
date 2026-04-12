@@ -11,13 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-      Schema::create('associations', function (Blueprint $table) {
+        Schema::create('audit_logs', function (Blueprint $table) {
     $table->id();
-    $table->string('name');
 
-    $table->foreignId('province_id')->constrained();
+    $table->foreignId('user_id')->constrained()->cascadeOnDelete();
 
-    $table->boolean('status')->default(true);
+    $table->string('action');
+    $table->string('entity');
+    $table->unsignedBigInteger('entity_id');
+
+    $table->json('metadata')->nullable();
+
     $table->timestamps();
 });
     }
@@ -27,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('associations');
+        Schema::dropIfExists('audit_logs');
     }
 };

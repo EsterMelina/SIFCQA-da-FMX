@@ -12,9 +12,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('tournaments', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
-        });
+    $table->id();
+
+    $table->string('name');
+    $table->date('start_date');
+    $table->date('end_date');
+    $table->string('location');
+
+    $table->enum('status', ['draft', 'active', 'finished']);
+
+    $table->timestamps();
+});
     }
 
     /**
