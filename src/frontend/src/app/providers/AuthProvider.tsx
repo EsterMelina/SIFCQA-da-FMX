@@ -21,27 +21,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-useEffect(() => {
-  setUser({
-    id: 1,
-    name: "Admin",
-    email: "admin@test.com",
-    role: "admin"
-  });
-  setIsLoading(false);
-}, []);
-
-
   useEffect(() => {
     const token = localStorage.getItem("token");
+
     if (token) {
       http.get(endpoints.auth.me)
-        .then(res => setUser(res.data))
+        .then(res => {
+          console.log("ME RAW RESPONSE:", res.data);
+          setUser(res.data);
+        })
         .catch(() => localStorage.removeItem("token"))
         .finally(() => setIsLoading(false));
     } else {
@@ -72,11 +64,3 @@ export const useAuth = () => {
   if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 };
-
-function setIsLoading(arg0: boolean) {
-  throw new Error("Function not implemented.");
-}
-function setUser(arg0: { id: number; name: string; email: string; role: string; }) {
-  throw new Error("Function not implemented.");
-}
-

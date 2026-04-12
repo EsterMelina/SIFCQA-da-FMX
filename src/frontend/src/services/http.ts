@@ -2,7 +2,6 @@ import axios, { type InternalAxiosRequestConfig } from "axios";
 
 export const http = axios.create({
   baseURL: "http://localhost:8000/api",
-  withCredentials: true,
 });
 
 http.interceptors.request.use((config: InternalAxiosRequestConfig) => {

@@ -1,6 +1,6 @@
 // features/dashboard/pages/Dashboard.tsx
 import { useAuth } from "@/app/providers/AuthProvider";
-import  { AdminDashboard }  from "../../admin/pages/AdminDashboard";
+import   AdminDashboard   from "../../admin/pages/AdminDashboard";
 import  PlayerDashboard  from "../components/PlayerDashboard";
 import  AssociationDashboard  from "../components/AssociationDashboard";
 import  FmxDashboard  from "../components/FmxDashboard";

@@ -1,0 +1,108 @@
+/* MainLayout.module.css */
+
+.layout {
+  display: flex;
+  width: 100vw;
+  max-width: 100%;
+  height: 100vh;
+  overflow: hidden; /* Impede scroll no layout principal */
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  font-family: var(--font-body);
+}
+
+/* ===== SIDEBAR FIXA À ESQUERDA ===== */
+.sidebarWrapper {
+  flex-shrink: 0;
+  width: 256px;
+  height: 100vh;
+  overflow-y: auto; /* Scroll interno se o menu for longo */
+  overflow-x: hidden;
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--color-outline-variant);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-outline) transparent;
+}
+
+.sidebarWrapper::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebarWrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebarWrapper::-webkit-scrollbar-thumb {
+  background-color: var(--color-outline);
+  border-radius: 4px;
+}
+
+/* ===== CONTEÚDO PRINCIPAL (DIREITO) ===== */
+.mainWrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* Evita que conteúdo largo force scroll horizontal */
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--color-surface);
+}
+
+/* ===== HEADER EXPANSÍVEL (FIXO NO TOPO) ===== */
+.headerWrapper {
+  flex-shrink: 0; /* Não encolhe, altura determinada pelo conteúdo interno */
+  width: 100%;
+  background-color: var(--sidebar-bg);
+  border-bottom: 1px solid var(--color-outline-variant);
+  z-index: 10;
+}
+
+/* ===== ÁREA DE CONTEÚDO COM SCROLL VERTICAL ===== */
+.content {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Centraliza horizontalmente o conteúdo */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-outline) transparent;
+}
+
+.content::-webkit-scrollbar {
+  width: 6px;
+}
+.content::-webkit-scrollbar-track {
+  background: transparent;
+}
+.content::-webkit-scrollbar-thumb {
+  background-color: var(--color-outline);
+  border-radius: 3px;
+}
+
+/* Container interno para limitar a largura máxima e centralizar */
+.contentInner {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* ===== RESPONSIVIDADE ===== */
+@media (max-width: 767px) {
+  .layout {
+    flex-direction: column;
+  }
+  .sidebarWrapper {
+    display: none; /* Em mobile, escondemos a sidebar */
+  }
+  .mainWrapper {
+    width: 100%;
+    height: 100vh;
+  }
+  .content {
+    padding: 1rem;
+  }
+}

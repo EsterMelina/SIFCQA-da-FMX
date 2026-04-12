@@ -1,89 +1,105 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "./ProtectedRoute";
 
-import  {MainLayout}  from "@/app/layouts/MainLayout/MainLayout";
-import  AuthLayout  from "@/app/layouts/AuthLayout/AuthLayout";
+import AuthLayout from "@/app/layouts/AuthLayout/AuthLayout";
+//import { MainLayout }  from "@/app/layouts/MainLayout/MainLayout"; // ADMIN ONLY
+//import DashboardLayout from "@/app/layouts/DashboardLayout/DashboardLayout"; // USERS
 
-// Páginas públicas
+// AUTH
 import Login from "@/features/auth/pages/Login";
 import Register from "@/features/auth/pages/Register";
 import ForgotPassword from "@/features/auth/pages/ForgotPassword";
 import ResetPassword from "@/features/auth/pages/ResetPassword";
 
-// Dashboard e módulos
+// DASHBOARD (base logada)
 import Dashboard from "@/features/dashboard/pages/Dashboard";
+
+// PLAYER
+import PlayerDashboard from "@/features/players/pages/PlayerDashboard";
 import MyProfile from "@/features/players/pages/MyProfile";
 import MyQuotas from "@/features/players/pages/MyQuotas";
-// import UserManagement from "@/features/admin/pages/UserManagement";
-import AssociationManagement from "@/features/associations/pages/AssociationManagement";
 
-//Admin
-// import AdminDashboard from "@/features/admin/pages/AdminDashboard";
-// import AuditLogs from "@/features/admin/pages/AuditLogs";
-// import Reports from "@/features/admin/pages/Reports";
-// import Archive from "@/features/admin/pages/Archive";
+// ASSOCIATION
+import AssociationDashboard from "@/features/associations/pages/AssociationDashboard";
+
+// ADMIN
+import AdminDashboard from "@/features/admin/pages/AdminDashboard";
+// import UserManagement from "@/features/admin/pages/UserManagement";
+// import AuditLogs from "@/features/admin/pages/AuditLogs/AuditLogs";
+// import Reports from "@/features/admin/pages/Reports/Reports";
+// import Archive from "@/features/admin/pages/Archive/Archive";
+
+//FMX
+import FmxDashboard from "@/features/fmx/pages/FmxDashboard";
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
-        <Routes>
-          {/* Rotas públicas com layout limpo */}
-          <Route element={<AuthLayout />}>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-          </Route>
+      <Routes>
+
+        {/* ================= PUBLIC ================= */}
+        <Route element={<AuthLayout />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+        </Route>
+
+        {/* ================= LOGGED USERS ================= */}
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={["admin", "fmx","association", "player"]} />
+          }
+        >
+          
+          <Route path="/" element={<Dashboard />} /> 
+              <Route path="/fmx" element={<FmxDashboard />} />
+              <Route path="/association" element={<AssociationDashboard />} />
+              <Route path="/player" element={<PlayerDashboard />} />
+             {/* FMX*/}
+            <Route
+              element={<ProtectedRoute allowedRoles={["fmx"]} />}
+            >
+              <Route path="/fmx" element={<FmxDashboard />} />
+           
+            </Route>
 
 
-          <Route element={<ProtectedRoute allowedRoles={["admin", "association", "player"]} />}>
-               <Route path="/" element={<Dashboard />} />
-          </Route>
-
-           {/* Rotas administrativas protegidas */}
-          <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-               <Route element={<MainLayout />}>
-               {/* <Route index element={<AdminDashboard />} />
-               <Route path="users" element={<UserManagement />} />
-               <Route path="audit" element={<AuditLogs />} />
-               <Route path="reports" element={<Reports />} />
-               <Route path="archive" element={<Archive />} /> */}
-               </Route>
-          </Route>
-
-          {/* Rotas protegidas com layout principal */}
-          <Route element={<MainLayout />}>
-            {/* Dashboard acessível a todos, mas conteúdo adaptativo */}
-           {/* <Route element={<ProtectedRoute allowedRoles={["admin", "association", "player"]} />}>
-               <Route path="/" element={<Dashboard />} />
-          </Route> */}
-
-            {/* Rotas exclusivas para jogadores */}
-            <Route element={<ProtectedRoute allowedRoles={["player"]} />}>
+            {/* PLAYER */}
+            <Route
+              element={<ProtectedRoute allowedRoles={["player"]} />}
+            >
               <Route path="/profile" element={<MyProfile />} />
               <Route path="/my-quotas" element={<MyQuotas />} />
-              {/* <Route path="/my-transfers" element={<MyTransfers />} /> */}
             </Route>
 
-            {/* Rotas exclusivas para associações */}
-            <Route element={<ProtectedRoute allowedRoles={["association"]} />}>
-              <Route path="/association" element={<AssociationManagement />} />
+            {/* ASSOCIATION */}
+            <Route
+              element={<ProtectedRoute allowedRoles={["association"]} />}
+            >
+              <Route path="/association" element={<AssociationDashboard />} />
             </Route>
 
-            {/* Rotas exclusivas para admin */}
-            <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-              {/* <Route path="/admin/users" element={<UserManagement />} /> */}
-              {/* <Route path="/admin/associations" element={<AllAssociations />} />
-              <Route path="/admin/audit" element={<AuditLogs />} /> */}
-            </Route>
+         
+        </Route>
 
-            {/* Rotas partilhadas (admin + associação) */}
-            <Route element={<ProtectedRoute allowedRoles={["admin", "association"]} />}>
-              {/* <Route path="/players" element={<PlayersList />} />
-              <Route path="/quotas" element={<QuotasManagement />} /> */}
-            </Route>
+        {/* ================= ADMIN AREA (MAIN LAYOUT) ================= */}
+        <Route
+          element={<ProtectedRoute allowedRoles={["admin"]} />}
+        >
+          <Route>
+            {/* Dashboard base (dinâmico por role) */}
+            
+            <Route path="/admin" element={<AdminDashboard />} />
+            {/* <Route path="/admin/users" element={<UserManagement />} />
+            <Route path="/admin/audit" element={<AuditLogs />} />
+            <Route path="/admin/reports" element={<Reports />} />
+            <Route path="/admin/archive" element={<Archive />} /> */}
+
           </Route>
-        </Routes>
+        </Route>
+
+      </Routes>
     </BrowserRouter>
   );
 }

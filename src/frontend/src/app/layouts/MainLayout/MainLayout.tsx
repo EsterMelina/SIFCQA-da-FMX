@@ -9,11 +9,18 @@ export const MainLayout = () => {
 
   return (
     <div className={styles.layout}>
-      <Sidebar role={user?.role} />
+      <div className={styles.sidebarWrapper}>
+        <Sidebar role={user?.role} />
+      </div>
+
       <div className={styles.mainWrapper}>
-        <Header role={user?.role} />
+        <div className={styles.headerWrapper}>
+          <Header role={user?.role} />
+        </div>
         <main className={styles.content}>
-          <Outlet />
+          <div className={styles.contentInner}>
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
