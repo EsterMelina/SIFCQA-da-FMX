@@ -10,29 +10,40 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
+        // ================= ADMIN =================
         $admin = User::create([
-            'name' => 'Admin',
+            'name' => 'System Admin',
             'email' => 'admin@fmx.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password123'),
         ]);
         $admin->assignRole('admin');
 
+        // ================= PLAYER =================
         $player = User::create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'name' => 'John Player',
+            'email' => 'player@fmx.com',
             'email_verified_at' => null,
             'password' => Hash::make('password123'),
         ]);
         $player->assignRole('player');
 
-
-        $assoc = User::create([
-            'name' => 'Admin',
-            'email' => 'assoc@fmx.com',
+        // ================= ASSOCIATION =================
+        $association = User::create([
+            'name' => 'Association Manager',
+            'email' => 'association@fmx.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password123'),
         ]);
-        $assoc->assignRole('association');
+        $association->assignRole('association');
+
+        // ================= FMX =================
+        $fmx = User::create([
+            'name' => 'FMX Operator',
+            'email' => 'fmx@fmx.com',
+            'email_verified_at' => now(),
+            'password' => Hash::make('password123'),
+        ]);
+        $fmx->assignRole('fmx');
     }
 }

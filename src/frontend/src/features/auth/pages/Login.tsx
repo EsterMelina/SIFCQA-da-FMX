@@ -63,33 +63,53 @@ const Login: React.FC = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
 
-    try {
-      const response = await http.post(endpoints.auth.login, {
-        email: formData.email,
-        password: formData.password,
-      });
+  try {
+    const response = await http.post(endpoints.auth.login, {
+      email: formData.email,
+      password: formData.password,
+    });
 
-      const { token } = response.data;
-      if (token) {
-        localStorage.setItem("token", token);
-        navigate("/");
-      } else {
-        throw new Error("Token não recebido.");
-      }
-    } catch (err: any) {
-      console.error("Login error:", err);
-      const message =
-        err.response?.data?.message ||
-        "Credenciais inválidas. Tente novamente.";
-      setError(message);
-    } finally {
-      setLoading(false);
+    const { token, user, roles } = response.data;
+
+    if (!token) {
+      throw new Error("Token não recebido.");
     }
-  };
+
+    // 🔥 normaliza roles
+    const normalizedUser = {
+      ...user,
+      roles: Array.isArray(roles)
+        ? roles.map((r: any) =>
+            typeof r === "string" ? r : r.name
+          )
+        : [],
+    };
+
+    // 🔥 guarda tudo
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(normalizedUser));
+
+    // 🔥 atualiza API global (IMPORTANTE)
+    http.defaults.headers.common.Authorization = `Bearer ${token}`;
+
+    // ❌ NÃO navega aqui diretamente (o AuthProvider faz isso)
+    // navigate("/") ← REMOVIDO
+  } catch (err: any) {
+    console.error("Login error:", err);
+
+    const message =
+      err.response?.data?.message ||
+      "Credenciais inválidas. Tente novamente.";
+
+    setError(message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className={styles.container}>

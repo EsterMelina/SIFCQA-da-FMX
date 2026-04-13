@@ -1,23 +1,23 @@
-// features/dashboard/pages/Dashboard.tsx
 import { useAuth } from "@/app/providers/AuthProvider";
-import   AdminDashboard   from "../../admin/pages/AdminDashboard";
-import  PlayerDashboard  from "../components/PlayerDashboard";
-import  AssociationDashboard  from "../components/AssociationDashboard";
-import  FmxDashboard  from "../components/FmxDashboard";
+import AdminDashboard from "../../admin/pages/AdminDashboard";
+import PlayerDashboard from "../../players/pages/PlayerDashboard";
+import AssociationDashboard from "../../associations/pages/AssociationDashboard";
+import FmxDashboard from "../../fmx/pages/FmxDashboard";
+import { Navigate } from "react-router-dom";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, isLoading, initialized } = useAuth();
 
-  switch (user?.role) {
-    case "admin":
-      return <AdminDashboard />;
-    case "player":
-      return <PlayerDashboard />;
-    case "association":
-      return <AssociationDashboard />;
-    case "fmx":
-      return <FmxDashboard />;
-    default:
-      return <div>Acesso não autorizado</div>;
-  }
+  if (!initialized || isLoading) return <div>Loading...</div>;
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  const roles = user.roles ?? [];
+
+  if (roles.includes("admin")) return <AdminDashboard />;
+  if (roles.includes("fmx")) return <FmxDashboard />;
+  if (roles.includes("association")) return <AssociationDashboard />;
+  if (roles.includes("player")) return <PlayerDashboard />;
+
+  return <div>Acesso não autorizado</div>;
 }

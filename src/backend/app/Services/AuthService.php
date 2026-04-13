@@ -9,6 +9,7 @@ use Illuminate\Validation\ValidationException;
 
 class AuthService
 {
+
     public function login(array $data)
     {
         if (!Auth::attempt($data)) {
@@ -28,20 +29,82 @@ class AuthService
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return [
-            'user'  => $user,
-            'token' => $token
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
+            'roles' => $user->getRoleNames(),
+            'permissions' => $user->getAllPermissions()->pluck('name'),
+            'token' => $token,
         ];
     }
+    // public function login(array $data)
+    // {
+    //     if (!Auth::attempt($data)) {
+    //         throw ValidationException::withMessages([
+    //             'email' => ['Credenciais inválidas'],
+    //         ]);
+    //     }
+
+    //     $user = Auth::user();
+
+    //     if (!$user->status) {
+    //         throw ValidationException::withMessages([
+    //             'user' => ['Usuário desativado'],
+    //         ]);
+    //     }
+
+    //     $token = $user->createToken('auth_token')->plainTextToken;
+
+    //     return [
+    //         'user' => $user,
+    //         'roles' => $user->getRoleNames(),
+    //         'permissions' => $user->getAllPermissions(),
+    //         'token' => $token,
+    //     ];
+    // }
 
     public function logout($user)
     {
         $user->tokens()->delete();
     }
 
-    public function me($user)
-    {
-        return $user;
-    }
+    // public function me($user)
+    // {
+    //     return [
+    //         'user' => $user,
+    //         'roles' => $user->getRoleNames(),
+    //         'permissions' => $user->getAllPermissions(),
+    //     ];
+    // }
+    //==================================================================================================
+    //
+    //Este é mais rápido no login... vamos analizar no futuro as complicacoes de nao buscar permissions
+    //
+    //==================================================================================================//
+    // public function me($user)
+    // {
+    //     return [
+    //         'id' => $user->id,
+    //         'name' => $user->name,
+    //         'email' => $user->email,
+    //         'roles' => $user->getRoleNames(),
+    //     ];
+    // }
+
+    public function me(Request $request)
+{
+    return $request->user()->only([
+        'id',
+        'name',
+        'email'
+    ]) + [
+        'roles' => $request->user()
+            ->roles()
+            ->pluck('name')
+    ];
+}
 
     public function forgotPassword(string $email)
     {

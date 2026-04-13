@@ -34,7 +34,7 @@ import FmxDashboard from "@/features/fmx/pages/FmxDashboard";
 
 export default function AppRoutes() {
   return (
-    <BrowserRouter>
+
       <Routes>
 
         {/* ================= PUBLIC ================= */}
@@ -53,15 +53,15 @@ export default function AppRoutes() {
         >
           
           <Route path="/" element={<Dashboard />} /> 
-              <Route path="/fmx" element={<FmxDashboard />} />
+              {/* <Route path="/fmx" element={<FmxDashboard />} />
               <Route path="/association" element={<AssociationDashboard />} />
               <Route path="/player" element={<PlayerDashboard />} />
+              */}
              {/* FMX*/}
             <Route
               element={<ProtectedRoute allowedRoles={["fmx"]} />}
             >
-              <Route path="/fmx" element={<FmxDashboard />} />
-           
+              <Route path="/fmx" element={<FmxDashboard />} />      
             </Route>
 
 
@@ -69,8 +69,10 @@ export default function AppRoutes() {
             <Route
               element={<ProtectedRoute allowedRoles={["player"]} />}
             >
+              <Route path="/player" element={<PlayerDashboard />} />
               <Route path="/profile" element={<MyProfile />} />
               <Route path="/my-quotas" element={<MyQuotas />} />
+
             </Route>
 
             {/* ASSOCIATION */}
@@ -100,6 +102,6 @@ export default function AppRoutes() {
         </Route>
 
       </Routes>
-    </BrowserRouter>
+    
   );
 }

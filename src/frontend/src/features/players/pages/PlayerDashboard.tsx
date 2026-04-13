@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
 import styles from "./PlayerDashboard.module.css";
-
+import { useAuth } from "@/app/providers/AuthProvider"; // ajuste o caminho conforme sua estrutura
 // Tipos
 type TabType = "profile" | "quotas" | "history" | "notifications" | "transfer";
 
@@ -26,6 +26,7 @@ interface Notification {
 }
 
 const PlayerDashboard: React.FC = () => {
+  const { logout } = useAuth(); // 🆕 usa o contexto
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -114,9 +115,13 @@ const PlayerDashboard: React.FC = () => {
     fetchData();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
+  // const handleLogout = () => {
+  //   localStorage.removeItem("token");
+  //   navigate("/login");
+  // };
+
+  const handleLogout = async () => {
+    await logout(); // chama a função do contexto
   };
 
   const handleSearch = (query: string) => console.log("Pesquisar:", query);

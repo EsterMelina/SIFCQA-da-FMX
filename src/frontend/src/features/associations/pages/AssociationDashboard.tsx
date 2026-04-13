@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
 import styles from "./AssociationDashboard.module.css";
-
+import { useAuth } from "@/app/providers/AuthProvider"; // ajuste o caminho conforme sua estrutura
 // Tipos
 type TabType = "dashboard" | "players" | "quotas" | "transfers" | "tournaments" | "reports";
 
@@ -24,6 +24,7 @@ interface RegionalTournament {
 }
 
 const AssociationDashboard: React.FC = () => {
+    const { logout } = useAuth(); // 🆕 usa o contexto
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -85,9 +86,13 @@ const AssociationDashboard: React.FC = () => {
     fetchData();
   }, [activeTab]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
+  // const handleLogout = () => {
+  //   localStorage.removeItem("token");
+  //   navigate("/login");
+  // };
+
+  const handleLogout = async () => {
+    await logout(); // chama a função do contexto
   };
 
   const handleSearch = (query: string) => console.log("Pesquisar:", query);

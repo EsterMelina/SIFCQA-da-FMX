@@ -1,13 +1,21 @@
-// app/providers/AuthProvider.tsx
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
+import { useNavigate } from "react-router-dom";
+
+
 
 interface User {
   id: number;
   name: string;
   email: string;
-  role: "admin" | "association" | "player" | "fmx";
+  roles: string[];
   association_id?: number;
   player_id?: number;
 }
@@ -15,45 +23,83 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  initialized: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => {
+    const cached = localStorage.getItem("user");
+    return cached ? JSON.parse(cached) : null;
+  });
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
+  const [isLoading, setIsLoading] = useState(false);
+  const [initialized, setInitialized] = useState(true);
 
-    if (token) {
-      http.get(endpoints.auth.me)
-        .then(res => {
-          console.log("ME RAW RESPONSE:", res.data);
-          setUser(res.data);
-        })
-        .catch(() => localStorage.removeItem("token"))
-        .finally(() => setIsLoading(false));
-    } else {
-      setIsLoading(false);
-    }
-  }, []);
+  const navigate = useNavigate();
 
+  const normalizeRoles = (roles: any[]): string[] => {
+    if (!Array.isArray(roles)) return [];
+    return roles.map((r) => (typeof r === "string" ? r : r.name));
+  };
+
+  // ================= LOGIN =================
   const login = async (email: string, password: string) => {
-    const res = await http.post(endpoints.auth.login, { email, password });
+  setIsLoading(true);
+
+  try {
+    const res = await http.post(endpoints.auth.login, {
+      email,
+      password,
+    });
+
+    const normalizedUser: User = {
+      ...res.data.user,
+      roles: normalizeRoles(res.data.roles),
+    };
+
     localStorage.setItem("token", res.data.token);
-    setUser(res.data.user);
+    localStorage.setItem("user", JSON.stringify(normalizedUser));
+
+    setUser(normalizedUser);
+
+    // 🔥 espera o React atualizar state
+    setTimeout(() => {
+      navigate("/", { replace: true });
+    }, 0);
+
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+  // ================= LOGOUT =================
+  const logout = async () => {
+    try {
+      await http.post(endpoints.auth.logout);
+    } catch {}
+
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+
+    setUser(null);
+    navigate("/login", { replace: true });
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-  };
+  // ================= REDIRECT CONTROLADO =================
+  // useEffect(() => {
+  //   if (user) {
+  //     navigate("/", { replace: true });
+  //   }
+  // }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, initialized, login, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

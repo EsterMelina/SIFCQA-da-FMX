@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
 import styles from "./AdminDashboard.module.css";
-
+import { useAuth } from "@/app/providers/AuthProvider"; // ajuste o caminho conforme sua estrutura
 // Tipos
 type TabType = "dashboard" | "users" | "audit" | "reports" | "archive";
 
@@ -23,6 +23,7 @@ interface Metrics {
 }
 
 const AdminDashboard: React.FC = () => {
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -81,9 +82,14 @@ const AdminDashboard: React.FC = () => {
     fetchDashboardData();
   }, [activeTab]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
+  // const handleLogout = () => {
+    
+  //   localStorage.removeItem("token");
+  //   navigate("/login");
+  // };
+  const handleLogout = async () => {
+    await logout();
+    // O redirecionamento e limpeza de tokens já são feitos dentro do logout()
   };
 
   // Handlers para ações
