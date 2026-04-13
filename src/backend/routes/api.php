@@ -157,18 +157,29 @@ Route::middleware(['auth:sanctum'])->group(function () {
 | TRANSFERS
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
+// Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
 
-    Route::get('transfers', [TransferController::class, 'index']);
-});
+//     Route::get('transfers', [TransferController::class, 'index']);
+// });
+
+// Route::middleware(['auth:sanctum'])->group(function () {
+
+//     Route::post('transfers', [TransferController::class, 'store'])
+//         ->middleware('permission:create_transfer');
+
+//     Route::post('transfers/{transfer}/cancel', [TransferController::class, 'cancel'])
+//         ->middleware('permission:create_transfer');
+
+//     Route::get('players/{player}/transfers', [TransferController::class, 'playerTransfers']);
+// });
 
 Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::post('transfers', [TransferController::class, 'store'])
-        ->middleware('permission:create_transfer');
+        ->middleware('role:association');
 
     Route::post('transfers/{transfer}/cancel', [TransferController::class, 'cancel'])
-        ->middleware('permission:create_transfer');
+        ->middleware('role:association');
 
     Route::get('players/{player}/transfers', [TransferController::class, 'playerTransfers']);
 });

@@ -3,32 +3,36 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use App\Models\User;
 
 class UserSeeder extends Seeder
 {
     public function run(): void
     {
-       DB::table('users')->insert([
-    [
-        'name' => 'Admin',
-        'email' => 'admin@fmx.com',
-        'email_verified_at' => now(), // ✔ agora existe
-        'password' => Hash::make('password123'),
-        'role' => 'admin',
-        'created_at' => now(),
-        'updated_at' => now(),
-    ],
-    [
-        'name' => 'Test User',
-        'email' => 'test@example.com',
-        'email_verified_at' => null, // ainda não verificado
-        'password' => Hash::make('password123'),
-        'role' => 'player',
-        'created_at' => now(),
-        'updated_at' => now(),
-    ],
-]);
+        $admin = User::create([
+            'name' => 'Admin',
+            'email' => 'admin@fmx.com',
+            'email_verified_at' => now(),
+            'password' => Hash::make('password123'),
+        ]);
+        $admin->assignRole('admin');
+
+        $player = User::create([
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'email_verified_at' => null,
+            'password' => Hash::make('password123'),
+        ]);
+        $player->assignRole('player');
+
+
+        $assoc = User::create([
+            'name' => 'Admin',
+            'email' => 'assoc@fmx.com',
+            'email_verified_at' => now(),
+            'password' => Hash::make('password123'),
+        ]);
+        $assoc->assignRole('association');
     }
 }

@@ -6,5 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Association extends Model
 {
-    //
+    protected $fillable = [
+        'name',
+        'email',
+        'phone',
+        'address',
+        'status'
+    ];
 }

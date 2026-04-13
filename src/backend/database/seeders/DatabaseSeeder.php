@@ -14,7 +14,11 @@ class DatabaseSeeder extends Seeder
 
         // ✅ Keep only this:
         $this->call([
+            AssociationSeeder::class,
+            RoleSeeder::class,
             UserSeeder::class,
+            PlayerSeeder::class,
+            
         ]);
     }
 }
