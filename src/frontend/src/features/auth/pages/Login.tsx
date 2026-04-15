@@ -3,14 +3,17 @@ import { useNavigate, Link } from "react-router-dom";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
 import styles from "./css/Login.module.css";
+import { useAuth } from "@/app/providers/AuthProvider";
+
 
 const Login: React.FC = () => {
+  const { login, isLoading } = useAuth();
+  // const { login } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   // Estado do tema: null = sistema, 'light' = claro, 'dark' = escuro
@@ -62,52 +65,23 @@ const Login: React.FC = () => {
     if (error) setError(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+
+  //Login
+const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  setLoading(true);
-  setError(null);
+
+  console.log("🟡 FORM SUBMIT");
 
   try {
-    const response = await http.post(endpoints.auth.login, {
-      email: formData.email,
-      password: formData.password,
-    });
-
-    const { token, user, roles } = response.data;
-
-    if (!token) {
-      throw new Error("Token não recebido.");
-    }
-
-    // 🔥 normaliza roles
-    const normalizedUser = {
-      ...user,
-      roles: Array.isArray(roles)
-        ? roles.map((r: any) =>
-            typeof r === "string" ? r : r.name
-          )
-        : [],
-    };
-
-    // 🔥 guarda tudo
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(normalizedUser));
-
-    // 🔥 atualiza API global (IMPORTANTE)
-    http.defaults.headers.common.Authorization = `Bearer ${token}`;
-
-    // ❌ NÃO navega aqui diretamente (o AuthProvider faz isso)
-    // navigate("/") ← REMOVIDO
+    await login(formData.email, formData.password);
   } catch (err: any) {
-    console.error("Login error:", err);
+    console.error("💥 LOGIN ERROR:", err);
 
     const message =
       err.response?.data?.message ||
       "Credenciais inválidas. Tente novamente.";
 
     setError(message);
-  } finally {
-    setLoading(false);
   }
 };
 
@@ -224,10 +198,10 @@ const Login: React.FC = () => {
               {/* Botão */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isLoading}
                 className={styles.submitButton}
               >
-                {loading ? (
+                {isLoading ? (
                   <div className={styles.buttonContent}>
                     <span>Autenticando...</span>
                     <span

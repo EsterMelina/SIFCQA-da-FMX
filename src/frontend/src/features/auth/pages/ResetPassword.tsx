@@ -10,6 +10,7 @@ const ResetPassword: React.FC = () => {
   const token = searchParams.get("token");
 
   const [formData, setFormData] = useState({
+    email: "",
     password: "",
     confirmPassword: "",
   });
@@ -20,11 +21,12 @@ const ResetPassword: React.FC = () => {
   const [success, setSuccess] = useState(false);
 
   // Validações
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
   const hasMinLength = formData.password.length >= 8;
   const hasNumber = /\d/.test(formData.password);
   const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(formData.password);
   const passwordsMatch = formData.password === formData.confirmPassword;
-  const isValid = hasMinLength && hasNumber && hasSymbol && passwordsMatch;
+  const isValid = isValidEmail && hasMinLength && hasNumber && hasSymbol && passwordsMatch;
 
   // Tema
   const [theme, setTheme] = useState<"light" | "dark" | null>(() => {
@@ -77,7 +79,7 @@ const ResetPassword: React.FC = () => {
       return;
     }
     if (!isValid) {
-      setError("Por favor, verifique os requisitos da senha.");
+      setError("Por favor, verifique o e-mail e os requisitos da senha.");
       return;
     }
 
@@ -85,6 +87,7 @@ const ResetPassword: React.FC = () => {
     try {
       await http.post(endpoints.auth.resetPassword, {
         token,
+        email: formData.email,
         password: formData.password,
         password_confirmation: formData.confirmPassword,
       });
@@ -128,12 +131,37 @@ const ResetPassword: React.FC = () => {
             <p className={styles.sifcqa}>SIFCQA-FMX</p>
             <h1 className={styles.title}>Definir Nova Senha</h1>
             <p className={styles.subtitle}>
-              Escolha uma senha forte para proteger a sua conta
+              Informe seu e‑mail e escolha uma senha forte
             </p>
           </div>
 
           <section className={styles.formCard}>
             <form onSubmit={handleSubmit} className={styles.form}>
+              {/* E-mail */}
+              <div className={styles.fieldGroup}>
+                <label htmlFor="email" className={styles.label}>
+                  E‑mail
+                </label>
+                <div className={styles.inputWrapper}>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={styles.input}
+                    placeholder="seu@email.com"
+                  />
+                </div>
+                {formData.email && !isValidEmail && (
+                  <div className={styles.validationHint}>
+                    <span className={styles.materialSymbolsOutlined}>error</span>
+                    <span>Informe um e‑mail válido</span>
+                  </div>
+                )}
+              </div>
+
               {/* Nova Senha */}
               <div className={styles.fieldGroup}>
                 <label htmlFor="password" className={styles.label}>
@@ -192,6 +220,16 @@ const ResetPassword: React.FC = () => {
 
               {/* Indicadores de validação */}
               <div className={styles.validationPanel}>
+                <div
+                  className={`${styles.validationItem} ${
+                    isValidEmail ? styles.valid : styles.invalid
+                  }`}
+                >
+                  <span className={styles.materialSymbolsOutlined}>
+                    {isValidEmail ? "check_circle" : "radio_button_unchecked"}
+                  </span>
+                  <span>E‑mail válido</span>
+                </div>
                 <div
                   className={`${styles.validationItem} ${
                     hasMinLength ? styles.valid : styles.invalid

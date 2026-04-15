@@ -3,14 +3,19 @@ import AdminDashboard from "../../admin/pages/AdminDashboard";
 import PlayerDashboard from "../../players/pages/PlayerDashboard";
 import AssociationDashboard from "../../associations/pages/AssociationDashboard";
 import FmxDashboard from "../../fmx/pages/FmxDashboard";
-import { Navigate } from "react-router-dom";
 
 export default function Dashboard() {
   const { user, isLoading, initialized } = useAuth();
 
-  if (!initialized || isLoading) return <div>Loading...</div>;
+  console.log("🧭 DASHBOARD USER:", user);
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!initialized || isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    return <div>Acesso não autorizado</div>;
+  }
 
   const roles = user.roles ?? [];
 

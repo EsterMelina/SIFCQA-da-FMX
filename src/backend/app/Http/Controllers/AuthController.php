@@ -4,6 +4,10 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Services\AuthService;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\ValidationException;
+
 
 class AuthController extends Controller
 {
@@ -42,31 +46,48 @@ class AuthController extends Controller
         );
     }
 
-    public function forgotPassword(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email'
-        ]);
+    // public function forgotPassword(Request $request)
+    // {
+    //     $request->validate([
+    //         'email' => 'required|email'
+    //     ]);
 
-        $this->authService->forgotPassword($request->email);
+    //     $this->authService->forgotPassword($request->email);
 
-        return response()->json([
-            'message' => 'Link de recuperação enviado'
-        ]);
-    }
+    //     return response()->json([
+    //         'message' => 'Link de recuperação enviado'
+    //     ]);
+    // }
+
+   public function forgotPassword(Request $request)
+{
+    $request->validate([
+        'email' => 'required|email'
+    ]);
+
+    $this->authService->sendResetLink($request->email);
+
+    return response()->json([
+        'message' => 'Link enviado com sucesso'
+    ]);
+}
 
     public function resetPassword(Request $request)
-    {
-        $data = $request->validate([
-            'email'    => 'required|email',
-            'token'    => 'required',
-            'password' => 'required|min:6|confirmed'
-        ]);
+{
+    $request->validate([
+        'email' => 'required|email',
+        'token' => 'required',
+        'password' => 'required|min:6|confirmed'
+    ]);
 
-        $this->authService->resetPassword($data);
+    $this->authService->resetPassword(
+        $request->email,
+        $request->token,
+        $request->password
+    );
 
-        return response()->json([
-            'message' => 'Senha redefinida com sucesso'
-        ]);
-    }
+    return response()->json([
+        'message' => 'Senha atualizada com sucesso'
+    ]);
+}
 }
