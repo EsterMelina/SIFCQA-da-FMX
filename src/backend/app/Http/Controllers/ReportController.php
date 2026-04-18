@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 class ReportController extends Controller
 {
 
+
     public function dashboard()
     {
         try {

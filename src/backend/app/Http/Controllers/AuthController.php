@@ -18,6 +18,9 @@ class AuthController extends Controller
         $this->authService = $authService;
     }
 
+    //==================================================================================================
+    // Este método é chamado quando um usuário tenta logar
+    //==================================================================================================//  
     public function login(Request $request)
     {
         $data = $request->validate([
@@ -30,6 +33,9 @@ class AuthController extends Controller
         return response()->json($result);
     }
 
+    //==================================================================================================
+    // Este método é chamado quando um usuário quer se deslogar
+    //==================================================================================================//  
     public function logout(Request $request)
     {
         $this->authService->logout($request->user());
@@ -39,6 +45,9 @@ class AuthController extends Controller
         ]);
     }
 
+//==================================================================================================
+// Este método é chamado para retornar os dados do usuário logado
+//==================================================================================================//
     public function me(Request $request)
     {
         return response()->json(
@@ -46,18 +55,9 @@ class AuthController extends Controller
         );
     }
 
-    // public function forgotPassword(Request $request)
-    // {
-    //     $request->validate([
-    //         'email' => 'required|email'
-    //     ]);
-
-    //     $this->authService->forgotPassword($request->email);
-
-    //     return response()->json([
-    //         'message' => 'Link de recuperação enviado'
-    //     ]);
-    // }
+//==================================================================================================
+// Este método é chamado quando um usuário quer resetar a senha usando o token recebido por email
+//==================================================================================================//  
 
    public function forgotPassword(Request $request)
 {
@@ -72,6 +72,9 @@ class AuthController extends Controller
     ]);
 }
 
+//==================================================================================================
+// Este método é chamado quando um usuário recebe o email de recuperação e quer resetar a senha
+//==================================================================================================//  
     public function resetPassword(Request $request)
 {
     $request->validate([
@@ -91,6 +94,10 @@ class AuthController extends Controller
     ]);
 }
 
+
+//==================================================================================================
+// Este método é chamado quando um usuário recebe o email de convite e quer definir a senha
+//==================================================================================================//  
  public function setPassword(Request $request, AuthService $authService)
     {
         $request->validate([

@@ -16,6 +16,7 @@ class UserController extends Controller
     protected $service;
     protected $authService;
 
+  
     public function __construct(UserService $service, AuthService $authService)
     {
         $this->service = $service;
@@ -52,6 +53,11 @@ class UserController extends Controller
 
 //     return response()->json($user->load('roles'), 201);
 // }
+
+
+//==================================================================================================
+// Este método é chamado quando um admin cria um usuário sem senha, para enviar o convite
+//==================================================================================================//  
 public function store(Request $request)
 {
     $data = $request->validate([

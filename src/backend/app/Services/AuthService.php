@@ -18,7 +18,9 @@ use Carbon\Carbon;
 
 class AuthService
 {
-
+//==================================================================================================
+// Este método é chamado quando um usuário tenta logar
+//==================================================================================================//  
     public function login(array $data)
     {
         if (!Auth::attempt($data)) {
@@ -49,7 +51,9 @@ class AuthService
         ];
     }
 
-
+//==================================================================================================
+// Este método é chamado quando um usuário quer se deslogar
+//==================================================================================================//  
     public function logout($user)
     {
         $user->tokens()->delete();
@@ -73,19 +77,9 @@ class AuthService
 
 
 
-    // public function forgotPassword(string $email)
-    // {
-    //     $status = Password::sendResetLink(['email' => $email]);
-
-    //     if ($status !== Password::RESET_LINK_SENT) {
-    //         throw ValidationException::withMessages([
-    //             'email' => ['Erro ao enviar email']
-    //         ]);
-    //     }
-
-    //     return true;
-    // }
-
+//==================================================================================================
+// Este método é chamado quando um usuário esquece a senha e quer resetar
+//==================================================================================================//  
     public function forgotPassword(string $email)
 {
     Log::info("🔐 forgotPassword START", ['email' => $email]);
@@ -117,6 +111,10 @@ class AuthService
     }
 }
 
+//==================================================================================================
+// Métodos customizados para resetar senha e setar senha via convite, para não depender do sistema default do 
+// Laravel que é mais complexo e não se encaixa bem no nosso fluxo
+//==================================================================================================//  
 public function sendResetLink(string $email)
 {
     Log::info("🔐 RESET START", ['email' => $email]);
@@ -159,7 +157,9 @@ public function sendResetLink(string $email)
 }
 
 
-
+//==================================================================================================
+// Este método é chamado quando um usuário esquece a senha e quer resetar
+//==================================================================================================//  
    public function resetPassword(string $email, string $token, string $password)
 {
     $record = DB::table('password_reset_tokens')
@@ -186,6 +186,9 @@ public function sendResetLink(string $email)
     return true;
 }
 
+//==================================================================================================
+// Este método é chamado quando um admin cria um usuário sem senha, para enviar o convite
+//==================================================================================================//  
  public function setPassword(string $token, string $password): void
     {
         $hashedToken = hash('sha256', $token);
@@ -223,6 +226,11 @@ public function sendResetLink(string $email)
             ->where('email', $invite->email)
             ->delete();
     }
+
+
+    //==================================================================================================
+    // Este método é chamado quando um admin cria um usuário sem senha, para enviar o convite
+    //==================================================================================================//      
 public function sendInvite(User $user): void
 {
     // 1. gera token

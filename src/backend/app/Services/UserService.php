@@ -14,15 +14,27 @@ use Carbon\Carbon;
 
 class UserService
 {
+
+    //================================================================================================
+    // Este método é chamado quando um admin ou association quer ver a lista de usuários
+    //================================================================================================//    
     public function getAll()
     {
         return User::with('roles')->get();
     }
 
+
+//==================================================================================================
+// Este método é chamado quando um admin ou association quer ver os detalhes de um usuário
+//==================================================================================================//  
     public function getById(User $user)
     {
         return $user->load('roles');
     }
+
+    //==================================================================================================
+    // Este método é chamado quando um admin cria um usuário com senha  [ainda por configurar]
+    //==================================================================================================//  
 
     // public function create(array $data)
     // {
@@ -40,7 +52,9 @@ class UserService
     //     return $user->load('roles');
     // }
 
-
+//==================================================================================================
+// Este método é chamado quando um admin cria um usuário sem senha, para enviar o convite
+//==================================================================================================//  
 public function create(array $data)
 {
     $user = User::create([
@@ -71,6 +85,10 @@ public function create(array $data)
     return $user->load('roles');
 }
 
+//==================================================================================================
+// Este método é chamado quando um admin quer excluir um usuário
+// Um user quer actualizar seu dados tambem
+//==================================================================================================//
     public function update(User $user, array $data)
     {
         $user->update([
@@ -88,11 +106,17 @@ public function create(array $data)
         return $user->load('roles');
     }
 
+    //==================================================================================================
+    // Este método é chamado quando um admin quer excluir um usuário
+    // ou um admin, association, fmx quer excluir um user
+    //==================================================================================================//
+
     public function delete(User $user)
     {
         $user->delete();
     }
 
+    // Este método é chamado quando um admin quer mudar a role de um usuário
     public function updateRole(User $user, string $role)
     {
         if (!Role::where('name', $role)->exists()) {
