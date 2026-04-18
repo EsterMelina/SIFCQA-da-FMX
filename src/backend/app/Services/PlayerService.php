@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Player;
+use Illuminate\Validation\ValidationException;
 
 class PlayerService
 {
@@ -44,4 +45,25 @@ class PlayerService
             'age' => $age
         ];
     }
+
+     // 🟢 CREATE
+    public function create(array $data)
+    {
+        $validated = validator($data, [
+            'name'       => 'required|string',
+            'email'      => 'required|email|unique:players,email',
+            'birth_date' => 'nullable|date',
+            'team'       => 'nullable|string',
+            'active'     => 'sometimes|boolean',
+        ])->validate();
+
+        return Player::create([
+            'name'       => $validated['name'],
+            'email'      => $validated['email'],
+            'birth_date' => $validated['birth_date'] ?? null,
+            'team'       => $validated['team'] ?? null,
+            'active'     => $validated['active'] ?? true,
+        ]);
+    }
+
 }

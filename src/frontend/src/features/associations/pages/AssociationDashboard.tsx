@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
 import styles from "./AssociationDashboard.module.css";
-import { useAuth } from "@/app/providers/AuthProvider"; // ajuste o caminho conforme sua estrutura
+import { useAuth } from "@/app/providers/AuthProvider";
+import toast, { Toaster } from "react-hot-toast";
+
 // Tipos
 type TabType = "dashboard" | "players" | "quotas" | "transfers" | "tournaments" | "reports";
 
@@ -23,8 +25,18 @@ interface RegionalTournament {
   status: "open" | "waiting" | "planning";
 }
 
+interface Player {
+  id: number;
+  name: string;
+  email?: string;
+  birth_date?: string;
+  team?: string;
+  active: boolean;
+  created_at?: string;
+}
+
 const AssociationDashboard: React.FC = () => {
-    const { logout } = useAuth(); // 🆕 usa o contexto
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -68,7 +80,6 @@ const AssociationDashboard: React.FC = () => {
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
   const closeSidebar = () => setIsSidebarOpen(false);
 
-  // Buscar dados (placeholder)
   useEffect(() => {
     if (activeTab !== "dashboard") return;
     const fetchData = async () => {
@@ -86,13 +97,8 @@ const AssociationDashboard: React.FC = () => {
     fetchData();
   }, [activeTab]);
 
-  // const handleLogout = () => {
-  //   localStorage.removeItem("token");
-  //   navigate("/login");
-  // };
-
   const handleLogout = async () => {
-    await logout(); // chama a função do contexto
+    await logout();
   };
 
   const handleSearch = (query: string) => console.log("Pesquisar:", query);
@@ -118,10 +124,10 @@ const AssociationDashboard: React.FC = () => {
 
   return (
     <div className={`${styles.container} ${theme === "dark" ? styles.dark : ""}`}>
+      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
       <div className={styles.layout}>
         <div className={`${styles.overlay} ${isSidebarOpen ? styles.overlayVisible : ""}`} onClick={closeSidebar} />
 
-        {/* Sidebar */}
         <aside className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ""}`}>
           <div className={styles.sidebarHeader}>
             <div className={styles.brandWrapper}>
@@ -166,7 +172,6 @@ const AssociationDashboard: React.FC = () => {
           </div>
         </aside>
 
-        {/* Main */}
         <main className={styles.main}>
           <header className={styles.topbar}>
             <div className={styles.topbarLeft}>
@@ -212,7 +217,6 @@ const AssociationDashboard: React.FC = () => {
         </main>
       </div>
 
-      {/* Modais */}
       <NewReportModal isOpen={showNewReportModal} onClose={() => setShowNewReportModal(false)} />
       <NotificationsModal isOpen={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} />
       <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} onLogout={handleLogout} />
@@ -220,101 +224,111 @@ const AssociationDashboard: React.FC = () => {
   );
 };
 
-// ===== CONTEÚDOS =====
+// ===== DASHBOARD =====
+const DashboardContent: React.FC<{ stats: any; transfers: TransferRequest[]; tournaments: RegionalTournament[]; loading: boolean; error: string | null; onStartCollection: () => void; onGenerateReport: () => void }> = ({ stats, transfers, tournaments, loading, error, onStartCollection, onGenerateReport }) => {
+  if (loading) return <div className={styles.loading}>Carregando dados...</div>;
+  if (error) return <div className={styles.error}>{error}</div>;
 
-const DashboardContent: React.FC<{ stats: any; transfers: TransferRequest[]; tournaments: RegionalTournament[]; loading: boolean; error: string | null; onStartCollection: () => void; onGenerateReport: () => void }> = ({ stats, transfers, tournaments, loading, error, onStartCollection, onGenerateReport }) => (
-  <>
-    <div className={styles.dashboardHeader}>
-      <div>
-        <p className={styles.headerLabel}>Associação Provincial</p>
-        <h2>Gestão Regional</h2>
-      </div>
-      <div className={styles.headerDate}>
-        <p>Data do Sistema</p>
-        <p>24 de Maio, 2024</p>
-      </div>
-    </div>
-
-    {loading && <div className={styles.loading}>Carregando...</div>}
-    {error && <div className={styles.error}>{error}</div>}
-
-    {!loading && !error && (
-      <>
-        <div className={styles.mainGrid}>
-          <div className={styles.statsCard}>
-            <div className={styles.cardHeader}>
-              <span className="material-symbols-outlined">group_add</span>
-              <span className={styles.growthBadge}>Crescimento +12%</span>
-            </div>
-            <h3>Total de Atletas Registados</h3>
-            <div className={styles.statValue}>{stats.totalAthletes.toLocaleString()}</div>
-            <p className={styles.statDesc}>Ativos na Província de Maputo. Inclui escalões de formação e profissional.</p>
-            <div className={styles.genderStats}>
-              <div><span>Masculino</span><span>{stats.maleAthletes}</span></div>
-              <div><span>Feminino</span><span>{stats.femaleAthletes}</span></div>
+  return (
+    <div className={styles.dashboardContent}>
+      <div className={styles.statsSection}>
+        <h3>Visão Geral</h3>
+        <div className={styles.statsGrid}>
+          <div className={styles.statCard}>
+            <span className="material-symbols-outlined">groups</span>
+            <div>
+              <p>Total de Atletas</p>
+              <strong>{stats.totalAthletes}</strong>
             </div>
           </div>
-
-          <div className={styles.alertCard}>
-            <div className={styles.alertWatermark}><span className="material-symbols-outlined">priority_high</span></div>
-            <div className={styles.alertContent}>
-              <h3>Alerta de Pagamentos Pendentes</h3>
-              <div className={styles.alertValue}><span>{stats.pendingClubs}</span><span>Clubes em atraso</span></div>
-              <p>Existem quotas federativas vencidas no ciclo atual. A regularização é necessária para manter a elegibilidade em torneios nacionais.</p>
-              <div className={styles.alertActions}>
-                <button className={styles.primaryButton} onClick={onStartCollection}>Iniciar Cobrança</button>
-                <button className={styles.secondaryButton} onClick={onGenerateReport}>Gerar Relatório de Dívida</button>
-              </div>
+          <div className={styles.statCard}>
+            <span className="material-symbols-outlined">man</span>
+            <div>
+              <p>Atletas Masculinos</p>
+              <strong>{stats.maleAthletes}</strong>
             </div>
           </div>
-
-          <div className={styles.transfersCard}>
-            <div className={styles.sectionHeader}>
-              <h3>Pedidos de Transferência</h3>
-              <button>Ver Todos</button>
-            </div>
-            <div className={styles.transferList}>
-              {transfers.map(t => (
-                <div key={t.id} className={styles.transferItem}>
-                  <div className={styles.transferAvatar}><span className="material-symbols-outlined">person</span></div>
-                  <div className={styles.transferInfo}>
-                    <p>{t.playerName}</p>
-                    <p>{t.fromClub} → {t.toClub}</p>
-                  </div>
-                  <div className={styles.transferStatus}>
-                    <p>Status</p>
-                    <p className={t.status === "pending" ? styles.pending : styles.validated}>{t.status === "pending" ? "Pendente" : "Validado"}</p>
-                  </div>
-                  <button className={styles.transferAction}><span className="material-symbols-outlined">chevron_right</span></button>
-                </div>
-              ))}
+          <div className={styles.statCard}>
+            <span className="material-symbols-outlined">woman</span>
+            <div>
+              <p>Atletas Femininos</p>
+              <strong>{stats.femaleAthletes}</strong>
             </div>
           </div>
-
-          <div className={styles.tournamentsCard}>
-            <h3>Próximos Torneios Regionais</h3>
-            <div className={styles.tournamentList}>
-              {tournaments.map((t, i) => (
-                <div key={i} className={styles.tournamentItem}>
-                  <div className={styles.tournamentDate}><span>{t.month}</span><span>{t.day}</span></div>
-                  <div className={styles.tournamentInfo}>
-                    <h4>{t.name}</h4>
-                    <p>{t.location}</p>
-                    <div className={`${styles.tournamentStatus} ${styles[t.status]}`}><span className={styles.statusDot}></span>{t.status === "open" ? "Inscrições Abertas" : t.status === "waiting" ? "Aguardando Sorteio" : "Planeamento"}</div>
-                  </div>
-                </div>
-              ))}
+          <div className={styles.statCard}>
+            <span className="material-symbols-outlined">business</span>
+            <div>
+              <p>Clubes Pendentes</p>
+              <strong>{stats.pendingClubs}</strong>
             </div>
-            <button className={styles.outlineButton}>Gerir Calendário</button>
           </div>
         </div>
-      </>
-    )}
-  </>
-);
+        <div className={styles.actions}>
+          <button className={styles.primaryButton} onClick={onStartCollection}>
+            <span className="material-symbols-outlined">payment</span>
+            Iniciar Cobrança
+          </button>
+          <button className={styles.secondaryButton} onClick={onGenerateReport}>
+            <span className="material-symbols-outlined">description</span>
+            Gerar Relatório de Dívida
+          </button>
+        </div>
+      </div>
 
-const PlayersContent: React.FC = () => <div className={styles.placeholderPage}><span className="material-symbols-outlined">groups</span><h2>Meus Jogadores</h2><p>Gestão da lista de atletas da associação.</p></div>;
+      <div className={styles.transfersSection}>
+        <h3>Transferências Pendentes</h3>
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Jogador</th>
+                <th>Origem</th>
+                <th>Destino</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transfers.map(t => (
+                <tr key={t.id}>
+                  <td>{t.playerName}</td>
+                  <td>{t.fromClub}</td>
+                  <td>{t.toClub}</td>
+                  <td>
+                    <span className={`${styles.statusBadge} ${t.status === "pending" ? styles.pending : styles.validated}`}>
+                      {t.status === "pending" ? "Pendente" : "Validado"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className={styles.tournamentsSection}>
+        <h3>Torneios Regionais</h3>
+        <div className={styles.tournamentGrid}>
+          {tournaments.map((t, i) => (
+            <div key={i} className={styles.tournamentCard}>
+              <div className={styles.tournamentDate}>
+                <span>{t.month}</span>
+                <span>{t.day}</span>
+              </div>
+              <h4>{t.name}</h4>
+              <p>{t.location}</p>
+              <span className={`${styles.tournamentStatus} ${styles[t.status]}`}>
+                {t.status === "open" ? "Aberto" : t.status === "waiting" ? "Aguardando" : "Planejamento"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const QuotasContent: React.FC = () => <div className={styles.placeholderPage}><span className="material-symbols-outlined">payments</span><h2>Lançamento de Quotas</h2><p>Registo e controlo de quotas dos clubes.</p></div>;
+
 const TransfersContent: React.FC<{ transfers: TransferRequest[] }> = ({ transfers }) => (
   <div className={styles.pageContainer}>
     <h2>Transferências</h2>
@@ -326,6 +340,7 @@ const TransfersContent: React.FC<{ transfers: TransferRequest[] }> = ({ transfer
     </div>
   </div>
 );
+
 const TournamentsContent: React.FC<{ tournaments: RegionalTournament[] }> = ({ tournaments }) => (
   <div className={styles.pageContainer}>
     <h2>Inscrição em Torneios</h2>
@@ -342,8 +357,352 @@ const TournamentsContent: React.FC<{ tournaments: RegionalTournament[] }> = ({ t
   </div>
 );
 
-// ===== MODAIS =====
+// ===== GESTÃO DE JOGADORES =====
+const PlayersContent: React.FC = () => {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showEligibilityModal, setShowEligibilityModal] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [eligibilityData, setEligibilityData] = useState<any>(null);
+
+  const fetchPlayers = async () => {
+    setLoading(true);
+    try {
+      const response = await http.get(endpoints.players.base);
+      setPlayers(response.data.data || response.data);
+    } catch (err: any) {
+      toast.error("Erro ao carregar jogadores.");
+      setError("Não foi possível carregar os jogadores.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPlayers();
+  }, []);
+
+  const filteredPlayers = players.filter(p => {
+    const nameMatch = p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+    const emailMatch = p.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+    const teamMatch = p.team?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+    return nameMatch || emailMatch || teamMatch;
+  });
+
+  const totalPages = Math.ceil(filteredPlayers.length / itemsPerPage);
+  const paginatedPlayers = filteredPlayers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handleCreate = async (formData: Partial<Player>) => {
+    try {
+      await http.post(endpoints.players.base, formData);
+      toast.success("Jogador criado com sucesso!");
+      fetchPlayers();
+      setShowCreateModal(false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Erro ao criar jogador.");
+    }
+  };
+
+  const handleUpdate = async (id: number, formData: Partial<Player>) => {
+    try {
+      await http.put(endpoints.players.detail(id), formData);
+      toast.success("Jogador atualizado!");
+      fetchPlayers();
+      setShowEditModal(false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Erro ao atualizar jogador.");
+    }
+  };
+
+  const handleToggleStatus = async (player: Player) => {
+    const action = player.active ? "desativar" : "ativar";
+    if (!window.confirm(`Tem certeza que deseja ${action} este jogador?`)) return;
+    try {
+      await http.patch(`${endpoints.players.detail(player.id)}/status`);
+      toast.success(`Jogador ${action} com sucesso.`);
+      fetchPlayers();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || `Erro ao ${action} jogador.`);
+    }
+  };
+
+  const handleViewEligibility = async (player: Player) => {
+    try {
+      const response = await http.get(endpoints.players.eligibility(player.id));
+      setEligibilityData(response.data);
+      setSelectedPlayer(player);
+      setShowEligibilityModal(true);
+    } catch (err: any) {
+      toast.error("Erro ao carregar elegibilidade.");
+    }
+  };
+
+  return (
+    <div className={styles.pageContainer}>
+      <div className={styles.pageHeader}>
+        <h2>Gestão de Jogadores</h2>
+        <button className={styles.primaryButton} onClick={() => setShowCreateModal(true)}>
+          <span className="material-symbols-outlined">add</span> Novo Jogador
+        </button>
+      </div>
+
+      <div className={styles.searchBar}>
+        <span className="material-symbols-outlined">search</span>
+        <input
+          type="text"
+          placeholder="Pesquisar por nome, email ou equipa..."
+          value={searchTerm}
+          onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+        />
+      </div>
+
+      {loading ? (
+        <div className={styles.loading}>Carregando jogadores...</div>
+      ) : error ? (
+        <div className={styles.error}>{error}</div>
+      ) : (
+        <>
+          <div className={styles.tableWrapper}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Email</th>
+                  <th>Equipa</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedPlayers.length === 0 ? (
+                  <tr><td colSpan={5} style={{ textAlign: "center" }}>Nenhum jogador encontrado.</td></tr>
+                ) : (
+                  paginatedPlayers.map(player => (
+                    <tr key={player.id}>
+                      <td>{player.name}</td>
+                      <td>{player.email || "-"}</td>
+                      <td>{player.team || "-"}</td>
+                      <td>
+                        <span className={`${styles.statusBadge} ${player.active ? styles.active : styles.inactive}`}>
+                          {player.active ? "Ativo" : "Inativo"}
+                        </span>
+                      </td>
+                      <td className={styles.actionsCell}>
+                        <button className={styles.iconButtonSmall} onClick={() => { setSelectedPlayer(player); setShowDetailsModal(true); }} title="Detalhes">
+                          <span className="material-symbols-outlined">visibility</span>
+                        </button>
+                        <button className={styles.iconButtonSmall} onClick={() => { setSelectedPlayer(player); setShowEditModal(true); }} title="Editar">
+                          <span className="material-symbols-outlined">edit</span>
+                        </button>
+                        <button className={styles.iconButtonSmall} onClick={() => handleToggleStatus(player)} title={player.active ? "Desativar" : "Ativar"}>
+                          <span className="material-symbols-outlined">{player.active ? "block" : "check_circle"}</span>
+                        </button>
+                        <button className={styles.iconButtonSmall} onClick={() => handleViewEligibility(player)} title="Elegibilidade">
+                          <span className="material-symbols-outlined">verified</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className={styles.pagination}>
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Anterior</button>
+              <span>Página {currentPage} de {totalPages}</span>
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Próxima</button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Modal de Criação com key fixa */}
+      <PlayerFormModal
+        key="create-player"
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSubmit={handleCreate}
+        title="Novo Jogador"
+      />
+
+      {/* Modal de Edição com key baseada no ID */}
+      {selectedPlayer && (
+        <PlayerFormModal
+          key={selectedPlayer.id}
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSubmit={(data) => handleUpdate(selectedPlayer.id, data)}
+          initialData={selectedPlayer}
+          title="Editar Jogador"
+        />
+      )}
+
+      {selectedPlayer && (
+        <PlayerDetailsModal isOpen={showDetailsModal} onClose={() => setShowDetailsModal(false)} player={selectedPlayer} />
+      )}
+      {selectedPlayer && (
+        <EligibilityModal isOpen={showEligibilityModal} onClose={() => setShowEligibilityModal(false)} player={selectedPlayer} data={eligibilityData} />
+      )}
+    </div>
+  );
+};
+
+// Componentes de Modal
+interface PlayerFormModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: Partial<Player>) => Promise<void>;
+  initialData?: Partial<Player>;
+  title: string;
+}
+
+const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  initialData = {},
+  title,
+}) => {
+  // Estado inicial baseado nas props, só avaliado na montagem
+  const [formData, setFormData] = useState<Partial<Player>>(() => ({
+    name: "",
+    email: "",
+    birth_date: "",
+    team: "",
+    active: true,
+    ...initialData,
+  }));
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    if (type === "checkbox") {
+      setFormData(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    await onSubmit(formData);
+    setSubmitting(false);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3>{title}</h3>
+          <button onClick={onClose} className={styles.modalClose}><span className="material-symbols-outlined">close</span></button>
+        </div>
+        <form onSubmit={handleSubmit} className={styles.modalBody}>
+          <div className={styles.formGroup}>
+            <label>Nome completo *</label>
+            <input name="name" value={formData.name || ""} onChange={handleChange} required />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Email</label>
+            <input type="email" name="email" value={formData.email || ""} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Data de nascimento</label>
+            <input type="date" name="birth_date" value={formData.birth_date || ""} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Equipa</label>
+            <input name="team" value={formData.team || ""} onChange={handleChange} />
+          </div>
+          <div className={styles.formGroup}>
+            <label className={styles.checkboxLabel}>
+              <input type="checkbox" name="active" checked={formData.active || false} onChange={handleChange} />
+              <span>Jogador Ativo</span>
+            </label>
+          </div>
+          <div className={styles.modalActions}>
+            <button type="button" className={styles.cancelButton} onClick={onClose}>Cancelar</button>
+            <button type="submit" className={styles.submitButton} disabled={submitting}>
+              {submitting ? "Salvando..." : "Salvar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+interface PlayerDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  player: Player;
+}
+
+const PlayerDetailsModal: React.FC<PlayerDetailsModalProps> = ({ isOpen, onClose, player }) => {
+  if (!isOpen) return null;
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3>Detalhes do Jogador</h3>
+          <button onClick={onClose} className={styles.modalClose}><span className="material-symbols-outlined">close</span></button>
+        </div>
+        <div className={styles.modalBody}>
+          <p><strong>Nome:</strong> {player.name}</p>
+          <p><strong>Email:</strong> {player.email || "-"}</p>
+          <p><strong>Data Nasc.:</strong> {player.birth_date || "-"}</p>
+          <p><strong>Equipa:</strong> {player.team || "-"}</p>
+          <p><strong>Status:</strong> {player.active ? "Ativo" : "Inativo"}</p>
+          <p><strong>Registado em:</strong> {player.created_at ? new Date(player.created_at).toLocaleDateString() : "-"}</p>
+        </div>
+        <div className={styles.modalActions}>
+          <button className={styles.cancelButton} onClick={onClose}>Fechar</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface EligibilityModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  player: Player;
+  data: any;
+}
+
+const EligibilityModal: React.FC<EligibilityModalProps> = ({ isOpen, onClose, player, data }) => {
+  if (!isOpen) return null;
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3>Elegibilidade de {player.name}</h3>
+          <button onClick={onClose} className={styles.modalClose}><span className="material-symbols-outlined">close</span></button>
+        </div>
+        <div className={styles.modalBody}>
+          {data ? <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{JSON.stringify(data, null, 2)}</pre> : <p>Carregando...</p>}
+        </div>
+        <div className={styles.modalActions}>
+          <button className={styles.cancelButton} onClick={onClose}>Fechar</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ===== MODAIS GERAIS =====
 const NewReportModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (

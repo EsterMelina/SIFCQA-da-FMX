@@ -63,27 +63,46 @@ Route::middleware(['auth:sanctum', 'role:admin|fmx'])->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| PLAYERS
+| PLAYERS MANAGMENT
 |--------------------------------------------------------------------------
 */
+
 Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
 
+    // READ
     Route::get('players', [PlayerController::class, 'index']);
     Route::get('players/{player}', [PlayerController::class, 'show']);
     Route::get('players/{player}/eligibility', [PlayerController::class, 'eligibility']);
+
+    // WRITE (sem permissions)
+    Route::post('players', [PlayerController::class, 'store']);
+    Route::put('players/{player}', [PlayerController::class, 'update']);
+    Route::patch('players/{player}/status', [PlayerController::class, 'toggleStatus']);
 });
 
-Route::middleware(['auth:sanctum'])->group(function () {
+//==================================================================================================
+//Depois verei permissoes
+//==================================================================================================//
 
-    Route::post('players', [PlayerController::class, 'store'])
-        ->middleware('permission:create_player');
+// Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
 
-    Route::put('players/{player}', [PlayerController::class, 'update'])
-        ->middleware('permission:edit_player');
+//     Route::get('players', [PlayerController::class, 'index']);
+//     Route::get('players/{player}', [PlayerController::class, 'show']);
+//     Route::get('players/{player}/eligibility', [PlayerController::class, 'eligibility']);
+// });
 
-    Route::patch('players/{player}/status', [PlayerController::class, 'toggleStatus'])
-        ->middleware('permission:deactivate_player');
-});
+// Route::middleware(['auth:sanctum'])->group(function () {
+
+//     Route::post('players', [PlayerController::class, 'store'])
+//         ->middleware('permission:create_player');
+
+//     Route::put('players/{player}', [PlayerController::class, 'update'])
+//         ->middleware('permission:edit_player');
+
+//     Route::patch('players/{player}/status', [PlayerController::class, 'toggleStatus'])
+//         ->middleware('permission:deactivate_player');
+// });
+
 
 
 /*
