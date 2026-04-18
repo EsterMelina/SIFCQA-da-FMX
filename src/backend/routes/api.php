@@ -231,6 +231,14 @@ Route::middleware(['auth:sanctum', 'role:admin|fmx'])->group(function () {
 
     Route::get('audit/logs', [AuditController::class, 'index']);
     Route::get('audit/logs/{id}', [AuditController::class, 'show']);
+
+    Route::prefix('reports')->group(function () {
+        Route::get('/dashboard', [ReportController::class, 'dashboard']);
+    });
+
+    Route::prefix('audit')->group(function () {
+        Route::get('/logs', [AuditController::class, 'logs']);
+    });
 });
 
 
