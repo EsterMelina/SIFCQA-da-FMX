@@ -1217,3 +1217,86 @@
 }
 
 /* ... (manter todos os estilos anteriores: .dashboardHeader, .metricsGrid, .table, etc.) ... */
+
+/* Toast Notifications */
+.toastContainer {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 360px;
+  width: 100%;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background-color: var(--color-surface-container-highest);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-on-surface);
+  animation: slideInRight 0.3s ease;
+  border-left: 4px solid;
+}
+
+.toast.success {
+  border-left-color: var(--color-tertiary);
+}
+.toast.error {
+  border-left-color: var(--color-error);
+}
+.toast.info {
+  border-left-color: var(--color-primary);
+}
+
+.toast span {
+  font-size: 1.5rem;
+}
+.toast.success span {
+  color: var(--color-tertiary);
+}
+.toast.error span {
+  color: var(--color-error);
+}
+.toast.info span {
+  color: var(--color-primary);
+}
+
+.toast p {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.toast button {
+  background: none;
+  border: none;
+  color: var(--color-on-surface-variant);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s;
+}
+.toast button:hover {
+  background-color: var(--color-surface-container);
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

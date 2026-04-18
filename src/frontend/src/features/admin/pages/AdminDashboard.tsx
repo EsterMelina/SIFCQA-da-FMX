@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
 import styles from "./AdminDashboard.module.css";
-import { useAuth } from "@/app/providers/AuthProvider"; // ajuste o caminho conforme sua estrutura
+import { useAuth } from "@/app/providers/AuthProvider";
+
 // Tipos
 type TabType = "dashboard" | "users" | "audit" | "reports" | "archive";
 
@@ -20,6 +21,23 @@ interface Metrics {
   responseTime: number;
   activeUsers: number;
   securityScore: number;
+}
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  association_id?: number | null;
+  association?: { id: number; name: string } | null;
+  status?: string; // "active" | "inactive"
+  created_at?: string;
+}
+
+interface ToastMessage {
+  id: string;
+  type: "success" | "error" | "info";
+  message: string;
 }
 
 const AdminDashboard: React.FC = () => {
@@ -40,6 +58,11 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Utilizadores
+  const [users, setUsers] = useState<User[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
+
   // Estados para controlar a abertura dos modais
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNewReportModal, setShowNewReportModal] = useState(false);
@@ -47,14 +70,30 @@ const AdminDashboard: React.FC = () => {
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
+  // Toasts
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = (type: ToastMessage["type"], message: string) => {
+    const id = Date.now().toString();
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
   // Aplica tema
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme(prev => prev === "light" ? "dark" : "light");
-  const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
+  const toggleTheme = () =>
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
   const closeSidebar = () => setIsSidebarOpen(false);
 
   // Buscar dados do dashboard
@@ -66,10 +105,10 @@ const AdminDashboard: React.FC = () => {
       try {
         const [metricsRes, logsRes] = await Promise.all([
           http.get(endpoints.reports.dashboard),
-          http.get(endpoints.audit.logs, { params: { limit: 5 } })
+          http.get(endpoints.audit.logs, { params: { limit: 5 } }),
         ]);
         if (metricsRes.data) {
-          setMetrics(prev => ({ ...prev, ...metricsRes.data }));
+          setMetrics((prev) => ({ ...prev, ...metricsRes.data }));
         }
         setAuditLogs(logsRes.data.data || logsRes.data || []);
       } catch (err: any) {
@@ -82,37 +121,104 @@ const AdminDashboard: React.FC = () => {
     fetchDashboardData();
   }, [activeTab]);
 
-  // const handleLogout = () => {
-    
-  //   localStorage.removeItem("token");
-  //   navigate("/login");
-  // };
+  // Buscar lista de utilizadores quando a tab "users" estiver ativa
+  useEffect(() => {
+    if (activeTab !== "users") return;
+    fetchUsers();
+  }, [activeTab]);
+
+  const fetchUsers = async () => {
+    setUsersLoading(true);
+    setUsersError(null);
+    try {
+      const response = await http.get(endpoints.users.base);
+      const data = response.data.data || response.data;
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.error("Erro ao carregar utilizadores:", err);
+      setUsersError("Não foi possível carregar a lista de utilizadores.");
+      addToast("error", "Erro ao carregar utilizadores.");
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     await logout();
-    // O redirecionamento e limpeza de tokens já são feitos dentro do logout()
   };
 
   // Handlers para ações
   const handleExportLogs = () => console.log("Exportar Logs CSV");
-  const handleEditUser = (id?: string) => console.log("Editar utilizador", id);
-  const handleDeactivateUser = (id?: string) => console.log("Desativar utilizador", id);
+  const handleEditUser = (user: User) => {
+    console.log("Editar utilizador", user);
+    // TODO: abrir modal de edição
+  };
+  const handleDeactivateUser = (user: User) => {
+    console.log("Desativar utilizador", user);
+    // TODO: chamar endpoint para desativar
+  };
   const handleSearch = (query: string) => console.log("Pesquisar:", query);
   const handleSettings = () => console.log("Definições");
 
-  // Dados mockados para auditoria
-  const displayLogs = auditLogs.length > 0 ? auditLogs : [
-    { id: 1, timestamp: "2023-10-24 14:22:01", user: "admin.silva", action: "Acesso ao Módulo Financeiro", status: "success" as const },
-    { id: 2, timestamp: "2023-10-24 14:15:45", user: "gestor.marquez", action: "Alteração de Permissões #U902", status: "success" as const },
-    { id: 3, timestamp: "2023-10-24 14:02:11", user: "guest_4522", action: "Falha de Autenticação (IP 192.168.1.1)", status: "blocked" as const },
-    { id: 4, timestamp: "2023-10-24 13:55:30", user: "admin.silva", action: "Cópia de Segurança de Base de Dados", status: "success" as const },
-  ];
+  // Dados mockados para auditoria (fallback)
+  const displayLogs =
+    auditLogs.length > 0
+      ? auditLogs
+      : [
+          {
+            id: 1,
+            timestamp: "2023-10-24 14:22:01",
+            user: "admin.silva",
+            action: "Acesso ao Módulo Financeiro",
+            status: "success" as const,
+          },
+          {
+            id: 2,
+            timestamp: "2023-10-24 14:15:45",
+            user: "gestor.marquez",
+            action: "Alteração de Permissões #U902",
+            status: "success" as const,
+          },
+          {
+            id: 3,
+            timestamp: "2023-10-24 14:02:11",
+            user: "guest_4522",
+            action: "Falha de Autenticação (IP 192.168.1.1)",
+            status: "blocked" as const,
+          },
+          {
+            id: 4,
+            timestamp: "2023-10-24 13:55:30",
+            user: "admin.silva",
+            action: "Cópia de Segurança de Base de Dados",
+            status: "success" as const,
+          },
+        ];
 
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard":
-        return <DashboardContent metrics={metrics} logs={displayLogs} loading={loading} error={error} onExportLogs={handleExportLogs} />;
+        return (
+          <DashboardContent
+            metrics={metrics}
+            logs={displayLogs}
+            loading={loading}
+            error={error}
+            onExportLogs={handleExportLogs}
+          />
+        );
       case "users":
-        return <UserManagementContent onEdit={handleEditUser} onDeactivate={handleDeactivateUser} onNewUser={() => setShowNewUserModal(true)} />;
+        return (
+          <UserManagementContent
+            users={users}
+            loading={usersLoading}
+            error={usersError}
+            onEdit={handleEditUser}
+            onDeactivate={handleDeactivateUser}
+            onNewUser={() => setShowNewUserModal(true)}
+            onRefresh={fetchUsers}
+          />
+        );
       case "audit":
         return <AuditLogsContent />;
       case "reports":
@@ -134,7 +240,9 @@ const AdminDashboard: React.FC = () => {
         />
 
         {/* Sidebar */}
-        <aside className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ""}`}>
+        <aside
+          className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ""}`}
+        >
           <div className={styles.sidebarHeader}>
             <div className={styles.brandWrapper}>
               <div className={styles.logoIcon}>
@@ -149,21 +257,30 @@ const AdminDashboard: React.FC = () => {
 
           <nav className={styles.nav}>
             <button
-              onClick={() => { setActiveTab("dashboard"); closeSidebar(); }}
+              onClick={() => {
+                setActiveTab("dashboard");
+                closeSidebar();
+              }}
               className={`${styles.navLink} ${activeTab === "dashboard" ? styles.active : ""}`}
             >
               <span className="material-symbols-outlined">dashboard</span>
               <span>Dashboard</span>
             </button>
             <button
-              onClick={() => { setActiveTab("users"); closeSidebar(); }}
+              onClick={() => {
+                setActiveTab("users");
+                closeSidebar();
+              }}
               className={`${styles.navLink} ${activeTab === "users" ? styles.active : ""}`}
             >
               <span className="material-symbols-outlined">group</span>
               <span>Gestão de Utilizadores</span>
             </button>
             <button
-              onClick={() => { setActiveTab("audit"); closeSidebar(); }}
+              onClick={() => {
+                setActiveTab("audit");
+                closeSidebar();
+              }}
               className={`${styles.navLink} ${activeTab === "audit" ? styles.active : ""}`}
             >
               <span className="material-symbols-outlined">receipt_long</span>
@@ -172,12 +289,25 @@ const AdminDashboard: React.FC = () => {
           </nav>
 
           <div className={styles.sidebarFooter}>
-            <button className={styles.reportButton} onClick={() => { setShowNewReportModal(true); closeSidebar(); }}>
+            <button
+              className={styles.reportButton}
+              onClick={() => {
+                setShowNewReportModal(true);
+                closeSidebar();
+              }}
+            >
               <span className="material-symbols-outlined">add</span>
               Novo Relatório
             </button>
             <div className={styles.footerLinks}>
-              <button className={styles.footerLink} onClick={() => { handleSettings(); setActiveTab("archive"); closeSidebar(); }}>
+              <button
+                className={styles.footerLink}
+                onClick={() => {
+                  handleSettings();
+                  setActiveTab("archive");
+                  closeSidebar();
+                }}
+              >
                 <span className="material-symbols-outlined">settings</span>
                 <span>Definições</span>
               </button>
@@ -194,7 +324,11 @@ const AdminDashboard: React.FC = () => {
           {/* Header */}
           <header className={styles.topbar}>
             <div className={styles.topbarLeft}>
-              <button className={styles.menuButton} onClick={toggleSidebar} aria-label="Menu">
+              <button
+                className={styles.menuButton}
+                onClick={toggleSidebar}
+                aria-label="Menu"
+              >
                 <span className="material-symbols-outlined">menu</span>
               </button>
               <span className={styles.systemName}>SIFCQA-FMX</span>
@@ -229,7 +363,10 @@ const AdminDashboard: React.FC = () => {
                   onChange={(e) => handleSearch(e.target.value)}
                 />
               </div>
-              <button className={styles.iconButton} onClick={() => setShowNotificationsModal(true)}>
+              <button
+                className={styles.iconButton}
+                onClick={() => setShowNotificationsModal(true)}
+              >
                 <span className="material-symbols-outlined">notifications</span>
               </button>
               <button className={styles.themeToggle} onClick={toggleTheme}>
@@ -237,7 +374,10 @@ const AdminDashboard: React.FC = () => {
                   {theme === "light" ? "dark_mode" : "light_mode"}
                 </span>
               </button>
-              <div className={styles.avatar} onClick={() => setShowProfileModal(true)}>
+              <div
+                className={styles.avatar}
+                onClick={() => setShowProfileModal(true)}
+              >
                 <img
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8Uom-iyjf-VYwGKXhogZ-JpLC9CRO9cBKCgMLVEF6yg5Eyqpict5Nhs4k95tWHCywAfZ5WasGzieXliYCtmaUj3xvfOQP5k83kwAeZsJQ3PrdZvx3SrN1x4l30syg5ltOAmsxDeWmmuGBgeM9a8lisVmSqzNwgwKU79a0AwXSKLlMhoKoZzAu18mvF60aHHbLSpBsqklK1ZxCugGZo_yWN7ab3664FYCM__nz5iGsoJZRXBr4jtizibaLpotEuQ5xoCOUlvBXENI"
                   alt="Perfil"
@@ -247,27 +387,76 @@ const AdminDashboard: React.FC = () => {
           </header>
 
           {/* Conteúdo dinâmico */}
-          <div className={styles.content}>
-            {renderContent()}
-          </div>
+          <div className={styles.content}>{renderContent()}</div>
 
           {/* Footer compacto */}
           <footer className={styles.footer}>
             <p>© {new Date().getFullYear()} FMX - SIFCQA</p>
             <div className={styles.footerLinks}>
-              <a href="#" onClick={(e) => { e.preventDefault(); console.log("Termos"); }}>Termos</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); console.log("Privacidade"); }}>Privacidade</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); console.log("Suporte"); }}>Suporte</a>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  console.log("Termos");
+                }}
+              >
+                Termos
+              </a>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  console.log("Privacidade");
+                }}
+              >
+                Privacidade
+              </a>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  console.log("Suporte");
+                }}
+              >
+                Suporte
+              </a>
             </div>
           </footer>
         </main>
       </div>
 
       {/* Modais Flutuantes */}
-      <NewReportModal isOpen={showNewReportModal} onClose={() => setShowNewReportModal(false)} />
-      <NewUserModal isOpen={showNewUserModal} onClose={() => setShowNewUserModal(false)} />
-      <NotificationsModal isOpen={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} />
-      <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} onLogout={handleLogout} />
+      <NewReportModal
+        isOpen={showNewReportModal}
+        onClose={() => setShowNewReportModal(false)}
+      />
+      <NewUserModal
+        isOpen={showNewUserModal}
+        onClose={() => setShowNewUserModal(false)}
+        onSuccess={() => {
+          setShowNewUserModal(false);
+          addToast(
+            "success",
+            "Utilizador criado com sucesso! Um email foi enviado para definição da password."
+          );
+          fetchUsers(); // Atualiza a lista imediatamente
+        }}
+        onError={(message: string) => {
+          addToast("error", message || "Erro ao criar utilizador");
+        }}
+      />
+      <NotificationsModal
+        isOpen={showNotificationsModal}
+        onClose={() => setShowNotificationsModal(false)}
+      />
+      <ProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        onLogout={handleLogout}
+      />
+
+      {/* Toasts */}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   );
 };
@@ -285,7 +474,9 @@ const DashboardContent: React.FC<{
     <div className={styles.dashboardHeader}>
       <div className={styles.headerTitle}>
         <p>Painel de Controlo Principal</p>
-        <h2>Estado do Sistema <span className={styles.accent}>.</span></h2>
+        <h2>
+          Estado do Sistema <span className={styles.accent}>.</span>
+        </h2>
       </div>
       <div className={styles.statusBadge}>
         <span className={styles.statusDot}></span>
@@ -300,24 +491,45 @@ const DashboardContent: React.FC<{
       <>
         <div className={styles.metricsGrid}>
           <div className={styles.metricCard}>
-            <div className={styles.metricIcon}><span className="material-symbols-outlined">dns</span></div>
+            <div className={styles.metricIcon}>
+              <span className="material-symbols-outlined">dns</span>
+            </div>
             <p className={styles.metricLabel}>Carga do Servidor</p>
             <h3 className={styles.metricValue}>{metrics.serverLoad}%</h3>
-            <div className={styles.progressBar}><div className={styles.progressFill} style={{ width: `${metrics.serverLoad}%` }} /></div>
+            <div className={styles.progressBar}>
+              <div
+                className={styles.progressFill}
+                style={{ width: `${metrics.serverLoad}%` }}
+              />
+            </div>
             <p className={styles.metricTrend}>ÓTIMO ESTADO</p>
           </div>
           <div className={styles.metricCard}>
-            <div className={styles.metricIcon}><span className="material-symbols-outlined">speed</span></div>
+            <div className={styles.metricIcon}>
+              <span className="material-symbols-outlined">speed</span>
+            </div>
             <p className={styles.metricLabel}>Tempo de Resposta</p>
             <h3 className={styles.metricValue}>{metrics.responseTime}ms</h3>
-            <p className={styles.metricTrend}><span className="material-symbols-outlined">trending_down</span> 12% vs última hora</p>
+            <p className={styles.metricTrend}>
+              <span className="material-symbols-outlined">trending_down</span>{" "}
+              12% vs última hora
+            </p>
           </div>
-          <div className={`${styles.metricCard} ${styles.darkCard} ${styles.metricCardLarge}`}>
+          <div
+            className={`${styles.metricCard} ${styles.darkCard} ${styles.metricCardLarge}`}
+          >
             <p className={styles.metricLabel}>Utilizadores Ativos</p>
-            <h3 className={styles.metricValue}>{metrics.activeUsers.toLocaleString()} <span>sessões agora</span></h3>
+            <h3 className={styles.metricValue}>
+              {metrics.activeUsers.toLocaleString()} <span>sessões agora</span>
+            </h3>
             <div className={styles.chartBars}>
               {[0.5, 0.66, 0.83, 1, 0.75, 0.33].map((h, i) => (
-                <div key={i} className={styles.chartBar}><div className={styles.barFill} style={{ height: `${h * 100}%` }} /></div>
+                <div key={i} className={styles.chartBar}>
+                  <div
+                    className={styles.barFill}
+                    style={{ height: `${h * 100}%` }}
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -327,21 +539,40 @@ const DashboardContent: React.FC<{
           <div>
             <div className={styles.sectionHeader}>
               <h4>Registos de Auditoria Recentes</h4>
-              <button className={styles.exportButton} onClick={onExportLogs}>Exportar Logs CSV</button>
+              <button className={styles.exportButton} onClick={onExportLogs}>
+                Exportar Logs CSV
+              </button>
             </div>
             <div className={styles.tableWrapper}>
               <table className={styles.table}>
-                <thead><tr><th>Timestamp</th><th>Utilizador</th><th>Acção</th><th>Status</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Utilizador</th>
+                    <th>Acção</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {logs.map(log => (
+                  {logs.map((log) => (
                     <tr key={log.id}>
                       <td>{log.timestamp}</td>
                       <td>{log.user}</td>
                       <td>{log.action}</td>
                       <td>
-                        <span className={log.status === "success" ? styles.statusSuccess : styles.statusError}>
+                        <span
+                          className={
+                            log.status === "success"
+                              ? styles.statusSuccess
+                              : styles.statusError
+                          }
+                        >
                           <span className={styles.statusDot}></span>
-                          {log.status === "success" ? "Sucesso" : log.status === "blocked" ? "Bloqueado" : "Falha"}
+                          {log.status === "success"
+                            ? "Sucesso"
+                            : log.status === "blocked"
+                            ? "Bloqueado"
+                            : "Falha"}
                         </span>
                       </td>
                     </tr>
@@ -355,16 +586,45 @@ const DashboardContent: React.FC<{
             <h4 className={styles.sectionHeader}>Infraestrutura Local</h4>
             <div className={styles.infraList}>
               <div className={styles.infraItem}>
-                <div className={styles.infraLeft}><span className="material-symbols-outlined">storage</span><div><p>Core Database (Maputo)</p><p>MySQL 8.0 Cluster</p></div></div>
-                <div className={styles.infraStatus}><p className={styles.online}>ONLINE</p><p>Uptime: 99.9%</p></div>
+                <div className={styles.infraLeft}>
+                  <span className="material-symbols-outlined">storage</span>
+                  <div>
+                    <p>Core Database (Maputo)</p>
+                    <p>MySQL 8.0 Cluster</p>
+                  </div>
+                </div>
+                <div className={styles.infraStatus}>
+                  <p className={styles.online}>ONLINE</p>
+                  <p>Uptime: 99.9%</p>
+                </div>
               </div>
               <div className={styles.infraItem}>
-                <div className={styles.infraLeft}><span className="material-symbols-outlined">cloud_done</span><div><p>API Gateway Service</p><p>Proxy reverso Nginx</p></div></div>
-                <div className={styles.infraStatus}><p className={styles.online}>ONLINE</p><p>Uptime: 100%</p></div>
+                <div className={styles.infraLeft}>
+                  <span className="material-symbols-outlined">cloud_done</span>
+                  <div>
+                    <p>API Gateway Service</p>
+                    <p>Proxy reverso Nginx</p>
+                  </div>
+                </div>
+                <div className={styles.infraStatus}>
+                  <p className={styles.online}>ONLINE</p>
+                  <p>Uptime: 100%</p>
+                </div>
               </div>
               <div className={`${styles.infraItem} ${styles.warning}`}>
-                <div className={styles.infraLeft}><span className="material-symbols-outlined">sd_card_alert</span><div><p>Storage de Relatórios</p><p>Capacidade 92% ocupada</p></div></div>
-                <div className={styles.infraStatus}><p className={styles.alert}>ALERTA</p><p>Expansão necessária</p></div>
+                <div className={styles.infraLeft}>
+                  <span className="material-symbols-outlined">
+                    sd_card_alert
+                  </span>
+                  <div>
+                    <p>Storage de Relatórios</p>
+                    <p>Capacidade 92% ocupada</p>
+                  </div>
+                </div>
+                <div className={styles.infraStatus}>
+                  <p className={styles.alert}>ALERTA</p>
+                  <p>Expansão necessária</p>
+                </div>
               </div>
             </div>
             <div className={styles.securityScore}>
@@ -372,12 +632,28 @@ const DashboardContent: React.FC<{
               <div className={styles.scoreCard}>
                 <div className={styles.scoreCircle}>
                   <svg viewBox="0 0 36 36">
-                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--color-surface-container)" strokeWidth="3" />
-                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--color-tertiary)" strokeWidth="3" strokeDasharray={`${metrics.securityScore}, 100`} />
+                    <path
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="var(--color-surface-container)"
+                      strokeWidth="3"
+                    />
+                    <path
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="var(--color-tertiary)"
+                      strokeWidth="3"
+                      strokeDasharray={`${metrics.securityScore}, 100`}
+                    />
                   </svg>
-                  <div className={styles.scoreValue}>{metrics.securityScore}%</div>
+                  <div className={styles.scoreValue}>
+                    {metrics.securityScore}%
+                  </div>
                 </div>
-                <div><p>Score de Segurança</p><p>Protocolo SIFCQA v2.4</p></div>
+                <div>
+                  <p>Score de Segurança</p>
+                  <p>Protocolo SIFCQA v2.4</p>
+                </div>
               </div>
             </div>
           </div>
@@ -388,34 +664,114 @@ const DashboardContent: React.FC<{
 );
 
 const UserManagementContent: React.FC<{
-  onEdit: (id?: string) => void;
-  onDeactivate: (id?: string) => void;
+  users: User[];
+  loading: boolean;
+  error: string | null;
+  onEdit: (user: User) => void;
+  onDeactivate: (user: User) => void;
   onNewUser: () => void;
-}> = ({ onEdit, onDeactivate, onNewUser }) => (
-  <div className={styles.pageContainer}>
-    <div className={styles.pageHeader}>
-      <h2>Gestão de Utilizadores</h2>
-      <button className={styles.addButton} onClick={onNewUser}>
-        <span className="material-symbols-outlined">person_add</span>Novo Utilizador
-      </button>
+  onRefresh: () => void;
+}> = ({ users, loading, error, onEdit, onDeactivate, onNewUser, onRefresh }) => {
+  const getRoleBadge = (role: string) => {
+    const map: Record<string, string> = {
+      admin: "Administrador",
+      association: "Associação",
+      player: "Jogador",
+      fmx: "FMX",
+    };
+    return map[role] || role;
+  };
+
+  const getStatusBadge = (user: User) => {
+    const status = user.status || "active";
+    return status === "active" ? (
+      <span className={styles.statusActive}>Ativo</span>
+    ) : (
+      <span className={styles.statusInactive}>Inativo</span>
+    );
+  };
+
+  return (
+    <div className={styles.pageContainer}>
+      <div className={styles.pageHeader}>
+        <h2>Gestão de Utilizadores</h2>
+        <div style={{ display: "flex", gap: "1rem" }}>
+          <button className={styles.addButton} onClick={onRefresh}>
+            <span className="material-symbols-outlined">refresh</span>
+            Atualizar
+          </button>
+          <button className={styles.addButton} onClick={onNewUser}>
+            <span className="material-symbols-outlined">person_add</span>
+            Novo Utilizador
+          </button>
+        </div>
+      </div>
+
+      {loading && <div className={styles.loading}>Carregando utilizadores...</div>}
+      {error && <div className={styles.error}>{error}</div>}
+
+      {!loading && !error && (
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Email</th>
+                <th>Perfil</th>
+                <th>Associação</th>
+                <th>Estado</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "2rem" }}>
+                    Nenhum utilizador encontrado.
+                  </td>
+                </tr>
+              ) : (
+                users.map((user) => (
+                  <tr key={user.id}>
+                    <td>{user.name}</td>
+                    <td>{user.email}</td>
+                    <td>{getRoleBadge(user.role)}</td>
+                    <td>{user.association?.name || "—"}</td>
+                    <td>{getStatusBadge(user)}</td>
+                    <td>
+                      <button
+                        className={styles.actionBtn}
+                        onClick={() => onEdit(user)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className={styles.actionBtn}
+                        onClick={() => onDeactivate(user)}
+                      >
+                        Desativar
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
-    <div className={styles.tableWrapper}>
-      <table className={styles.table}>
-        <thead><tr><th>Nome</th><th>Email</th><th>Perfil</th><th>Estado</th><th>Ações</th></tr></thead>
-        <tbody>
-          <tr><td>Admin Silva</td><td>admin@fmx.org.mz</td><td>Administrador</td><td><span className={styles.statusActive}>Ativo</span></td><td><button className={styles.actionBtn} onClick={() => onEdit("1")}>Editar</button><button className={styles.actionBtn} onClick={() => onDeactivate("1")}>Desativar</button></td></tr>
-          <tr><td>Assoc. Maputo</td><td>maputo@fmx.org.mz</td><td>Associação</td><td><span className={styles.statusActive}>Ativo</span></td><td><button className={styles.actionBtn} onClick={() => onEdit("2")}>Editar</button></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-);
+  );
+};
 
 const AuditLogsContent: React.FC = () => (
   <div className={styles.pageContainer}>
     <h2>Registos de Auditoria</h2>
     <div className={styles.filters}>
-      <input type="text" placeholder="Filtrar por utilizador ou ação..." onChange={(e) => console.log("Filtrar:", e.target.value)} />
+      <input
+        type="text"
+        placeholder="Filtrar por utilizador ou ação..."
+        onChange={(e) => console.log("Filtrar:", e.target.value)}
+      />
       <select onChange={(e) => console.log("Status:", e.target.value)}>
         <option>Todos os status</option>
         <option>Sucesso</option>
@@ -424,15 +780,41 @@ const AuditLogsContent: React.FC = () => (
     </div>
     <div className={styles.tableWrapper}>
       <table className={styles.table}>
-        <thead><tr><th>Data/Hora</th><th>Utilizador</th><th>Ação</th><th>IP</th><th>Status</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Data/Hora</th>
+            <th>Utilizador</th>
+            <th>Ação</th>
+            <th>IP</th>
+            <th>Status</th>
+          </tr>
+        </thead>
         <tbody>
-          <tr><td>2024-01-15 09:34:22</td><td>admin.silva</td><td>Alteração de permissões</td><td>192.168.1.45</td><td><span className={styles.statusSuccess}>Sucesso</span></td></tr>
-          <tr><td>2024-01-15 08:12:05</td><td>guest_4522</td><td>Tentativa de acesso negada</td><td>10.0.0.22</td><td><span className={styles.statusError}>Falha</span></td></tr>
+          <tr>
+            <td>2024-01-15 09:34:22</td>
+            <td>admin.silva</td>
+            <td>Alteração de permissões</td>
+            <td>192.168.1.45</td>
+            <td>
+              <span className={styles.statusSuccess}>Sucesso</span>
+            </td>
+          </tr>
+          <tr>
+            <td>2024-01-15 08:12:05</td>
+            <td>guest_4522</td>
+            <td>Tentativa de acesso negada</td>
+            <td>10.0.0.22</td>
+            <td>
+              <span className={styles.statusError}>Falha</span>
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
     <div className={styles.pagination}>
-      <button disabled onClick={() => console.log("Anterior")}>Anterior</button>
+      <button disabled onClick={() => console.log("Anterior")}>
+        Anterior
+      </button>
       <span>Página 1 de 5</span>
       <button onClick={() => console.log("Próxima")}>Próxima</button>
     </div>
@@ -442,14 +824,20 @@ const AuditLogsContent: React.FC = () => (
 const ReportsContent: React.FC = () => (
   <div className={styles.pageContainer}>
     <h2>Relatórios Finais</h2>
-    <div className={styles.placeholder}><span className="material-symbols-outlined">description</span><p>Em desenvolvimento – aqui serão exibidos relatórios gerenciais.</p></div>
+    <div className={styles.placeholder}>
+      <span className="material-symbols-outlined">description</span>
+      <p>Em desenvolvimento – aqui serão exibidos relatórios gerenciais.</p>
+    </div>
   </div>
 );
 
 const ArchiveContent: React.FC = () => (
   <div className={styles.pageContainer}>
     <h2>Arquivo Histórico</h2>
-    <div className={styles.placeholder}><span className="material-symbols-outlined">archive</span><p>Documentos e registos antigos do sistema.</p></div>
+    <div className={styles.placeholder}>
+      <span className="material-symbols-outlined">archive</span>
+      <p>Documentos e registos antigos do sistema.</p>
+    </div>
   </div>
 );
 
@@ -458,6 +846,11 @@ const ArchiveContent: React.FC = () => (
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface NewUserModalProps extends ModalProps {
+  onSuccess: () => void;
+  onError: (message: string) => void;
 }
 
 const NewReportModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
@@ -495,8 +888,18 @@ const NewReportModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
             </select>
           </div>
           <div className={styles.modalActions}>
-            <button className={styles.cancelButton} onClick={onClose}>Cancelar</button>
-            <button className={styles.submitButton} onClick={() => { console.log("Gerar relatório"); onClose(); }}>Gerar Relatório</button>
+            <button className={styles.cancelButton} onClick={onClose}>
+              Cancelar
+            </button>
+            <button
+              className={styles.submitButton}
+              onClick={() => {
+                console.log("Gerar relatório");
+                onClose();
+              }}
+            >
+              Gerar Relatório
+            </button>
           </div>
         </div>
       </div>
@@ -504,50 +907,128 @@ const NewReportModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
   );
 };
 
-const NewUserModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
+const NewUserModal: React.FC<NewUserModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  onError,
+}) => {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    role: "admin",
+    association_id: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      await http.post(endpoints.users.base, formData);
+      onSuccess();
+    } catch (err: any) {
+      const errorMsg =
+        err.response?.data?.message || "Erro ao criar utilizador";
+      setError(errorMsg);
+      onError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
+
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+      <form
+        className={styles.modal}
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={handleSubmit}
+      >
         <div className={styles.modalHeader}>
           <h3>Novo Utilizador</h3>
-          <button className={styles.modalClose} onClick={onClose}>
+          <button type="button" className={styles.modalClose} onClick={onClose}>
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
         <div className={styles.modalBody}>
+          {error && <div className={styles.error}>{error}</div>}
+
           <div className={styles.formGroup}>
             <label>Nome Completo</label>
-            <input type="text" placeholder="Ex: João Silva" />
+            <input
+              name="name"
+              type="text"
+              placeholder="Ex: João Silva"
+              value={formData.name}
+              onChange={handleChange}
+              required
+            />
           </div>
+
           <div className={styles.formGroup}>
             <label>Email</label>
-            <input type="email" placeholder="joao@fmx.org.mz" />
+            <input
+              name="email"
+              type="email"
+              placeholder="joao@fmx.org.mz"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
           </div>
+
           <div className={styles.formGroup}>
             <label>Perfil</label>
-            <select>
-              <option>Administrador</option>
-              <option>Associação</option>
-              <option>Jogador</option>
-              <option>FMX</option>
+            <select name="role" value={formData.role} onChange={handleChange}>
+              <option value="admin">Administrador</option>
+              <option value="association">Associação</option>
+              <option value="player">Jogador</option>
+              <option value="fmx">FMX</option>
             </select>
           </div>
+
           <div className={styles.formGroup}>
             <label>Associação (se aplicável)</label>
-            <select>
-              <option>Nenhuma</option>
-              <option>Maputo Cidade</option>
-              <option>Beira</option>
-              <option>Nampula</option>
+            <select
+              name="association_id"
+              value={formData.association_id}
+              onChange={handleChange}
+            >
+              <option value="">Nenhuma</option>
+              <option value="1">Maputo Cidade</option>
+              <option value="2">Beira</option>
+              <option value="3">Nampula</option>
             </select>
           </div>
+
           <div className={styles.modalActions}>
-            <button className={styles.cancelButton} onClick={onClose}>Cancelar</button>
-            <button className={styles.submitButton} onClick={() => { console.log("Criar utilizador"); onClose(); }}>Criar Utilizador</button>
+            <button
+              type="button"
+              className={styles.cancelButton}
+              onClick={onClose}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className={styles.submitButton}
+              disabled={loading}
+            >
+              {loading ? "A criar..." : "Criar Utilizador"}
+            </button>
           </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 };
@@ -556,7 +1037,10 @@ const NotificationsModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={`${styles.modal} ${styles.notificationsModal}`} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`${styles.modal} ${styles.notificationsModal}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className={styles.modalHeader}>
           <h3>Notificações</h3>
           <button className={styles.modalClose} onClick={onClose}>
@@ -588,7 +1072,9 @@ const NotificationsModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
           <div className={styles.modalActions}>
-            <button className={styles.textButton}>Marcar todas como lidas</button>
+            <button className={styles.textButton}>
+              Marcar todas como lidas
+            </button>
             <button className={styles.textButton}>Ver todas</button>
           </div>
         </div>
@@ -597,23 +1083,73 @@ const NotificationsModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
   );
 };
 
-const ProfileModal: React.FC<ModalProps & { onLogout: () => void }> = ({ isOpen, onClose, onLogout }) => {
+const ProfileModal: React.FC<ModalProps & { onLogout: () => void }> = ({
+  isOpen,
+  onClose,
+  onLogout,
+}) => {
   if (!isOpen) return null;
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={`${styles.modal} ${styles.profileModal}`} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`${styles.modal} ${styles.profileModal}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className={styles.profileHeader}>
-          <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8Uom-iyjf-VYwGKXhogZ-JpLC9CRO9cBKCgMLVEF6yg5Eyqpict5Nhs4k95tWHCywAfZ5WasGzieXliYCtmaUj3xvfOQP5k83kwAeZsJQ3PrdZvx3SrN1x4l30syg5ltOAmsxDeWmmuGBgeM9a8lisVmSqzNwgwKU79a0AwXSKLlMhoKoZzAu18mvF60aHHbLSpBsqklK1ZxCugGZo_yWN7ab3664FYCM__nz5iGsoJZRXBr4jtizibaLpotEuQ5xoCOUlvBXENI" alt="Avatar" />
+          <img
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8Uom-iyjf-VYwGKXhogZ-JpLC9CRO9cBKCgMLVEF6yg5Eyqpict5Nhs4k95tWHCywAfZ5WasGzieXliYCtmaUj3xvfOQP5k83kwAeZsJQ3PrdZvx3SrN1x4l30syg5ltOAmsxDeWmmuGBgeM9a8lisVmSqzNwgwKU79a0AwXSKLlMhoKoZzAu18mvF60aHHbLSpBsqklK1ZxCugGZo_yWN7ab3664FYCM__nz5iGsoJZRXBr4jtizibaLpotEuQ5xoCOUlvBXENI"
+            alt="Avatar"
+          />
           <h4>Administrador</h4>
           <p>admin@fmx.org.mz</p>
         </div>
         <div className={styles.profileMenu}>
-          <button><span className="material-symbols-outlined">person</span> Meu Perfil</button>
-          <button><span className="material-symbols-outlined">settings</span> Definições</button>
-          <button><span className="material-symbols-outlined">help</span> Ajuda</button>
-          <button onClick={() => { onLogout(); onClose(); }}><span className="material-symbols-outlined">logout</span> Sair</button>
+          <button>
+            <span className="material-symbols-outlined">person</span> Meu Perfil
+          </button>
+          <button>
+            <span className="material-symbols-outlined">settings</span>{" "}
+            Definições
+          </button>
+          <button>
+            <span className="material-symbols-outlined">help</span> Ajuda
+          </button>
+          <button
+            onClick={() => {
+              onLogout();
+              onClose();
+            }}
+          >
+            <span className="material-symbols-outlined">logout</span> Sair
+          </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+// ===== TOAST COMPONENT =====
+const ToastContainer: React.FC<{
+  toasts: ToastMessage[];
+  onClose: (id: string) => void;
+}> = ({ toasts, onClose }) => {
+  return (
+    <div className={styles.toastContainer}>
+      {toasts.map((toast) => (
+        <div key={toast.id} className={`${styles.toast} ${styles[toast.type]}`}>
+          <span className="material-symbols-outlined">
+            {toast.type === "success"
+              ? "check_circle"
+              : toast.type === "error"
+              ? "error"
+              : "info"}
+          </span>
+          <p>{toast.message}</p>
+          <button onClick={() => onClose(toast.id)}>
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+      ))}
     </div>
   );
 };

@@ -11,7 +11,9 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
-
+use Illuminate\Support\Facades\URL;
+use App\Models\User;
+use Carbon\Carbon;
 
 
 class AuthService
@@ -143,8 +145,8 @@ public function sendResetLink(string $email)
     //Recordar de colocar em queries quando integrar smtp
     //==================================================
     // 🔗 link para o React
-    $link = "http://localhost:5173/reset-password?token=$token&email=$email";
-
+    //$link = $link = config('app.frontend_url') . "/set-password?token=$token&email=$email&type=invite";
+    $link = config('app.frontend_url') . "/set-password?token=$token&email=$email&type=reset";
     Log::info("🔗 RESET LINK", ['link' => $link]);
 
     // 📧 envia email (simples)
@@ -182,5 +184,65 @@ public function sendResetLink(string $email)
         ->delete();
 
     return true;
+}
+
+ public function setPassword(string $token, string $password): void
+    {
+        $hashedToken = hash('sha256', $token);
+
+        $invite = DB::table('user_invites')
+            ->where('token', $hashedToken)
+            ->first();
+
+        if (!$invite) {
+            throw ValidationException::withMessages([
+                'token' => ['Token inválido']
+            ]);
+        }
+
+        if (Carbon::parse($invite->expires_at)->isPast()) {
+            throw ValidationException::withMessages([
+                'token' => ['Token expirado']
+            ]);
+        }
+
+        $user = User::where('email', $invite->email)->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['Utilizador não encontrado']
+            ]);
+        }
+
+        $user->update([
+            'password' => Hash::make($password),
+            'email_verified_at' => now()
+        ]);
+
+        DB::table('user_invites')
+            ->where('email', $invite->email)
+            ->delete();
+    }
+public function sendInvite(User $user): void
+{
+    // 1. gera token
+    $token = Str::random(60);
+
+    DB::table('user_invites')->insert([
+        'email' => $user->email,
+        'token' => hash('sha256', $token),
+        'expires_at' => now()->addHours(24),
+        'created_at' => now()
+    ]);
+
+    // 2. link
+    $link = config('app.frontend_url') . "/set-password?token=$token&email={$user->email}&type=invite";
+
+    Log::info("📨 INVITE LINK", ['link' => $link]);
+
+    // 3. email
+    Mail::raw("Você foi convidado. Defina sua senha: $link", function ($message) use ($user) {
+        $message->to($user->email)->subject('Convite para acesso');
+    });
 }
 }

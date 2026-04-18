@@ -8,6 +8,9 @@ const ResetPassword: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
+  const type = searchParams.get("type"); // 👈 NOVO: captura o modo (invite/reset)
+
+  const isInvite = type === "invite";     // 👈 NOVO: booleano para facilitar
 
   const [formData, setFormData] = useState({
     email: "",
@@ -26,7 +29,11 @@ const ResetPassword: React.FC = () => {
   const hasNumber = /\d/.test(formData.password);
   const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(formData.password);
   const passwordsMatch = formData.password === formData.confirmPassword;
-  const isValid = isValidEmail && hasMinLength && hasNumber && hasSymbol && passwordsMatch;
+
+  // 👇 NOVO: email é obrigatório apenas no modo reset
+  const isValid = isInvite
+    ? hasMinLength && hasNumber && hasSymbol && passwordsMatch
+    : isValidEmail && hasMinLength && hasNumber && hasSymbol && passwordsMatch;
 
   // Tema
   const [theme, setTheme] = useState<"light" | "dark" | null>(() => {
@@ -75,29 +82,40 @@ const ResetPassword: React.FC = () => {
     setError(null);
 
     if (!token) {
-      setError("Token de redefinição inválido ou ausente.");
+      setError("Token inválido ou ausente.");
       return;
     }
     if (!isValid) {
-      setError("Por favor, verifique o e-mail e os requisitos da senha.");
+      setError("Por favor, verifique os requisitos da senha.");
       return;
     }
 
     setLoading(true);
     try {
-      await http.post(endpoints.auth.resetPassword, {
+      // 👇 NOVO: endpoint varia conforme o modo
+      //colocar no endpoints
+      const endpoint = isInvite
+        ? "/auth/set-password"                // rota de primeiro acesso (convite)()
+        : endpoints.auth.resetPassword;   // rota de redefinição existente
+
+      const payload: any = {
         token,
-        email: formData.email,
         password: formData.password,
         password_confirmation: formData.confirmPassword,
-      });
+      };
+
+      // 👇 NOVO: email só é enviado se o modo for reset
+      if (!isInvite) {
+        payload.email = formData.email;
+      }
+
+      await http.post(endpoint, payload);
       setSuccess(true);
-      // Redireciona para login após 2 segundos
       setTimeout(() => navigate("/login"), 2000);
     } catch (err: any) {
       const message =
         err.response?.data?.message ||
-        "Não foi possível redefinir a senha. O token pode ter expirado.";
+        "Não foi possível processar o pedido. O token pode ter expirado.";
       setError(message);
     } finally {
       setLoading(false);
@@ -129,38 +147,46 @@ const ResetPassword: React.FC = () => {
               </div>
             </div>
             <p className={styles.sifcqa}>SIFCQA-FMX</p>
-            <h1 className={styles.title}>Definir Nova Senha</h1>
+            {/* 👇 Título dinâmico */}
+            <h1 className={styles.title}>
+              {isInvite ? "Definir Palavra-passe" : "Redefinir Palavra-passe"}
+            </h1>
+            {/* 👇 Subtítulo dinâmico */}
             <p className={styles.subtitle}>
-              Informe seu e‑mail e escolha uma senha forte
+              {isInvite
+                ? "Bem‑vindo! Crie uma senha segura para aceder à plataforma."
+                : "Informe seu e‑mail e escolha uma nova senha forte."}
             </p>
           </div>
 
           <section className={styles.formCard}>
             <form onSubmit={handleSubmit} className={styles.form}>
-              {/* E-mail */}
-              <div className={styles.fieldGroup}>
-                <label htmlFor="email" className={styles.label}>
-                  E‑mail
-                </label>
-                <div className={styles.inputWrapper}>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={styles.input}
-                    placeholder="seu@email.com"
-                  />
-                </div>
-                {formData.email && !isValidEmail && (
-                  <div className={styles.validationHint}>
-                    <span className={styles.materialSymbolsOutlined}>error</span>
-                    <span>Informe um e‑mail válido</span>
+              {/* 👇 Campo de e‑mail exibido apenas no modo reset */}
+              {!isInvite && (
+                <div className={styles.fieldGroup}>
+                  <label htmlFor="email" className={styles.label}>
+                    E‑mail
+                  </label>
+                  <div className={styles.inputWrapper}>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      required={!isInvite}
+                      value={formData.email}
+                      onChange={handleChange}
+                      className={styles.input}
+                      placeholder="seu@email.com"
+                    />
                   </div>
-                )}
-              </div>
+                  {formData.email && !isValidEmail && (
+                    <div className={styles.validationHint}>
+                      <span className={styles.materialSymbolsOutlined}>error</span>
+                      <span>Informe um e‑mail válido</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Nova Senha */}
               <div className={styles.fieldGroup}>
@@ -220,16 +246,19 @@ const ResetPassword: React.FC = () => {
 
               {/* Indicadores de validação */}
               <div className={styles.validationPanel}>
-                <div
-                  className={`${styles.validationItem} ${
-                    isValidEmail ? styles.valid : styles.invalid
-                  }`}
-                >
-                  <span className={styles.materialSymbolsOutlined}>
-                    {isValidEmail ? "check_circle" : "radio_button_unchecked"}
-                  </span>
-                  <span>E‑mail válido</span>
-                </div>
+                {/* 👇 Requisito de e‑mail só aparece no modo reset */}
+                {!isInvite && (
+                  <div
+                    className={`${styles.validationItem} ${
+                      isValidEmail ? styles.valid : styles.invalid
+                    }`}
+                  >
+                    <span className={styles.materialSymbolsOutlined}>
+                      {isValidEmail ? "check_circle" : "radio_button_unchecked"}
+                    </span>
+                    <span>E‑mail válido</span>
+                  </div>
+                )}
                 <div
                   className={`${styles.validationItem} ${
                     hasMinLength ? styles.valid : styles.invalid
@@ -265,7 +294,9 @@ const ResetPassword: React.FC = () => {
               {error && <div className={styles.errorMessage}>{error}</div>}
               {success && (
                 <div className={styles.successMessage}>
-                  Senha redefinida com sucesso! Redirecionando para o login...
+                  {isInvite
+                    ? "Senha definida com sucesso! Redirecionando para o login..."
+                    : "Senha redefinida com sucesso! Redirecionando para o login..."}
                 </div>
               )}
 
@@ -285,7 +316,10 @@ const ResetPassword: React.FC = () => {
                   </div>
                 ) : (
                   <div className={styles.buttonContent}>
-                    <span>Guardar Alterações</span>
+                    {/* 👇 Texto do botão dinâmico */}
+                    <span>
+                      {isInvite ? "Criar senha" : "Guardar Alterações"}
+                    </span>
                     <span className={styles.materialSymbolsOutlined}>
                       arrow_forward
                     </span>

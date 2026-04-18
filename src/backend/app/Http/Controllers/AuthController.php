@@ -90,4 +90,21 @@ class AuthController extends Controller
         'message' => 'Senha atualizada com sucesso'
     ]);
 }
+
+ public function setPassword(Request $request, AuthService $authService)
+    {
+        $request->validate([
+            'token' => 'required',
+            'password' => 'required|min:6|confirmed'
+        ]);
+
+        $authService->setPassword(
+            $request->token,
+            $request->password
+        );
+
+        return response()->json([
+            'message' => 'Password definida com sucesso'
+        ]);
+    }
 }
