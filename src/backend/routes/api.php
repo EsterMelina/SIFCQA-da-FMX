@@ -55,10 +55,6 @@ Route::middleware(['auth:sanctum', 'role:admin|fmx'])->group(function () {
 
     Route::get('associations', [AssociationController::class, 'index']);
     Route::get('associations/{association}', [AssociationController::class, 'show']);
-});
-
-Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
-
     Route::post('associations', [AssociationController::class, 'store']);
     Route::put('associations/{association}', [AssociationController::class, 'update']);
     Route::patch('associations/{association}/status', [AssociationController::class, 'toggleStatus']);
