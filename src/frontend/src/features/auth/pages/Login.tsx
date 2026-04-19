@@ -1,29 +1,25 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { http } from "@/services/http";
-import { endpoints } from "@/services/endpoints";
-import styles from "./css/Login.module.css";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/app/providers/AuthProvider";
-
+import styles from "./css/Login.module.css";
+import logo from "../../../assets/logo.png"; // ajuste o caminho conforme necessário
 
 const Login: React.FC = () => {
   const { login, isLoading } = useAuth();
-  // const { login } = useAuth();
-  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   
-  // Estado do tema: null = sistema, 'light' = claro, 'dark' = escuro
+  // Estado do tema
   const [theme, setTheme] = useState<'light' | 'dark' | null>(() => {
     const saved = localStorage.getItem("theme");
     if (saved === "light" || saved === "dark") return saved;
     return null;
   });
 
-  // Aplica a classe 'dark' no container de acordo com o tema
   useEffect(() => {
     const container = document.querySelector(`.${styles.container}`);
     if (!container) return;
@@ -40,7 +36,6 @@ const Login: React.FC = () => {
     }
   }, [theme]);
 
-  // Salva a preferência no localStorage
   const handleThemeToggle = () => {
     setTheme((prev) => {
       if (prev === "light") return "dark";
@@ -65,29 +60,23 @@ const Login: React.FC = () => {
     if (error) setError(null);
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  //Login
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  console.log("🟡 FORM SUBMIT");
-
-  try {
-    await login(formData.email, formData.password);
-  } catch (err: any) {
-    console.error("💥 LOGIN ERROR:", err);
-
-    const message =
-      err.response?.data?.message ||
-      "Credenciais inválidas. Tente novamente.";
-
-    setError(message);
-  }
-};
+    try {
+      await login(formData.email, formData.password);
+    } catch (err: any) {
+      console.error("Login error:", err);
+      const message =
+        err.response?.data?.message ||
+        "Credenciais inválidas. Tente novamente.";
+      setError(message);
+    }
+  };
 
   return (
     <div className={styles.container}>
-      {/* Botão de alternância de tema */}
+      {/* Botão de tema */}
       <button
         className={styles.themeToggle}
         onClick={handleThemeToggle}
@@ -110,48 +99,79 @@ const handleSubmit = async (e: React.FormEvent) => {
       </button>
 
       <main className={styles.main}>
-        {/* Fundos decorativos */}
-        <div className={styles.chessPattern}></div>
-        <div className={styles.blurCircleTop}></div>
-        <div className={styles.blurCircleBottom}></div>
+        {/* SEÇÃO ESQUERDA (VISUAL) */}
+        <section className={styles.leftSection}>
+          <div className={styles.backgroundImage}>
+            <img
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzNpYP3YcwrIGm3yPqtF39nbHkWkvzNC_dOiUEkcSZLB8VkbErJ9y60fC7yuP_2kwWNSa1I7PPgRmNjFaStnuqaFOJNAPLh4LU1KlWmkENx1Fq8md0oT5MWTvo7HfvIR3Ip6xMSnxkqaExWHlWyU6Owpzci8v-GYHw1L5VShoKD8wx07X7y6Sw-5up4zNt6nFnQTFBI81m5ePpRXDVWD2xyYu2mEXsA2aFM7bfAK02GIaXNkGbG0fZYfSS_dKaMhBVKz9ZOTzm0IM"
+              alt="Peças de xadrez profissionais"
+            />
+            <div className={styles.gradientOverlay}></div>
+          </div>
 
-        {/* Conteúdo centralizado */}
-        <div className={styles.contentWrapper}>
-          {/* Logo */}
-          <div className={styles.logoSection}>
-            <div className={styles.logoIconWrapper}>
-              <div className={styles.logoIcon}>
-                <span className={styles.materialSymbolsOutlined}>chess</span>
+          <div className={styles.brandHeader}>
+            <div className={styles.brandRow}>
+              {/* <img src={logo} alt="FMX Logo" className={styles.logoImage} /> */}
+              <div className={styles.brandText}>
+                <img src={logo} alt="FMX Logo" className={styles.logoImage} /> 
+                {/* <h1>FMX</h1> */}
+                <p>Federação Moçambicana de Xadrez</p>
               </div>
-            </div>
-            <div className={styles.titleSection}>
-              <h1 className={styles.mainTitle}>SIFCQA-FMX</h1>
-              <p className={styles.subtitle}>
-                Federação Moçambicana de Xadrez
-              </p>
             </div>
           </div>
 
-          {/* Card de Login */}
-          <div className={styles.loginCard}>
-            <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Iniciar Sessão</h2>
-              <p className={styles.cardDescription}>
+          <div className={styles.quoteFooter}>
+            <div className={styles.quoteContent}>
+              <span className={`${styles.materialSymbolsOutlined} ${styles.quoteIcon}`}>
+                format_quote
+              </span>
+              <h2 className={styles.quoteText}>
+                No xadrez, como na vida, o plano é o mais importante.
+              </h2>
+              <div className={styles.quoteDivider}></div>
+              <p className={styles.quoteSource}>SIFCQA - Sistema Integrado de Gestão</p>
+            </div>
+          </div>
+
+          <div className={styles.decorBlur}></div>
+        </section>
+
+        {/* SEÇÃO DIREITA (FORMULÁRIO) */}
+        <section className={styles.rightSection}>
+          <div className={styles.formContainer}>
+            {/* Logo mobile */}
+            <div className={styles.mobileBrand}>
+              <img src={logo} alt="FMX Logo" className={styles.mobileLogo} />
+              <h1>FMX</h1>
+            </div>
+
+            <header className={styles.formHeader}>
+              <p className={styles.welcomeTag}>Bem-vindo ao</p>
+              <p className={styles.welcomeSubtitle}>
                 Sistema Integrado de Filiação e Controlo de Quotas das Associações
                 da Federação Moçambicana de Xadrez
               </p>
+              <h2 className={styles.formTitle}>Aceder à Conta</h2>
+            </header>
+
+            {/* Separador */}
+            <div className={styles.separator}>
+              <div className={styles.separatorLine}>
+                <div className={styles.separatorLineInner}></div>
+              </div>
+              <span className={styles.separatorText}>use as credenciais</span>
             </div>
 
+            {/* Formulário */}
             <form onSubmit={handleSubmit} className={styles.form}>
-              {/* Email */}
               <div className={styles.fieldGroup}>
                 <label htmlFor="email" className={styles.label}>
-                  Email Institucional
+                  E-mail de Utilizador
                 </label>
                 <div className={styles.inputWrapper}>
-                  <div className={styles.inputIcon}>
-                    <span className={styles.materialSymbolsOutlined}>mail</span>
-                  </div>
+                  <span className={`${styles.materialSymbolsOutlined} ${styles.inputIcon}`}>
+                    alternate_email
+                  </span>
                   <input
                     id="email"
                     name="email"
@@ -165,37 +185,45 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </div>
               </div>
 
-              {/* Senha */}
               <div className={styles.fieldGroup}>
                 <div className={styles.labelRow}>
                   <label htmlFor="password" className={styles.label}>
                     Palavra-passe
                   </label>
                   <Link to="/forgot-password" className={styles.forgotLink}>
-                    Esqueceu a senha?
+                    Esqueceu-se?
                   </Link>
                 </div>
                 <div className={styles.inputWrapper}>
-                  <div className={styles.inputIcon}>
-                    <span className={styles.materialSymbolsOutlined}>lock</span>
-                  </div>
+                  <span className={`${styles.materialSymbolsOutlined} ${styles.inputIcon}`}>
+                    lock
+                  </span>
                   <input
                     id="password"
                     name="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     required
                     value={formData.password}
                     onChange={handleChange}
                     className={styles.input}
                     placeholder="••••••••"
                   />
+                  <button
+                    type="button"
+                    className={styles.passwordToggle}
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    <span className={styles.materialSymbolsOutlined}>
+                      {showPassword ? "visibility_off" : "visibility"}
+                    </span>
+                  </button>
                 </div>
               </div>
 
-              {/* Erro */}
+              {/* Checkbox removido conforme solicitado */}
+
               {error && <div className={styles.errorMessage}>{error}</div>}
 
-              {/* Botão */}
               <button
                 type="submit"
                 disabled={isLoading}
@@ -212,44 +240,28 @@ const handleSubmit = async (e: React.FormEvent) => {
                   </div>
                 ) : (
                   <div className={styles.buttonContent}>
-                    <span>Entrar</span>
+                    <span>Aceder à Conta</span>
                     <span className={styles.materialSymbolsOutlined}>login</span>
                   </div>
                 )}
               </button>
             </form>
 
-            {/* Criar conta */}
-            <div className={styles.signupSection}>
+            <footer className={styles.formFooter}>
               <p className={styles.signupText}>
                 Não tem uma conta?{" "}
                 <Link to="/register" className={styles.signupLink}>
-                  Criar Conta
+                  Solicitar Acesso
                 </Link>
               </p>
-            </div>
+              <div className={styles.footerLinks}>
+                <a href="#" className={styles.footerLink}>Privacidade</a>
+                <a href="#" className={styles.footerLink}>Termos</a>
+                <a href="#" className={styles.footerLink}>Suporte FMX</a>
+              </div>
+            </footer>
           </div>
-
-          {/* Rodapé */}
-          <footer className={styles.footer}>
-            <div className={styles.footerLinks}>
-              <a href="#" className={styles.footerLink}>
-                <span className={styles.materialSymbolsOutlined}>help</span> Support
-              </a>
-              <a href="#" className={styles.footerLink}>
-                <span className={styles.materialSymbolsOutlined}>gavel</span> Termos
-              </a>
-            </div>
-            <div className={styles.version}>
-              <span>Versão 2.4.0</span>
-            </div>
-          </footer>
-        </div>
-
-        {/* Marca d'água */}
-        <div className={styles.watermark}>
-          <span className={styles.materialSymbolsOutlined}>chess_king</span>
-        </div>
+        </section>
       </main>
     </div>
   );
