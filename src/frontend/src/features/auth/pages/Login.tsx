@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/app/providers/AuthProvider";
 import styles from "./css/Login.module.css";
-import logo from "../../../assets/logo.png"; // ajuste o caminho conforme necessário
+import logo from "../../../assets/logo.png";
 
 const Login: React.FC = () => {
   const { login, isLoading } = useAuth();
@@ -12,7 +12,7 @@ const Login: React.FC = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // Estado do tema
   const [theme, setTheme] = useState<'light' | 'dark' | null>(() => {
     const saved = localStorage.getItem("theme");
@@ -20,19 +20,18 @@ const Login: React.FC = () => {
     return null;
   });
 
+  // Aplica a classe 'dark' no elemento raiz (html)
   useEffect(() => {
-    const container = document.querySelector(`.${styles.container}`);
-    if (!container) return;
-
+    const root = document.documentElement;
     const isDark =
       theme === "dark" ||
       (theme === null &&
         window.matchMedia("(prefers-color-scheme: dark)").matches);
 
     if (isDark) {
-      container.classList.add(styles.dark);
+      root.classList.add("dark");
     } else {
-      container.classList.remove(styles.dark);
+      root.classList.remove("dark");
     }
   }, [theme]);
 
@@ -62,7 +61,6 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     try {
       await login(formData.email, formData.password);
     } catch (err: any) {
@@ -111,10 +109,8 @@ const Login: React.FC = () => {
 
           <div className={styles.brandHeader}>
             <div className={styles.brandRow}>
-              {/* <img src={logo} alt="FMX Logo" className={styles.logoImage} /> */}
               <div className={styles.brandText}>
-                <img src={logo} alt="FMX Logo" className={styles.logoImage} /> 
-                {/* <h1>FMX</h1> */}
+                <img src={logo} alt="FMX Logo" className={styles.logoImage} />
                 <p>Federação Moçambicana de Xadrez</p>
               </div>
             </div>
@@ -219,8 +215,6 @@ const Login: React.FC = () => {
                   </button>
                 </div>
               </div>
-
-              {/* Checkbox removido conforme solicitado */}
 
               {error && <div className={styles.errorMessage}>{error}</div>}
 

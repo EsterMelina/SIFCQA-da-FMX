@@ -1,65 +1,107 @@
 /* src/styles/globals.css */
+
+/* =========================
+   ☀️ LIGHT (default)
+========================= */
+
 :root {
-  --color-primary: #ae0011;
-  --color-primary-container: #d71920;
-  --color-on-primary-container: #ffece9;
+  /* 🔴 PRIMARY (mais vivo) */
+  --color-primary: #e60023;
+  --color-primary-container: #c30320;
+  --color-on-primary-container: #4a000a;
+
   --color-secondary: #5f5e5e;
-  --color-tertiary: #006328;
-  --color-tertiary-container: #0a7e36;
-  --color-error: #ba1a1a;
+
+  /* removido protagonismo do verde (mantido neutro) */
+  --color-tertiary: #6b6a69;
+  --color-tertiary-container: #d6d3d0;
+
+  --color-error: #c62828;
   --color-error-container: #ffdad6;
 
-  --color-background: #fbf9f5;
-  --color-surface: #fbf9f5;
+  /* BASE mais quente (menos pálido frio) */
+  --color-background: #f6f3ea;
+  --color-surface: #fffdf9;
+
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f5f3ef;
-  --color-surface-container: #efeeea;
-  --color-surface-container-high: #eae8e4;
-  --color-surface-container-highest: #e4e2de;
+  --color-surface-container-low: #f4f1ea;
+  --color-surface-container: #eee9e2;
+  --color-surface-container-high: #e6e0d8;
+  --color-surface-container-highest: #ded8cf;
 
-  --color-on-surface: #1b1c1a;
-  --color-on-surface-variant: #5d3f3c;
-  --color-on-background: #1b1c1a;
-  --color-outline-variant: #e6bdb8;
+  /* TEXTO */
+  --color-on-surface: #1b1a18;
+  --color-on-surface-variant: #5a524c;
+  --color-on-background: #1b1a18;
 
-  --sidebar-bg: #ede8d0;
-  --sidebar-hover: #e4e0d4;
+  /* OUTLINE */
+  --color-outline-variant: #e3dbd3;
+
+  /* SIDEBAR */
+  --sidebar-bg: #f3efe7;
+  --sidebar-hover: #eae4db;
 
   --font-body: "Manrope", sans-serif;
 }
 
+
+/* =========================
+   🌙 DARK MODE
+========================= */
+
 .dark {
-  --color-primary: #ffb4ab;
-  --color-primary-container: #93000d;
-  --color-on-primary-container: #ffdad6;
-  --color-secondary: #c8c6c5;
-  --color-tertiary: #77dc88;
-  --color-tertiary-container: #005320;
-  --color-error: #ffb4ab;
+  /* 🔴 PRIMARY equilibrado (vivo, não neon) */
+  --color-primary: #ff7a76;
+  --color-primary-container: #8a2a2b;
+  --color-on-primary-container: #ffd6d3;
+
+  --color-secondary: #bdb9b6;
+
+  /* terciário neutro */
+  --color-tertiary: #9a9590;
+  --color-tertiary-container: #3a353c;
+
+  --color-error: #ff7a7a;
   --color-error-container: #93000a;
 
-  --color-background: #1b1c1a;
-  --color-surface: #1b1c1a;
-  --color-surface-container-lowest: #121212;
-  --color-surface-container-low: #1e1e1e;
-  --color-surface-container: #242424;
-  --color-surface-container-high: #2c2c2c;
-  --color-surface-container-highest: #333333;
+  /* BASE mais leve (menos preto pesado) */
+  --color-background: #161416;
+  --color-surface: #1b181c;
 
-  --color-on-surface: #f2f0ed;
-  --color-on-surface-variant: #e6bdb8;
-  --color-on-background: #f2f0ed;
-  --color-outline-variant: #5d3f3c;
+  --color-surface-container-lowest: #141215;
+  --color-surface-container-low: #1f1c20;
+  --color-surface-container: #262228;
+  --color-surface-container-high: #302b32;
+  --color-surface-container-highest: #3a343c;
 
-  --sidebar-bg: #1c1c1c;
-  --sidebar-hover: #2a2a2a;
+  /* TEXTO mais confortável */
+  --color-on-surface: #ebe7e3;
+  --color-on-surface-variant: #cfc8c2;
+  --color-on-background: #ebe7e3;
+
+  /* OUTLINE suave */
+  --color-outline-variant: #363138;
+
+  /* SIDEBAR */
+  --sidebar-bg: #1a171b;
+  --sidebar-hover: #252128;
 }
+
+
+/* =========================
+   BASE GLOBAL
+========================= */
 
 body {
   font-family: var(--font-body);
   background-color: var(--color-background);
   color: var(--color-on-background);
 }
+
+
+/* =========================
+   ICONS
+========================= */
 
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined";

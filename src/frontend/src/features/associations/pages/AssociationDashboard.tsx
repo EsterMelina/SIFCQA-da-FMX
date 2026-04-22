@@ -39,9 +39,9 @@ const AssociationDashboard: React.FC = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
+  const [theme, setTheme] = useState<"light" | "dark" | null>(() => {
     const saved = localStorage.getItem("theme") as "light" | "dark" | null;
-    return saved ?? "light";
+    return saved ?? null;
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,14 +70,23 @@ const AssociationDashboard: React.FC = () => {
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // Tema
+  // Tema global
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("theme", theme);
+    const root = document.documentElement;
+    const isDark =
+      theme === "dark" ||
+      (theme === null && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    root.classList.toggle("dark", isDark);
   }, [theme]);
 
-  const toggleTheme = () => setTheme(prev => prev === "light" ? "dark" : "light");
-  const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      if (prev === "light") return "dark";
+      if (prev === "dark") return null;
+      return "light";
+    });
+  };
+  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
   const closeSidebar = () => setIsSidebarOpen(false);
 
   useEffect(() => {
@@ -123,7 +132,7 @@ const AssociationDashboard: React.FC = () => {
   };
 
   return (
-    <div className={`${styles.container} ${theme === "dark" ? styles.dark : ""}`}>
+    <div className={styles.container}>
       <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
       <div className={styles.layout}>
         <div className={`${styles.overlay} ${isSidebarOpen ? styles.overlayVisible : ""}`} onClick={closeSidebar} />
@@ -193,7 +202,9 @@ const AssociationDashboard: React.FC = () => {
                 <span className={styles.notificationBadge}></span>
               </button>
               <button className={styles.themeToggle} onClick={toggleTheme}>
-                <span className="material-symbols-outlined">{theme === "light" ? "dark_mode" : "light_mode"}</span>
+                <span className="material-symbols-outlined">
+                  {theme === "light" ? "light_mode" : theme === "dark" ? "dark_mode" : "routine"}
+                </span>
               </button>
               <div className={styles.avatar} onClick={() => setShowProfileModal(true)}>
                 <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJ6ip9nkTO3YHrAbEgHkmotfn84V_6r_iJBBzh3Tp69Wu8WVpDTzH9OlKOk4LPqoL7ggZ7bNoinAgcLbGsSRS8Ko3hOGvUpUm72c_6lyzFwX-tWJbz2_KUnp-vAtU6KhRT-FIsbencgktO70zodqCdeb4LvlG6CifKP3z_0cOgAeGVd8pcHwmev0YkAZ07qgl5l972qisdlBEPgFSO7l82_v-nli0FWjrtlnUCnhugi0BfZE6d6c9M9iwbclPEgCfL5qrT28tuVDE" alt="Perfil" />
@@ -526,7 +537,6 @@ const PlayersContent: React.FC = () => {
         </>
       )}
 
-      {/* Modal de Criação com key fixa */}
       <PlayerFormModal
         key="create-player"
         isOpen={showCreateModal}
@@ -535,7 +545,6 @@ const PlayersContent: React.FC = () => {
         title="Novo Jogador"
       />
 
-      {/* Modal de Edição com key baseada no ID */}
       {selectedPlayer && (
         <PlayerFormModal
           key={selectedPlayer.id}
@@ -573,7 +582,6 @@ const PlayerFormModal: React.FC<PlayerFormModalProps> = ({
   initialData = {},
   title,
 }) => {
-  // Estado inicial baseado nas props, só avaliado na montagem
   const [formData, setFormData] = useState<Partial<Player>>(() => ({
     name: "",
     email: "",

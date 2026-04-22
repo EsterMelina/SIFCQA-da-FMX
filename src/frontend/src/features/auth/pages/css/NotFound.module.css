@@ -1,0 +1,108 @@
+.container {
+  --color-primary: #c90909;
+  --color-primary-container: #ffdad6;
+  --color-on-primary-container: #410002;
+  --color-background: #f7f7f8;
+  --color-surface: #ffffff;
+  --color-on-surface: #1a1a1a;
+  --color-on-surface-variant: #666666;
+  --color-surface-container-highest: #e0e0e0;
+  --font-body: "Inter", sans-serif;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-surface);
+  font-family: var(--font-body);
+  padding: 2rem;
+  transition: background-color 0.2s;
+}
+
+.container.dark {
+  --color-primary: #ff4d4d;
+  --color-primary-container: #93000d;
+  --color-on-primary-container: #ffdad6;
+  --color-background: #050506;
+  --color-surface: #121214;
+  --color-on-surface: #ffffff;
+  --color-on-surface-variant: #b0b0b0;
+  --color-surface-container-highest: #2a2a2a;
+}
+
+.content {
+  text-align: center;
+  max-width: 500px;
+  padding: 2rem;
+}
+
+.logo {
+  height: 70px;
+  margin-bottom: 2rem;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.errorCode {
+  font-size: 7rem;
+  font-weight: 900;
+  color: var(--color-primary);
+  line-height: 1;
+  margin-bottom: 1rem;
+  text-shadow: 4px 4px 0 var(--color-primary-container);
+}
+
+.title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+  color: var(--color-on-surface);
+  letter-spacing: -0.025em;
+}
+
+.message {
+  font-size: 1.1rem;
+  color: var(--color-on-surface-variant);
+  margin-bottom: 2.5rem;
+  line-height: 1.5;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: var(--color-primary);
+  color: white;
+  font-weight: 700;
+  padding: 0.875rem 2rem;
+  border: none;
+  border-radius: 0.75rem;
+  text-decoration: none;
+  font-size: 1rem;
+  box-shadow: 0 8px 16px rgba(201, 9, 9, 0.2);
+  transition: all 0.15s;
+  cursor: pointer;
+}
+
+.button:hover {
+  background-color: var(--color-primary-container);
+  color: var(--color-on-primary-container);
+}
+
+.container.dark .button:hover {
+  color: #1b1b1b;
+}
+
+.materialSymbolsOutlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}

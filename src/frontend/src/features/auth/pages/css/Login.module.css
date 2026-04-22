@@ -1,71 +1,5 @@
 /* Login.module.css */
 
-/* ===== VARIÁVEIS GLOBAIS (LIGHT MODE - PADRÃO) ===== */
-.container {
-  /* Cores base - Light */
-  --color-primary: #ae0011;
-  --color-primary-container: #d71920;
-  --color-on-primary-container: #ffece9;
-  --color-secondary: #006e2d;
-  --color-tertiary: #00588f;
-  --color-error: #ba1a1a;
-  --color-error-container: #ffdad6;
-  --color-on-error-container: #93000a;
-
-  --color-surface: #f9f9f9;
-  --color-surface-dim: #dadada;
-  --color-surface-bright: #f9f9f9;
-  --color-surface-container: #eeeeee;
-  --color-surface-container-low: #f3f3f3;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-high: #e8e8e8;
-  --color-surface-container-highest: #e2e2e2;
-  --color-background: #f9f9f9;
-
-  --color-on-surface: #1b1b1b;
-  --color-on-surface-variant: #5d3f3c;
-  --color-on-background: #1b1b1b;
-
-  --color-outline: #926f6b;
-  --color-outline-variant: #e6bdb8;
-  --color-surface-tint: #c00014;
-
-  /* Fontes */
-  --font-headline: "Manrope", sans-serif;
-  --font-body: "Inter", sans-serif;
-  --font-label: "Inter", sans-serif;
-}
-
-/* ===== DARK MODE (cores mais intensas, sem palidez) ===== */
-.container.dark {
-  --color-primary: #ffb4ab;
-  --color-primary-container: #93000d;
-  --color-on-primary-container: #ffdad6;
-  --color-secondary: #77dc88;
-  --color-tertiary: #9acbff;
-  --color-error: #ffb4ab;
-  --color-error-container: #93000a;
-  --color-on-error-container: #ffdad6;
-
-  --color-surface: #0f0f0f;        /* mais escuro */
-  --color-surface-dim: #080808;
-  --color-surface-bright: #1e1e1e;
-  --color-surface-container: #181818;
-  --color-surface-container-low: #111111;
-  --color-surface-container-lowest: #080808;
-  --color-surface-container-high: #242424;
-  --color-surface-container-highest: #2a2a2a;
-  --color-background: #0a0a0a;
-
-  --color-on-surface: #ffffff;       /* branco puro para contraste */
-  --color-on-surface-variant: #f5d0cb;
-  --color-on-background: #ffffff;
-
-  --color-outline: #f5d0cb;
-  --color-outline-variant: #5d3f3c;
-  --color-surface-tint: #ffb4ab;
-}
-
 /* ===== RESET ===== */
 .container *,
 .container *::before,
@@ -124,7 +58,12 @@
 .gradientOverlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom right, rgba(174, 0, 17, 0.8), rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.9));
+  background: linear-gradient(
+    to bottom right,
+    rgba(230, 0, 35, 0.85),
+    rgba(0, 0, 0, 0.4),
+    rgba(0, 0, 0, 0.9)
+  );
   mix-blend-mode: multiply;
 }
 
@@ -144,11 +83,10 @@
 .logoImage {
   height: 4rem;
   width: auto;
-  filter: brightness(0) invert(1); /*força logo branca no fundo escuro */
+  filter: brightness(0) invert(1);
 }
 
 .brandText h1 {
-  
   font-size: 1.875rem;
   font-weight: 900;
   letter-spacing: -0.05em;
@@ -176,7 +114,7 @@
 }
 
 .quoteIcon {
-  color: var(--color-primary-fixed, #ffdad6);
+  color: #ffdad6;
   font-size: 3.75rem;
   opacity: 0.3;
   margin-bottom: 1rem;
@@ -213,7 +151,7 @@
   right: 0;
   width: 16rem;
   height: 16rem;
-  background-color: rgba(174, 0, 17, 0.15);
+  background-color: rgba(230, 0, 35, 0.15);
   border-radius: 9999px;
   filter: blur(120px);
   margin-right: -8rem;
@@ -226,7 +164,7 @@
   width: 100%;
   flex-direction: column;
   justify-content: center;
-  background-color: var(--color-surface-bright);
+  background-color: var(--color-surface-container-lowest);
   padding: 3rem 2rem;
 }
 
@@ -240,7 +178,7 @@
 .formContainer {
   margin: 0 auto;
   width: 100%;
-  max-width: 32rem; /* ligeiramente mais largo */
+  max-width: 32rem;
 }
 
 /* Logo mobile */
@@ -296,7 +234,7 @@
   font-weight: 800;
   letter-spacing: -0.025em;
   color: var(--color-on-surface);
- padding: 1.5rem 0; 
+  padding: 1.5rem 0;
 }
 
 /* Separador "use as credenciais" */
@@ -322,7 +260,7 @@
 
 .separatorText {
   position: relative;
-  background-color: var(--color-surface-bright);
+  background-color: var(--color-surface-container-lowest);
   padding-left: 1rem;
   padding-right: 1rem;
   font-size: 0.75rem;
@@ -389,7 +327,7 @@
 .input {
   width: 100%;
   padding: 1rem 1rem 1rem 3rem;
-  background-color: var(--color-surface-container-highest);
+  background-color: var(--color-surface-container-high);
   border: none;
   border-radius: 0.75rem;
   font-weight: 500;
@@ -399,11 +337,11 @@
 }
 
 .input:focus {
-  box-shadow: 0 0 0 2px rgba(174, 0, 17, 0.3);
+  box-shadow: 0 0 0 2px rgba(230, 0, 35, 0.3);
 }
 
-.container.dark .input:focus {
-  box-shadow: 0 0 0 2px rgba(255, 180, 171, 0.5);
+.dark .input:focus {
+  box-shadow: 0 0 0 2px rgba(255, 122, 118, 0.5);
 }
 
 .passwordToggle {
@@ -427,7 +365,7 @@
 
 .errorMessage {
   background-color: var(--color-error-container);
-  color: var(--color-on-error-container);
+  color: var(--color-on-primary-container);
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
   font-size: 0.875rem;
@@ -437,12 +375,12 @@
 .submitButton {
   width: 100%;
   padding: 1rem;
-  background-color: var(--color-primary);
+  background-color: var(--color-primary-container);
   color: white;
   font-weight: 700;
   border: none;
   border-radius: 0.75rem;
-  box-shadow: 0 12px 24px rgba(174, 0, 17, 0.2);
+  box-shadow: 0 12px 24px rgba(230, 0, 35, 0.2);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -452,12 +390,12 @@
 }
 
 .submitButton:hover:not(:disabled) {
-  background-color: var(--color-primary-container);
+  background-color: var(--color-primary);
   color: var(--color-on-primary-container);
 }
 
-.container.dark .submitButton:hover:not(:disabled) {
-  color: #1b1b1b;
+.dark .submitButton:hover:not(:disabled) {
+  color: #1b1a18;
 }
 
 .submitButton:active:not(:disabled) {
@@ -480,8 +418,12 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Rodapé do formulário */
@@ -557,7 +499,7 @@
 
 /* ===== MATERIAL SYMBOLS ===== */
 .materialSymbolsOutlined {
-  font-family: 'Material Symbols Outlined';
+  font-family: "Material Symbols Outlined";
   font-weight: normal;
   font-style: normal;
   font-size: 24px;

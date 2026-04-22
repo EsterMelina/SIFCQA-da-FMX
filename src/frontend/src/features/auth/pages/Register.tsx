@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { http } from "@/services/http";
 import styles from "./css/Register.module.css";
+import logo from "../../../assets/logo.png";
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    profile: "",
     password: "",
     confirmPassword: "",
     acceptTerms: false,
@@ -16,7 +16,11 @@ const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Tema: null = sistema, 'light' = claro, 'dark' = escuro
+  // Controle de visibilidade das senhas
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Tema: null = automático, 'light' ou 'dark'
   const [theme, setTheme] = useState<"light" | "dark" | null>(() => {
     const saved = localStorage.getItem("theme");
     if (saved === "light" || saved === "dark") return saved;
@@ -73,7 +77,6 @@ const Register: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    // Validações
     if (formData.password !== formData.confirmPassword) {
       setError("As senhas não coincidem.");
       return;
@@ -90,16 +93,13 @@ const Register: React.FC = () => {
     setLoading(true);
 
     try {
-      // Endpoint de registro (assumindo que existe)
-      const response = await http.post("/auth/register", {
+      await http.post("/auth/register", {
         name: formData.name,
         email: formData.email,
-        profile: formData.profile,
         password: formData.password,
         password_confirmation: formData.confirmPassword,
       });
 
-      // Após registro bem-sucedido, redireciona para login
       navigate("/login", {
         state: { message: "Conta criada com sucesso! Faça login." },
       });
@@ -139,187 +139,227 @@ const Register: React.FC = () => {
       </button>
 
       <main className={styles.main}>
-        {/* Coluna Visual (Imagem) */}
-        <section className={styles.visualColumn}>
-          <div className={styles.imageWrapper}>
+        {/* ===== LADO ESQUERDO (VISUAL / BRANDING) ===== */}
+        <section className={styles.leftSection}>
+          <div className={styles.backgroundImage}>
             <img
               src="https://lh3.googleusercontent.com/aida-public/AB6AXuA45ckori24ySBwewUjIJ3Ggy35RxZPptqyV-yqXb-ofqaloY7YbesCp1HokiN25CxqIUcvHCl2OVNe-tMieoWQgOBnF385v3AVxg-Cq-U1l2BhO0a7IHVnn6G3LZErgmolzizjXdcKvu8zPfU4NNUdLJnqInHVlekC-aHLgr9Rgd0vUxD2vVqqKoGJUc_SDxxIUAT6BSS6-4rVB8qSEYOgtZbgBsU5zDZP5DbJ5I6fwCW5YKDzmyATyDBw899Tql6J5_ULqUPRIeU"
               alt="Chess grandmaster thinking deeply"
             />
-            <div className={styles.overlay}></div>
+            <div className={styles.gradientOverlay}></div>
           </div>
-          <div className={styles.visualContent}>
-            <div className={styles.badge}>
-              <span className={styles.materialSymbolsOutlined}>
-                military_tech
-              </span>
-              <span>Excelência Táctica</span>
+
+          <div className={styles.brandHeader}>
+            <div className={styles.brandRow}>
+              <img
+                className={styles.logoImage}
+                src={logo}
+                alt="FMX Logo"
+              />
+              <div className={styles.brandText}>
+                <p>Federação Moçambicana de Xadrez</p>
+              </div>
             </div>
-            <h1 className={styles.visualTitle}>
-              O PRÓXIMO <br />
-              MOVIMENTO É SEU.
-            </h1>
-            <p className={styles.visualText}>
-              Junte-se à Federação Moçambicana de Xadrez e lidere a evolução do
-              jogo no país.
-            </p>
           </div>
+
+          <div className={styles.quoteFooter}>
+            <div className={styles.quoteContent}>
+              <div className={styles.quoteIcon}>“</div>
+              <p className={styles.quoteText}>
+                O xadrez é a ginástica da mente.
+              </p>
+              <div className={styles.quoteDivider}></div>
+              <p className={styles.quoteSource}>Blaise Pascal</p>
+            </div>
+          </div>
+
+          <div className={styles.decorBlur}></div>
         </section>
 
-        {/* Coluna do Formulário */}
-        <section className={styles.formColumn}>
-          <div className={styles.formWrapper}>
-            {/* Header & Branding */}
-            <div className={styles.header}>
-              <div className={styles.brand}>
-                <div className={styles.logoIcon}>
-                  <span className={styles.materialSymbolsOutlined}>chess</span>
-                </div>
-                <span className={styles.brandName}>SIFCQA-FMX</span>
-              </div>
-              <h2 className={styles.title}>Crie sua conta</h2>
-              <p className={styles.subtitle}>
+        {/* ===== LADO DIREITO (FORMULÁRIO) ===== */}
+        <section className={styles.rightSection}>
+          <div className={styles.formContainer}>
+            {/* Logo mobile */}
+            <div className={styles.mobileBrand}>
+              <img
+                className={styles.mobileLogo}
+                src="https://via.placeholder.com/40x40?text=FMX"
+                alt="FMX"
+              />
+              <h1>FMX</h1>
+            </div>
+
+            <div className={styles.formHeader}>
+              <div className={styles.welcomeTag}>Excelência Táctica</div>
+              <h2 className={styles.formTitle}>Crie sua conta</h2>
+              <p className={styles.welcomeSubtitle}>
                 Sistema Integrado de Filiação e Controlo de Quotas das
-                Associações da Federação Moçambicana de Xadrez. <br />
-                <span>Inicie a sua jornada no Grandmaster's Ledger.</span>
+                Associações da Federação Moçambicana de Xadrez.
               </p>
             </div>
 
-            {/* Formulário de Registro */}
+            <div className={styles.separator}>
+              <div className={styles.separatorLine}>
+                <div className={styles.separatorLineInner}></div>
+              </div>
+              <span className={styles.separatorText}>Preencha os dados</span>
+            </div>
+
             <form onSubmit={handleSubmit} className={styles.form}>
-              <div className={styles.formGrid}>
-                {/* Nome Completo */}
+              {/* Nome Completo */}
+              <div className={styles.fieldGroup}>
+                <label htmlFor="name" className={styles.label}>
+                  Nome Completo
+                </label>
+                <div className={styles.inputWrapper}>
+                  <span
+                    className={`${styles.inputIcon} ${styles.materialSymbolsOutlined}`}
+                  >
+                    person
+                  </span>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={handleChange}
+                    className={styles.input}
+                    placeholder="Ex: Artur Vilanculos"
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div className={styles.fieldGroup}>
+                <label htmlFor="email" className={styles.label}>
+                  Email
+                </label>
+                <div className={styles.inputWrapper}>
+                  <span
+                    className={`${styles.inputIcon} ${styles.materialSymbolsOutlined}`}
+                  >
+                    alternate_email
+                  </span>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={styles.input}
+                    placeholder="nome@fmx.org.mz"
+                  />
+                </div>
+              </div>
+
+              {/* Senha e Confirmar Senha com botão de olhinho */}
+              <div className={styles.passwordGrid}>
+                {/* Campo Senha */}
                 <div className={styles.fieldGroup}>
-                  <label htmlFor="name" className={styles.label}>
-                    Nome Completo
+                  <label htmlFor="password" className={styles.label}>
+                    Senha
                   </label>
                   <div className={styles.inputWrapper}>
                     <span
                       className={`${styles.inputIcon} ${styles.materialSymbolsOutlined}`}
                     >
-                      person
+                      lock
                     </span>
                     <input
-                      id="name"
-                      name="name"
-                      type="text"
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
                       required
-                      value={formData.name}
+                      value={formData.password}
                       onChange={handleChange}
                       className={styles.input}
-                      placeholder="Ex: Artur Vilanculos"
+                      placeholder="••••••••"
+                      style={{ paddingRight: "3rem" }}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      style={{
+                        position: "absolute",
+                        right: "0.75rem",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--color-on-surface-variant)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "0.25rem",
+                      }}
+                      aria-label={
+                        showPassword ? "Ocultar senha" : "Mostrar senha"
+                      }
+                    >
+                      <span className={styles.materialSymbolsOutlined}>
+                        {showPassword ? "visibility_off" : "visibility"}
+                      </span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Email */}
+                {/* Campo Confirmar Senha */}
                 <div className={styles.fieldGroup}>
-                  <label htmlFor="email" className={styles.label}>
-                    Email
+                  <label htmlFor="confirmPassword" className={styles.label}>
+                    Confirmar
                   </label>
                   <div className={styles.inputWrapper}>
                     <span
                       className={`${styles.inputIcon} ${styles.materialSymbolsOutlined}`}
                     >
-                      alternate_email
+                      lock_reset
                     </span>
                     <input
-                      id="email"
-                      name="email"
-                      type="email"
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
                       required
-                      value={formData.email}
+                      value={formData.confirmPassword}
                       onChange={handleChange}
                       className={styles.input}
-                      placeholder="nome@fmx.org.mz"
+                      placeholder="••••••••"
+                      style={{ paddingRight: "3rem" }}
                     />
-                  </div>
-                </div>
-
-                {/* Perfil de Utilizador */}
-                <div className={styles.fieldGroup}>
-                  <label htmlFor="profile" className={styles.label}>
-                    Perfil de Utilizador
-                  </label>
-                  <div className={styles.inputWrapper}>
-                    <span
-                      className={`${styles.inputIcon} ${styles.materialSymbolsOutlined}`}
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      style={{
+                        position: "absolute",
+                        right: "0.75rem",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--color-on-surface-variant)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "0.25rem",
+                      }}
+                      aria-label={
+                        showConfirmPassword
+                          ? "Ocultar senha"
+                          : "Mostrar senha"
+                      }
                     >
-                      badge
-                    </span>
-                    <select
-                      id="profile"
-                      name="profile"
-                      required
-                      value={formData.profile}
-                      onChange={handleChange}
-                      className={styles.select}
-                    >
-                      <option disabled value="">
-                        Seleccione o perfil
-                      </option>
-                      <option value="jogador">Jogador</option>
-                      <option value="associacao">Associação</option>
-                      <option value="outro">Outro</option>
-                    </select>
-                    <span
-                      className={`${styles.selectArrow} ${styles.materialSymbolsOutlined}`}
-                    >
-                      expand_more
-                    </span>
-                  </div>
-                </div>
-
-                {/* Senha e Confirmar Senha */}
-                <div className={styles.passwordGrid}>
-                  <div className={styles.fieldGroup}>
-                    <label htmlFor="password" className={styles.label}>
-                      Senha
-                    </label>
-                    <div className={styles.inputWrapper}>
-                      <span
-                        className={`${styles.inputIcon} ${styles.materialSymbolsOutlined}`}
-                      >
-                        lock
+                      <span className={styles.materialSymbolsOutlined}>
+                        {showConfirmPassword ? "visibility_off" : "visibility"}
                       </span>
-                      <input
-                        id="password"
-                        name="password"
-                        type="password"
-                        required
-                        value={formData.password}
-                        onChange={handleChange}
-                        className={styles.input}
-                        placeholder="••••••••"
-                      />
-                    </div>
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <label htmlFor="confirmPassword" className={styles.label}>
-                      Confirmar Senha
-                    </label>
-                    <div className={styles.inputWrapper}>
-                      <span
-                        className={`${styles.inputIcon} ${styles.materialSymbolsOutlined}`}
-                      >
-                        lock_reset
-                      </span>
-                      <input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type="password"
-                        required
-                        value={formData.confirmPassword}
-                        onChange={handleChange}
-                        className={styles.input}
-                        placeholder="••••••••"
-                      />
-                    </div>
+                    </button>
                   </div>
                 </div>
               </div>
 
-              {/* Checkbox dos Termos */}
+              {/* Checkbox de aceitação dos termos */}
               <div className={styles.termsGroup}>
                 <div className={styles.checkboxWrapper}>
                   <input
@@ -340,10 +380,8 @@ const Register: React.FC = () => {
                 </label>
               </div>
 
-              {/* Mensagem de erro */}
               {error && <div className={styles.errorMessage}>{error}</div>}
 
-              {/* Botão de submit */}
               <button
                 type="submit"
                 disabled={loading}
@@ -369,23 +407,25 @@ const Register: React.FC = () => {
               </button>
             </form>
 
-            {/* Link para login */}
-            <p className={styles.loginLink}>
-              Já tem uma conta? <Link to="/login">Iniciar Sessão</Link>
-            </p>
-
-            {/* Rodapé com bandeira */}
-            <div className={styles.footer}>
-              <div className={styles.footerContent}>
-                <img
-                  className={styles.flag}
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSbnSjJZXjUDf5pa7naluP-dhdW0nT88exgHslokluKC5wmPX0d8Rpe3PJ1IGrRqiRcL7fNolZbJFjS3q287suUEJ-qtq0so4_PBjYzhfhPeHDSisOmNc4mMFl3szx1evlwASGSIMOjrhi43B75DOBruzSyx63LQrghFOYzpvufEDg5pH1ldLV1QAiBvZNnYHB1H6JdbuqFdjYY2pRDMSDhLhO6h8CkQoisz4iD5Vz4LRgltb8CNzAWa2jEvAtscmeZHEIJrPgOlc"
-                  alt="Mozambique Flag"
-                />
-                <span className={styles.footerText}>
-                  Federação Moçambicana de Xadrez
-                </span>
+            <div className={styles.formFooter}>
+              <p className={styles.signupText}>
+                Já tem uma conta?{" "}
+                <Link to="/login" className={styles.signupLink}>
+                  Iniciar Sessão
+                </Link>
+              </p>
+              <div className={styles.footerLinks}>
+                <a href="#" className={styles.footerLink}>
+                  Suporte
+                </a>
+                <a href="#" className={styles.footerLink}>
+                  Privacidade
+                </a>
+                <a href="#" className={styles.footerLink}>
+                  Termos
+                </a>
               </div>
+              
             </div>
           </div>
         </section>

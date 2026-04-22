@@ -1,48 +1,5 @@
 /* AssociationDashboard.module.css */
 
-/* ===== VARIÁVEIS ===== */
-.container {
-  --color-primary: #ae0011;
-  --color-primary-container: #d71920;
-  --color-on-primary-container: #ffece9;
-  --color-tertiary: #006328;
-  --color-tertiary-container: #0a7e36;
-  --color-error: #ba1a1a;
-
-  --color-background: #ede8d0;
-  --color-surface: #fbf9f5;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f5f3ef;
-  --color-surface-container: #efeeea;
-  --color-surface-container-high: #eae8e4;
-
-  --color-on-surface: #1b1c1a;
-  --color-on-surface-variant: #5d3f3c;
-  --color-outline-variant: #e6bdb8;
-
-  --sidebar-bg: #ede8d0;
-  --sidebar-hover: #e4e0d4;
-
-  --font-body: "Manrope", sans-serif;
-  --shadow-md: 0 4px 20px rgba(27, 28, 26, 0.06);
-}
-
-.container.dark {
-  --color-primary: #8b0611;
-  --color-primary-container: #93000d;
-  --color-tertiary: #77dc88;
-  --color-background: #1b1c1a;
-  --color-surface: #1b1c1a;
-  --color-surface-container-lowest: #121212;
-  --color-surface-container-low: #1e1e1e;
-  --color-surface-container: #242424;
-  --color-on-surface: #f2f0ed;
-  --color-on-surface-variant: #d9c4bf;
-  --color-outline-variant: #5d3f3c;
-  --sidebar-bg: #1c1c1c;
-  --sidebar-hover: #2a2a2a;
-}
-
 /* ===== RESET ===== */
 .container * {
   box-sizing: border-box;
@@ -51,7 +8,7 @@
 }
 
 .container {
-  font-family: var(--font-body);
+  font-family: var(--font-body, 'Manrope', sans-serif);
   background-color: var(--color-background);
   color: var(--color-on-surface);
 }
@@ -97,7 +54,7 @@
   left: 0;
   z-index: 100;
   transition: transform 0.3s;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   color: var(--color-on-surface);
 }
 @media (max-width: 767px) {
@@ -194,8 +151,8 @@
 }
 .navLink.active {
   background: var(--color-surface-container-lowest);
-  color: var(--color-primary-container);
-  border-left-color: var(--color-primary-container);
+  color: var(--color-primary);
+  border-left-color: var(--color-primary);
   transform: translateX(4px);
   opacity: 1;
 }
@@ -204,13 +161,10 @@
 .sidebarFooter {
   padding: 1rem 1.5rem 0;
   margin-top: auto;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  border-top: 1px solid var(--color-outline-variant);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-.container.dark .sidebarFooter {
-  border-top-color: rgba(255, 255, 255, 0.1);
 }
 .footerLink {
   display: flex;
@@ -303,8 +257,8 @@
   cursor: pointer;
 }
 .topbarNavLink.active {
-  color: var(--color-primary-container);
-  border-bottom-color: var(--color-primary-container);
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
   opacity: 1;
   font-weight: 700;
 }
@@ -530,22 +484,22 @@
 }
 
 .statusBadge.active {
-  background: rgba(0, 99, 40, 0.1);
-  color: var(--color-tertiary);
+  background: rgba(230, 0, 35, 0.1);
+  color: var(--color-primary);
 }
 
 .statusBadge.inactive {
-  background: rgba(186, 26, 26, 0.1);
+  background: rgba(198, 40, 40, 0.1);
   color: var(--color-error);
 }
 
 .statusBadge.pending {
-  background: rgba(174, 0, 17, 0.1);
+  background: rgba(230, 0, 35, 0.1);
   color: var(--color-primary);
 }
 
 .statusBadge.validated {
-  background: rgba(0, 99, 40, 0.1);
+  background: rgba(107, 106, 105, 0.1);
   color: var(--color-tertiary);
 }
 
@@ -593,13 +547,13 @@
 }
 
 .tournamentStatus.open {
-  background: rgba(0, 99, 40, 0.1);
-  color: var(--color-tertiary);
+  background: rgba(230, 0, 35, 0.1);
+  color: var(--color-primary);
 }
 
 .tournamentStatus.waiting {
-  background: rgba(245, 158, 11, 0.1);
-  color: #b45309;
+  background: rgba(230, 0, 35, 0.1);
+  color: var(--color-primary);
 }
 
 .tournamentStatus.planning {
@@ -713,7 +667,7 @@
 .modal {
   background: var(--color-surface-container-lowest);
   border-radius: 1rem;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   width: 100%;
   max-width: 450px;
   max-height: 85vh;
@@ -930,7 +884,7 @@
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 9999px;
-  background: var(--color-tertiary);
+  background: var(--color-primary);
 }
 
 .footerMeta {
@@ -939,7 +893,7 @@
 }
 
 .footerMeta span {
-  background: var(--color-surface-container-highest, #e4e2de);
+  background: var(--color-surface-container-highest);
   padding: 0.5rem 1rem;
   border-radius: 0.25rem;
   font-size: 0.625rem;

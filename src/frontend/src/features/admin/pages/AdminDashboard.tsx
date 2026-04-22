@@ -30,7 +30,7 @@ interface User {
   role: string;
   association_id?: number | null;
   association?: { id: number; name: string } | null;
-  status?: string; // "active" | "inactive"
+  status?: string;
   created_at?: string;
 }
 
@@ -44,10 +44,13 @@ const AdminDashboard: React.FC = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
+  
+  // Tema agora suporta null para automático
+  const [theme, setTheme] = useState<"light" | "dark" | null>(() => {
     const saved = localStorage.getItem("theme") as "light" | "dark" | null;
-    return saved ?? "light";
+    return saved ?? null;
   });
+
   const [metrics, setMetrics] = useState<Metrics>({
     serverLoad: 14.2,
     responseTime: 124,
@@ -58,19 +61,16 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Utilizadores
   const [users, setUsers] = useState<User[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
 
-  // Estados para controlar a abertura dos modais
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNewReportModal, setShowNewReportModal] = useState(false);
   const [showNewUserModal, setShowNewUserModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const addToast = (type: ToastMessage["type"], message: string) => {
@@ -85,18 +85,26 @@ const AdminDashboard: React.FC = () => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Aplica tema
+  // Aplica classe dark no <html>
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("theme", theme);
+    const root = document.documentElement;
+    const isDark =
+      theme === "dark" ||
+      (theme === null && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    root.classList.toggle("dark", isDark);
   }, [theme]);
 
-  const toggleTheme = () =>
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      if (prev === "light") return "dark";
+      if (prev === "dark") return null;
+      return "light";
+    });
+  };
+
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
   const closeSidebar = () => setIsSidebarOpen(false);
 
-  // Buscar dados do dashboard
   useEffect(() => {
     if (activeTab !== "dashboard") return;
     const fetchDashboardData = async () => {
@@ -121,7 +129,6 @@ const AdminDashboard: React.FC = () => {
     fetchDashboardData();
   }, [activeTab]);
 
-  // Buscar lista de utilizadores quando a tab "users" estiver ativa
   useEffect(() => {
     if (activeTab !== "users") return;
     fetchUsers();
@@ -147,20 +154,12 @@ const AdminDashboard: React.FC = () => {
     await logout();
   };
 
-  // Handlers para ações
   const handleExportLogs = () => console.log("Exportar Logs CSV");
-  const handleEditUser = (user: User) => {
-    console.log("Editar utilizador", user);
-    // TODO: abrir modal de edição
-  };
-  const handleDeactivateUser = (user: User) => {
-    console.log("Desativar utilizador", user);
-    // TODO: chamar endpoint para desativar
-  };
+  const handleEditUser = (user: User) => console.log("Editar utilizador", user);
+  const handleDeactivateUser = (user: User) => console.log("Desativar utilizador", user);
   const handleSearch = (query: string) => console.log("Pesquisar:", query);
   const handleSettings = () => console.log("Definições");
 
-  // Dados mockados para auditoria (fallback)
   const displayLogs =
     auditLogs.length > 0
       ? auditLogs
@@ -231,18 +230,14 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className={`${styles.container} ${theme === "dark" ? styles.dark : ""}`}>
+    <div className={styles.container}>
       <div className={styles.layout}>
-        {/* Overlay para mobile */}
         <div
           className={`${styles.overlay} ${isSidebarOpen ? styles.overlayVisible : ""}`}
           onClick={closeSidebar}
         />
 
-        {/* Sidebar */}
-        <aside
-          className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ""}`}
-        >
+        <aside className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ""}`}>
           <div className={styles.sidebarHeader}>
             <div className={styles.brandWrapper}>
               <div className={styles.logoIcon}>
@@ -257,30 +252,21 @@ const AdminDashboard: React.FC = () => {
 
           <nav className={styles.nav}>
             <button
-              onClick={() => {
-                setActiveTab("dashboard");
-                closeSidebar();
-              }}
+              onClick={() => { setActiveTab("dashboard"); closeSidebar(); }}
               className={`${styles.navLink} ${activeTab === "dashboard" ? styles.active : ""}`}
             >
               <span className="material-symbols-outlined">dashboard</span>
               <span>Dashboard</span>
             </button>
             <button
-              onClick={() => {
-                setActiveTab("users");
-                closeSidebar();
-              }}
+              onClick={() => { setActiveTab("users"); closeSidebar(); }}
               className={`${styles.navLink} ${activeTab === "users" ? styles.active : ""}`}
             >
               <span className="material-symbols-outlined">group</span>
               <span>Gestão de Utilizadores</span>
             </button>
             <button
-              onClick={() => {
-                setActiveTab("audit");
-                closeSidebar();
-              }}
+              onClick={() => { setActiveTab("audit"); closeSidebar(); }}
               className={`${styles.navLink} ${activeTab === "audit" ? styles.active : ""}`}
             >
               <span className="material-symbols-outlined">receipt_long</span>
@@ -291,10 +277,7 @@ const AdminDashboard: React.FC = () => {
           <div className={styles.sidebarFooter}>
             <button
               className={styles.reportButton}
-              onClick={() => {
-                setShowNewReportModal(true);
-                closeSidebar();
-              }}
+              onClick={() => { setShowNewReportModal(true); closeSidebar(); }}
             >
               <span className="material-symbols-outlined">add</span>
               Novo Relatório
@@ -302,11 +285,7 @@ const AdminDashboard: React.FC = () => {
             <div className={styles.footerLinks}>
               <button
                 className={styles.footerLink}
-                onClick={() => {
-                  handleSettings();
-                  setActiveTab("archive");
-                  closeSidebar();
-                }}
+                onClick={() => { handleSettings(); setActiveTab("archive"); closeSidebar(); }}
               >
                 <span className="material-symbols-outlined">settings</span>
                 <span>Definições</span>
@@ -319,16 +298,10 @@ const AdminDashboard: React.FC = () => {
           </div>
         </aside>
 
-        {/* Main Content */}
         <main className={styles.main}>
-          {/* Header */}
           <header className={styles.topbar}>
             <div className={styles.topbarLeft}>
-              <button
-                className={styles.menuButton}
-                onClick={toggleSidebar}
-                aria-label="Menu"
-              >
+              <button className={styles.menuButton} onClick={toggleSidebar} aria-label="Menu">
                 <span className="material-symbols-outlined">menu</span>
               </button>
               <span className={styles.systemName}>SIFCQA-FMX</span>
@@ -363,21 +336,15 @@ const AdminDashboard: React.FC = () => {
                   onChange={(e) => handleSearch(e.target.value)}
                 />
               </div>
-              <button
-                className={styles.iconButton}
-                onClick={() => setShowNotificationsModal(true)}
-              >
+              <button className={styles.iconButton} onClick={() => setShowNotificationsModal(true)}>
                 <span className="material-symbols-outlined">notifications</span>
               </button>
               <button className={styles.themeToggle} onClick={toggleTheme}>
                 <span className="material-symbols-outlined">
-                  {theme === "light" ? "dark_mode" : "light_mode"}
+                  {theme === "light" ? "light_mode" : theme === "dark" ? "dark_mode" : "routine"}
                 </span>
               </button>
-              <div
-                className={styles.avatar}
-                onClick={() => setShowProfileModal(true)}
-              >
+              <div className={styles.avatar} onClick={() => setShowProfileModal(true)}>
                 <img
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8Uom-iyjf-VYwGKXhogZ-JpLC9CRO9cBKCgMLVEF6yg5Eyqpict5Nhs4k95tWHCywAfZ5WasGzieXliYCtmaUj3xvfOQP5k83kwAeZsJQ3PrdZvx3SrN1x4l30syg5ltOAmsxDeWmmuGBgeM9a8lisVmSqzNwgwKU79a0AwXSKLlMhoKoZzAu18mvF60aHHbLSpBsqklK1ZxCugGZo_yWN7ab3664FYCM__nz5iGsoJZRXBr4jtizibaLpotEuQ5xoCOUlvBXENI"
                   alt="Perfil"
@@ -386,38 +353,18 @@ const AdminDashboard: React.FC = () => {
             </div>
           </header>
 
-          {/* Conteúdo dinâmico */}
           <div className={styles.content}>{renderContent()}</div>
 
-          {/* Footer compacto */}
           <footer className={styles.footer}>
             <p>© {new Date().getFullYear()} FMX - SIFCQA</p>
             <div className={styles.footerLinks}>
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  console.log("Termos");
-                }}
-              >
+              <a href="#" onClick={(e) => { e.preventDefault(); console.log("Termos"); }}>
                 Termos
               </a>
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  console.log("Privacidade");
-                }}
-              >
+              <a href="#" onClick={(e) => { e.preventDefault(); console.log("Privacidade"); }}>
                 Privacidade
               </a>
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  console.log("Suporte");
-                }}
-              >
+              <a href="#" onClick={(e) => { e.preventDefault(); console.log("Suporte"); }}>
                 Suporte
               </a>
             </div>
@@ -425,37 +372,24 @@ const AdminDashboard: React.FC = () => {
         </main>
       </div>
 
-      {/* Modais Flutuantes */}
-      <NewReportModal
-        isOpen={showNewReportModal}
-        onClose={() => setShowNewReportModal(false)}
-      />
+      <NewReportModal isOpen={showNewReportModal} onClose={() => setShowNewReportModal(false)} />
       <NewUserModal
         isOpen={showNewUserModal}
         onClose={() => setShowNewUserModal(false)}
         onSuccess={() => {
           setShowNewUserModal(false);
-          addToast(
-            "success",
-            "Utilizador criado com sucesso! Um email foi enviado para definição da password."
-          );
-          fetchUsers(); // Atualiza a lista imediatamente
+          addToast("success", "Utilizador criado com sucesso! Um email foi enviado para definição da password.");
+          fetchUsers();
         }}
-        onError={(message: string) => {
-          addToast("error", message || "Erro ao criar utilizador");
-        }}
+        onError={(message: string) => addToast("error", message || "Erro ao criar utilizador")}
       />
-      <NotificationsModal
-        isOpen={showNotificationsModal}
-        onClose={() => setShowNotificationsModal(false)}
-      />
+      <NotificationsModal isOpen={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} />
       <ProfileModal
         isOpen={showProfileModal}
         onClose={() => setShowProfileModal(false)}
         onLogout={handleLogout}
       />
 
-      {/* Toasts */}
       <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   );
@@ -470,13 +404,12 @@ const DashboardContent: React.FC<{
   error: string | null;
   onExportLogs: () => void;
 }> = ({ metrics, logs, loading, error, onExportLogs }) => (
+  // ... conteúdo idêntico ao original, sem alterações estruturais ...
   <>
     <div className={styles.dashboardHeader}>
       <div className={styles.headerTitle}>
         <p>Painel de Controlo Principal</p>
-        <h2>
-          Estado do Sistema <span className={styles.accent}>.</span>
-        </h2>
+        <h2>Estado do Sistema <span className={styles.accent}>.</span></h2>
       </div>
       <div className={styles.statusBadge}>
         <span className={styles.statusDot}></span>
@@ -497,10 +430,7 @@ const DashboardContent: React.FC<{
             <p className={styles.metricLabel}>Carga do Servidor</p>
             <h3 className={styles.metricValue}>{metrics.serverLoad}%</h3>
             <div className={styles.progressBar}>
-              <div
-                className={styles.progressFill}
-                style={{ width: `${metrics.serverLoad}%` }}
-              />
+              <div className={styles.progressFill} style={{ width: `${metrics.serverLoad}%` }} />
             </div>
             <p className={styles.metricTrend}>ÓTIMO ESTADO</p>
           </div>
@@ -511,24 +441,16 @@ const DashboardContent: React.FC<{
             <p className={styles.metricLabel}>Tempo de Resposta</p>
             <h3 className={styles.metricValue}>{metrics.responseTime}ms</h3>
             <p className={styles.metricTrend}>
-              <span className="material-symbols-outlined">trending_down</span>{" "}
-              12% vs última hora
+              <span className="material-symbols-outlined">trending_down</span> 12% vs última hora
             </p>
           </div>
-          <div
-            className={`${styles.metricCard} ${styles.darkCard} ${styles.metricCardLarge}`}
-          >
+          <div className={`${styles.metricCard} ${styles.darkCard} ${styles.metricCardLarge}`}>
             <p className={styles.metricLabel}>Utilizadores Ativos</p>
-            <h3 className={styles.metricValue}>
-              {metrics.activeUsers.toLocaleString()} <span>sessões agora</span>
-            </h3>
+            <h3 className={styles.metricValue}>{metrics.activeUsers.toLocaleString()} <span>sessões agora</span></h3>
             <div className={styles.chartBars}>
               {[0.5, 0.66, 0.83, 1, 0.75, 0.33].map((h, i) => (
                 <div key={i} className={styles.chartBar}>
-                  <div
-                    className={styles.barFill}
-                    style={{ height: `${h * 100}%` }}
-                  />
+                  <div className={styles.barFill} style={{ height: `${h * 100}%` }} />
                 </div>
               ))}
             </div>
@@ -560,19 +482,9 @@ const DashboardContent: React.FC<{
                       <td>{log.user}</td>
                       <td>{log.action}</td>
                       <td>
-                        <span
-                          className={
-                            log.status === "success"
-                              ? styles.statusSuccess
-                              : styles.statusError
-                          }
-                        >
+                        <span className={log.status === "success" ? styles.statusSuccess : styles.statusError}>
                           <span className={styles.statusDot}></span>
-                          {log.status === "success"
-                            ? "Sucesso"
-                            : log.status === "blocked"
-                            ? "Bloqueado"
-                            : "Falha"}
+                          {log.status === "success" ? "Sucesso" : log.status === "blocked" ? "Bloqueado" : "Falha"}
                         </span>
                       </td>
                     </tr>
@@ -613,9 +525,7 @@ const DashboardContent: React.FC<{
               </div>
               <div className={`${styles.infraItem} ${styles.warning}`}>
                 <div className={styles.infraLeft}>
-                  <span className="material-symbols-outlined">
-                    sd_card_alert
-                  </span>
+                  <span className="material-symbols-outlined">sd_card_alert</span>
                   <div>
                     <p>Storage de Relatórios</p>
                     <p>Capacidade 92% ocupada</p>
@@ -646,9 +556,7 @@ const DashboardContent: React.FC<{
                       strokeDasharray={`${metrics.securityScore}, 100`}
                     />
                   </svg>
-                  <div className={styles.scoreValue}>
-                    {metrics.securityScore}%
-                  </div>
+                  <div className={styles.scoreValue}>{metrics.securityScore}%</div>
                 </div>
                 <div>
                   <p>Score de Segurança</p>
@@ -739,16 +647,10 @@ const UserManagementContent: React.FC<{
                     <td>{user.association?.name || "—"}</td>
                     <td>{getStatusBadge(user)}</td>
                     <td>
-                      <button
-                        className={styles.actionBtn}
-                        onClick={() => onEdit(user)}
-                      >
+                      <button className={styles.actionBtn} onClick={() => onEdit(user)}>
                         Editar
                       </button>
-                      <button
-                        className={styles.actionBtn}
-                        onClick={() => onDeactivate(user)}
-                      >
+                      <button className={styles.actionBtn} onClick={() => onDeactivate(user)}>
                         Desativar
                       </button>
                     </td>
@@ -764,14 +666,11 @@ const UserManagementContent: React.FC<{
 };
 
 const AuditLogsContent: React.FC = () => (
+  // ... conteúdo original mantido ...
   <div className={styles.pageContainer}>
     <h2>Registos de Auditoria</h2>
     <div className={styles.filters}>
-      <input
-        type="text"
-        placeholder="Filtrar por utilizador ou ação..."
-        onChange={(e) => console.log("Filtrar:", e.target.value)}
-      />
+      <input type="text" placeholder="Filtrar por utilizador ou ação..." onChange={(e) => console.log("Filtrar:", e.target.value)} />
       <select onChange={(e) => console.log("Status:", e.target.value)}>
         <option>Todos os status</option>
         <option>Sucesso</option>
@@ -781,42 +680,18 @@ const AuditLogsContent: React.FC = () => (
     <div className={styles.tableWrapper}>
       <table className={styles.table}>
         <thead>
-          <tr>
-            <th>Data/Hora</th>
-            <th>Utilizador</th>
-            <th>Ação</th>
-            <th>IP</th>
-            <th>Status</th>
-          </tr>
+          <tr><th>Data/Hora</th><th>Utilizador</th><th>Ação</th><th>IP</th><th>Status</th></tr>
         </thead>
         <tbody>
-          <tr>
-            <td>2024-01-15 09:34:22</td>
-            <td>admin.silva</td>
-            <td>Alteração de permissões</td>
-            <td>192.168.1.45</td>
-            <td>
-              <span className={styles.statusSuccess}>Sucesso</span>
-            </td>
-          </tr>
-          <tr>
-            <td>2024-01-15 08:12:05</td>
-            <td>guest_4522</td>
-            <td>Tentativa de acesso negada</td>
-            <td>10.0.0.22</td>
-            <td>
-              <span className={styles.statusError}>Falha</span>
-            </td>
-          </tr>
+          <tr><td>2024-01-15 09:34:22</td><td>admin.silva</td><td>Alteração de permissões</td><td>192.168.1.45</td><td><span className={styles.statusSuccess}>Sucesso</span></td></tr>
+          <tr><td>2024-01-15 08:12:05</td><td>guest_4522</td><td>Tentativa de acesso negada</td><td>10.0.0.22</td><td><span className={styles.statusError}>Falha</span></td></tr>
         </tbody>
       </table>
     </div>
     <div className={styles.pagination}>
-      <button disabled onClick={() => console.log("Anterior")}>
-        Anterior
-      </button>
+      <button disabled>Anterior</button>
       <span>Página 1 de 5</span>
-      <button onClick={() => console.log("Próxima")}>Próxima</button>
+      <button>Próxima</button>
     </div>
   </div>
 );
@@ -841,19 +716,11 @@ const ArchiveContent: React.FC = () => (
   </div>
 );
 
-// ===== MODAIS FLUTUANTES =====
+// ===== MODAIS =====
+// (mantidos exatamente iguais ao original, sem necessidade de alteração)
+// ... NewReportModal, NewUserModal, NotificationsModal, ProfileModal ...
 
-interface ModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-interface NewUserModalProps extends ModalProps {
-  onSuccess: () => void;
-  onError: (message: string) => void;
-}
-
-const NewReportModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
+const NewReportModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -871,35 +738,15 @@ const NewReportModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
           </div>
           <div className={styles.formGroup}>
             <label>Tipo</label>
-            <select>
-              <option>Financeiro</option>
-              <option>Atletas</option>
-              <option>Associações</option>
-              <option>Auditoria</option>
-            </select>
+            <select><option>Financeiro</option><option>Atletas</option><option>Associações</option><option>Auditoria</option></select>
           </div>
           <div className={styles.formGroup}>
             <label>Período</label>
-            <select>
-              <option>Último mês</option>
-              <option>Último trimestre</option>
-              <option>Último ano</option>
-              <option>Personalizado</option>
-            </select>
+            <select><option>Último mês</option><option>Último trimestre</option><option>Último ano</option><option>Personalizado</option></select>
           </div>
           <div className={styles.modalActions}>
-            <button className={styles.cancelButton} onClick={onClose}>
-              Cancelar
-            </button>
-            <button
-              className={styles.submitButton}
-              onClick={() => {
-                console.log("Gerar relatório");
-                onClose();
-              }}
-            >
-              Gerar Relatório
-            </button>
+            <button className={styles.cancelButton} onClick={onClose}>Cancelar</button>
+            <button className={styles.submitButton} onClick={() => { console.log("Gerar relatório"); onClose(); }}>Gerar Relatório</button>
           </div>
         </div>
       </div>
@@ -907,24 +754,17 @@ const NewReportModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
   );
 };
 
-const NewUserModal: React.FC<NewUserModalProps> = ({
-  isOpen,
-  onClose,
-  onSuccess,
-  onError,
-}) => {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    role: "admin",
-    association_id: "",
-  });
+const NewUserModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  onError: (message: string) => void;
+}> = ({ isOpen, onClose, onSuccess, onError }) => {
+  const [formData, setFormData] = useState({ name: "", email: "", role: "admin", association_id: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -936,8 +776,7 @@ const NewUserModal: React.FC<NewUserModalProps> = ({
       await http.post(endpoints.users.base, formData);
       onSuccess();
     } catch (err: any) {
-      const errorMsg =
-        err.response?.data?.message || "Erro ao criar utilizador";
+      const errorMsg = err.response?.data?.message || "Erro ao criar utilizador";
       setError(errorMsg);
       onError(errorMsg);
     } finally {
@@ -946,14 +785,9 @@ const NewUserModal: React.FC<NewUserModalProps> = ({
   };
 
   if (!isOpen) return null;
-
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <form
-        className={styles.modal}
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={handleSubmit}
-      >
+      <form className={styles.modal} onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <div className={styles.modalHeader}>
           <h3>Novo Utilizador</h3>
           <button type="button" className={styles.modalClose} onClick={onClose}>
@@ -962,70 +796,29 @@ const NewUserModal: React.FC<NewUserModalProps> = ({
         </div>
         <div className={styles.modalBody}>
           {error && <div className={styles.error}>{error}</div>}
-
           <div className={styles.formGroup}>
             <label>Nome Completo</label>
-            <input
-              name="name"
-              type="text"
-              placeholder="Ex: João Silva"
-              value={formData.name}
-              onChange={handleChange}
-              required
-            />
+            <input name="name" type="text" placeholder="Ex: João Silva" value={formData.name} onChange={handleChange} required />
           </div>
-
           <div className={styles.formGroup}>
             <label>Email</label>
-            <input
-              name="email"
-              type="email"
-              placeholder="joao@fmx.org.mz"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
+            <input name="email" type="email" placeholder="joao@fmx.org.mz" value={formData.email} onChange={handleChange} required />
           </div>
-
           <div className={styles.formGroup}>
             <label>Perfil</label>
             <select name="role" value={formData.role} onChange={handleChange}>
-              <option value="admin">Administrador</option>
-              <option value="association">Associação</option>
-              <option value="player">Jogador</option>
-              <option value="fmx">FMX</option>
+              <option value="admin">Administrador</option><option value="association">Associação</option><option value="player">Jogador</option><option value="fmx">FMX</option>
             </select>
           </div>
-
           <div className={styles.formGroup}>
             <label>Associação (se aplicável)</label>
-            <select
-              name="association_id"
-              value={formData.association_id}
-              onChange={handleChange}
-            >
-              <option value="">Nenhuma</option>
-              <option value="1">Maputo Cidade</option>
-              <option value="2">Beira</option>
-              <option value="3">Nampula</option>
+            <select name="association_id" value={formData.association_id} onChange={handleChange}>
+              <option value="">Nenhuma</option><option value="1">Maputo Cidade</option><option value="2">Beira</option><option value="3">Nampula</option>
             </select>
           </div>
-
           <div className={styles.modalActions}>
-            <button
-              type="button"
-              className={styles.cancelButton}
-              onClick={onClose}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className={styles.submitButton}
-              disabled={loading}
-            >
-              {loading ? "A criar..." : "Criar Utilizador"}
-            </button>
+            <button type="button" className={styles.cancelButton} onClick={onClose}>Cancelar</button>
+            <button type="submit" className={styles.submitButton} disabled={loading}>{loading ? "A criar..." : "Criar Utilizador"}</button>
           </div>
         </div>
       </form>
@@ -1033,48 +826,23 @@ const NewUserModal: React.FC<NewUserModalProps> = ({
   );
 };
 
-const NotificationsModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
+const NotificationsModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div
-        className={`${styles.modal} ${styles.notificationsModal}`}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className={`${styles.modal} ${styles.notificationsModal}`} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h3>Notificações</h3>
-          <button className={styles.modalClose} onClick={onClose}>
-            <span className="material-symbols-outlined">close</span>
-          </button>
+          <button className={styles.modalClose} onClick={onClose}><span className="material-symbols-outlined">close</span></button>
         </div>
         <div className={styles.modalBody}>
           <div className={styles.notificationList}>
-            <div className={styles.notificationItem}>
-              <span className="material-symbols-outlined">info</span>
-              <div>
-                <p>Novo relatório disponível</p>
-                <span>Há 5 minutos</span>
-              </div>
-            </div>
-            <div className={styles.notificationItem}>
-              <span className="material-symbols-outlined">warning</span>
-              <div>
-                <p>Storage de relatórios a 92%</p>
-                <span>Há 1 hora</span>
-              </div>
-            </div>
-            <div className={styles.notificationItem}>
-              <span className="material-symbols-outlined">check_circle</span>
-              <div>
-                <p>Backup concluído com sucesso</p>
-                <span>Há 3 horas</span>
-              </div>
-            </div>
+            <div className={styles.notificationItem}><span className="material-symbols-outlined">info</span><div><p>Novo relatório disponível</p><span>Há 5 minutos</span></div></div>
+            <div className={styles.notificationItem}><span className="material-symbols-outlined">warning</span><div><p>Storage de relatórios a 92%</p><span>Há 1 hora</span></div></div>
+            <div className={styles.notificationItem}><span className="material-symbols-outlined">check_circle</span><div><p>Backup concluído com sucesso</p><span>Há 3 horas</span></div></div>
           </div>
           <div className={styles.modalActions}>
-            <button className={styles.textButton}>
-              Marcar todas como lidas
-            </button>
+            <button className={styles.textButton}>Marcar todas como lidas</button>
             <button className={styles.textButton}>Ver todas</button>
           </div>
         </div>
@@ -1083,75 +851,37 @@ const NotificationsModal: React.FC<ModalProps> = ({ isOpen, onClose }) => {
   );
 };
 
-const ProfileModal: React.FC<ModalProps & { onLogout: () => void }> = ({
-  isOpen,
-  onClose,
-  onLogout,
-}) => {
+const ProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; onLogout: () => void }> = ({ isOpen, onClose, onLogout }) => {
   if (!isOpen) return null;
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div
-        className={`${styles.modal} ${styles.profileModal}`}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className={`${styles.modal} ${styles.profileModal}`} onClick={(e) => e.stopPropagation()}>
         <div className={styles.profileHeader}>
-          <img
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8Uom-iyjf-VYwGKXhogZ-JpLC9CRO9cBKCgMLVEF6yg5Eyqpict5Nhs4k95tWHCywAfZ5WasGzieXliYCtmaUj3xvfOQP5k83kwAeZsJQ3PrdZvx3SrN1x4l30syg5ltOAmsxDeWmmuGBgeM9a8lisVmSqzNwgwKU79a0AwXSKLlMhoKoZzAu18mvF60aHHbLSpBsqklK1ZxCugGZo_yWN7ab3664FYCM__nz5iGsoJZRXBr4jtizibaLpotEuQ5xoCOUlvBXENI"
-            alt="Avatar"
-          />
+          <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuC8Uom-iyjf-VYwGKXhogZ-JpLC9CRO9cBKCgMLVEF6yg5Eyqpict5Nhs4k95tWHCywAfZ5WasGzieXliYCtmaUj3xvfOQP5k83kwAeZsJQ3PrdZvx3SrN1x4l30syg5ltOAmsxDeWmmuGBgeM9a8lisVmSqzNwgwKU79a0AwXSKLlMhoKoZzAu18mvF60aHHbLSpBsqklK1ZxCugGZo_yWN7ab3664FYCM__nz5iGsoJZRXBr4jtizibaLpotEuQ5xoCOUlvBXENI" alt="Avatar" />
           <h4>Administrador</h4>
           <p>admin@fmx.org.mz</p>
         </div>
         <div className={styles.profileMenu}>
-          <button>
-            <span className="material-symbols-outlined">person</span> Meu Perfil
-          </button>
-          <button>
-            <span className="material-symbols-outlined">settings</span>{" "}
-            Definições
-          </button>
-          <button>
-            <span className="material-symbols-outlined">help</span> Ajuda
-          </button>
-          <button
-            onClick={() => {
-              onLogout();
-              onClose();
-            }}
-          >
-            <span className="material-symbols-outlined">logout</span> Sair
-          </button>
+          <button><span className="material-symbols-outlined">person</span> Meu Perfil</button>
+          <button><span className="material-symbols-outlined">settings</span> Definições</button>
+          <button><span className="material-symbols-outlined">help</span> Ajuda</button>
+          <button onClick={() => { onLogout(); onClose(); }}><span className="material-symbols-outlined">logout</span> Sair</button>
         </div>
       </div>
     </div>
   );
 };
 
-// ===== TOAST COMPONENT =====
-const ToastContainer: React.FC<{
-  toasts: ToastMessage[];
-  onClose: (id: string) => void;
-}> = ({ toasts, onClose }) => {
-  return (
-    <div className={styles.toastContainer}>
-      {toasts.map((toast) => (
-        <div key={toast.id} className={`${styles.toast} ${styles[toast.type]}`}>
-          <span className="material-symbols-outlined">
-            {toast.type === "success"
-              ? "check_circle"
-              : toast.type === "error"
-              ? "error"
-              : "info"}
-          </span>
-          <p>{toast.message}</p>
-          <button onClick={() => onClose(toast.id)}>
-            <span className="material-symbols-outlined">close</span>
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-};
+const ToastContainer: React.FC<{ toasts: ToastMessage[]; onClose: (id: string) => void }> = ({ toasts, onClose }) => (
+  <div className={styles.toastContainer}>
+    {toasts.map((toast) => (
+      <div key={toast.id} className={`${styles.toast} ${styles[toast.type]}`}>
+        <span className="material-symbols-outlined">{toast.type === "success" ? "check_circle" : toast.type === "error" ? "error" : "info"}</span>
+        <p>{toast.message}</p>
+        <button onClick={() => onClose(toast.id)}><span className="material-symbols-outlined">close</span></button>
+      </div>
+    ))}
+  </div>
+);
 
 export default AdminDashboard;

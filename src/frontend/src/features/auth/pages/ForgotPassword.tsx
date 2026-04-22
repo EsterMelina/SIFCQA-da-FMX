@@ -16,19 +16,35 @@ const ForgotPassword: React.FC = () => {
     return null;
   });
 
+  // useEffect(() => {
+  //   const container = document.querySelector(`.${styles.container}`);
+  //   if (!container) return;
+  //   const isDark =
+  //     theme === "dark" ||
+  //     (theme === null &&
+  //       window.matchMedia("(prefers-color-scheme: dark)").matches);
+  //   if (isDark) {
+  //     container.classList.add(styles.dark);
+  //   } else {
+  //     container.classList.remove(styles.dark);
+  //   }
+  // }, [theme]);
+
+    // Aplica a classe 'dark' no elemento raiz (html)
   useEffect(() => {
-    const container = document.querySelector(`.${styles.container}`);
-    if (!container) return;
+    const root = document.documentElement;
     const isDark =
       theme === "dark" ||
       (theme === null &&
         window.matchMedia("(prefers-color-scheme: dark)").matches);
+
     if (isDark) {
-      container.classList.add(styles.dark);
+      root.classList.add("dark");
     } else {
-      container.classList.remove(styles.dark);
+      root.classList.remove("dark");
     }
   }, [theme]);
+
 
   const handleThemeToggle = () => {
     setTheme((prev) => {

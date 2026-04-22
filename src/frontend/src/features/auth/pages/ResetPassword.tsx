@@ -8,9 +8,9 @@ const ResetPassword: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
-  const type = searchParams.get("type"); // 👈 NOVO: captura o modo (invite/reset)
+  const type = searchParams.get("type"); // "invite" ou "reset"
 
-  const isInvite = type === "invite";     // 👈 NOVO: booleano para facilitar
+  const isInvite = type === "invite";
 
   const [formData, setFormData] = useState({
     email: "",
@@ -30,7 +30,6 @@ const ResetPassword: React.FC = () => {
   const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(formData.password);
   const passwordsMatch = formData.password === formData.confirmPassword;
 
-  // 👇 NOVO: email é obrigatório apenas no modo reset
   const isValid = isInvite
     ? hasMinLength && hasNumber && hasSymbol && passwordsMatch
     : isValidEmail && hasMinLength && hasNumber && hasSymbol && passwordsMatch;
@@ -42,17 +41,18 @@ const ResetPassword: React.FC = () => {
     return null;
   });
 
+  // Aplica a classe 'dark' no elemento raiz (html)
   useEffect(() => {
-    const container = document.querySelector(`.${styles.container}`);
-    if (!container) return;
+    const root = document.documentElement;
     const isDark =
       theme === "dark" ||
       (theme === null &&
         window.matchMedia("(prefers-color-scheme: dark)").matches);
+
     if (isDark) {
-      container.classList.add(styles.dark);
+      root.classList.add("dark");
     } else {
-      container.classList.remove(styles.dark);
+      root.classList.remove("dark");
     }
   }, [theme]);
 
@@ -92,11 +92,9 @@ const ResetPassword: React.FC = () => {
 
     setLoading(true);
     try {
-      // 👇 NOVO: endpoint varia conforme o modo
-      //colocar no endpoints
       const endpoint = isInvite
-        ? "/auth/set-password"                // rota de primeiro acesso (convite)()
-        : endpoints.auth.resetPassword;   // rota de redefinição existente
+        ? "/auth/set-password"
+        : endpoints.auth.resetPassword;
 
       const payload: any = {
         token,
@@ -104,7 +102,6 @@ const ResetPassword: React.FC = () => {
         password_confirmation: formData.confirmPassword,
       };
 
-      // 👇 NOVO: email só é enviado se o modo for reset
       if (!isInvite) {
         payload.email = formData.email;
       }
@@ -147,11 +144,9 @@ const ResetPassword: React.FC = () => {
               </div>
             </div>
             <p className={styles.sifcqa}>SIFCQA-FMX</p>
-            {/* 👇 Título dinâmico */}
             <h1 className={styles.title}>
               {isInvite ? "Definir Palavra-passe" : "Redefinir Palavra-passe"}
             </h1>
-            {/* 👇 Subtítulo dinâmico */}
             <p className={styles.subtitle}>
               {isInvite
                 ? "Bem‑vindo! Crie uma senha segura para aceder à plataforma."
@@ -161,7 +156,6 @@ const ResetPassword: React.FC = () => {
 
           <section className={styles.formCard}>
             <form onSubmit={handleSubmit} className={styles.form}>
-              {/* 👇 Campo de e‑mail exibido apenas no modo reset */}
               {!isInvite && (
                 <div className={styles.fieldGroup}>
                   <label htmlFor="email" className={styles.label}>
@@ -188,7 +182,6 @@ const ResetPassword: React.FC = () => {
                 </div>
               )}
 
-              {/* Nova Senha */}
               <div className={styles.fieldGroup}>
                 <label htmlFor="password" className={styles.label}>
                   Nova Senha
@@ -216,7 +209,6 @@ const ResetPassword: React.FC = () => {
                 </div>
               </div>
 
-              {/* Confirmar Senha */}
               <div className={styles.fieldGroup}>
                 <label htmlFor="confirmPassword" className={styles.label}>
                   Confirmar Senha
@@ -244,9 +236,7 @@ const ResetPassword: React.FC = () => {
                 </div>
               </div>
 
-              {/* Indicadores de validação */}
               <div className={styles.validationPanel}>
-                {/* 👇 Requisito de e‑mail só aparece no modo reset */}
                 {!isInvite && (
                   <div
                     className={`${styles.validationItem} ${
@@ -316,7 +306,6 @@ const ResetPassword: React.FC = () => {
                   </div>
                 ) : (
                   <div className={styles.buttonContent}>
-                    {/* 👇 Texto do botão dinâmico */}
                     <span>
                       {isInvite ? "Criar senha" : "Guardar Alterações"}
                     </span>
@@ -334,19 +323,7 @@ const ResetPassword: React.FC = () => {
               Precisa de ajuda?{" "}
               <a href="#">Contactar Suporte</a>
             </p>
-            <div className={styles.seals}>
-              <img
-                className={styles.sealImage}
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBOgsrvW1jqpAPP3x8ZmUsS9kdbdcvD27iovbYLkh1M2zLVBWcvjMO840aFpZ-yIv60lYkp79JIyOVKom61Ne7VV941P3GzDl0XehHYLwluQ-VdJJljKeezK1OifVaBi4urmXP_X8iCXh0MopBnY_pdpPVCxs5zNq_XfUvarPwc1ufXetye--5UsxgV9SF1hO9ytChIZiP9zzlHm2KVSAZYCltfXuOOjzHH6ZJ55ct0goIzapskbjWiE7g1NbyTnVcy-mZ3ChC5RDU"
-                alt="FMX Seal"
-              />
-              <div className={styles.sealDivider}></div>
-              <img
-                className={styles.sealImage}
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzg8ZgZS3ORt1fxXcSH6BMMTrGyM6OtW9MibhDNQ69grY0tmOnyIiRkfQ8tvCh4nKnJP6sM6Dpni8O6KKtNsCWKJ2IjUi8RPhFo5a331ww-82jCoyLvAslDC1BJKSFHeKxOttt6k3hMooWraEeaC5a0oCybIKCeNU6LpVjJZF5BqDJEA6Rdf3MS-Ymat0uWwcO8_8ktofIp8OeICN7kSN3LzSLh5TEx8Wkel6VtM8ox27FZ7t72u9keFRrI_5urXEbWv1nbCk7258"
-                alt="Government Seal"
-              />
-            </div>
+        
           </div>
         </main>
 

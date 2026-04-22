@@ -31,6 +31,7 @@ import AdminDashboard from "@/features/admin/pages/AdminDashboard";
 
 //FMX
 import FmxDashboard from "@/features/fmx/pages/FmxDashboard";
+import NotFound from "@/features/auth/pages/NotFound";
 
 export default function AppRoutes() {
   return (
@@ -43,6 +44,7 @@ export default function AppRoutes() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/set-password" element={<ResetPassword />} />
+          <Route path="/not-found" element={<NotFound />} />
         </Route>
 
         {/* ================= LOGGED USERS ================= */}
@@ -100,7 +102,7 @@ export default function AppRoutes() {
 
           </Route>
         </Route>
-
+        <Route path="*" element={<NotFound />} />
       </Routes>
     
   );

@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
 import styles from "./PlayerDashboard.module.css";
-import { useAuth } from "@/app/providers/AuthProvider"; // ajuste o caminho conforme sua estrutura
+import { useAuth } from "@/app/providers/AuthProvider";
+
 // Tipos
 type TabType = "profile" | "quotas" | "history" | "notifications" | "transfer";
 
@@ -26,12 +27,12 @@ interface Notification {
 }
 
 const PlayerDashboard: React.FC = () => {
-  const { logout } = useAuth(); // 🆕 usa o contexto
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>("profile");
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
+  const [theme, setTheme] = useState<"light" | "dark" | null>(() => {
     const saved = localStorage.getItem("theme") as "light" | "dark" | null;
-    return saved ?? "light";
+    return saved ?? null;
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,32 +80,37 @@ const PlayerDashboard: React.FC = () => {
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
 
-  // Formulário de transferência
   const [transferForm, setTransferForm] = useState({
     targetAssociation: "",
     letterOut: null as File | null,
     letterIn: null as File | null,
   });
 
-  // Tema
+  // Tema global
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("theme", theme);
+    const root = document.documentElement;
+    const isDark =
+      theme === "dark" ||
+      (theme === null && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    root.classList.toggle("dark", isDark);
   }, [theme]);
 
-  const toggleTheme = () => setTheme(prev => prev === "light" ? "dark" : "light");
-  const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      if (prev === "light") return "dark";
+      if (prev === "dark") return null;
+      return "light";
+    });
+  };
+  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
   const closeSidebar = () => setIsSidebarOpen(false);
 
-  // Buscar dados (placeholder)
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         // const profileRes = await http.get(endpoints.players.me);
         // setPlayerData(profileRes.data);
-        // const quotasRes = await http.get(endpoints.players.myQuotas);
-        // ...
       } catch (err) {
         console.error("Erro ao carregar dados:", err);
         setError("Não foi possível carregar os dados.");
@@ -115,13 +121,8 @@ const PlayerDashboard: React.FC = () => {
     fetchData();
   }, []);
 
-  // const handleLogout = () => {
-  //   localStorage.removeItem("token");
-  //   navigate("/login");
-  // };
-
   const handleLogout = async () => {
-    await logout(); // chama a função do contexto
+    await logout();
   };
 
   const handleSearch = (query: string) => console.log("Pesquisar:", query);
@@ -169,7 +170,7 @@ const PlayerDashboard: React.FC = () => {
   };
 
   return (
-    <div className={`${styles.container} ${theme === "dark" ? styles.dark : ""}`}>
+    <div className={styles.container}>
       <div className={styles.layout}>
         <div className={`${styles.overlay} ${isSidebarOpen ? styles.overlayVisible : ""}`} onClick={closeSidebar} />
 
@@ -239,7 +240,9 @@ const PlayerDashboard: React.FC = () => {
                 <span className={styles.notificationBadge}></span>
               </button>
               <button className={styles.themeToggle} onClick={toggleTheme}>
-                <span className="material-symbols-outlined">{theme === "light" ? "dark_mode" : "light_mode"}</span>
+                <span className="material-symbols-outlined">
+                  {theme === "light" ? "light_mode" : theme === "dark" ? "dark_mode" : "routine"}
+                </span>
               </button>
               <div className={styles.divider}></div>
               <div className={styles.userInfo}>
@@ -273,13 +276,7 @@ const PlayerDashboard: React.FC = () => {
       <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} />
       <NotificationsModal isOpen={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} notifications={notifications} />
       <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} player={playerData} onLogout={handleLogout} />
-      <TransferModal
-        isOpen={showTransferModal}
-        onClose={() => setShowTransferModal(false)}
-        form={transferForm}
-        setForm={setTransferForm}
-        onSubmit={handleTransferSubmit}
-      />
+      <TransferModal isOpen={showTransferModal} onClose={() => setShowTransferModal(false)} form={transferForm} setForm={setTransferForm} onSubmit={handleTransferSubmit} />
     </div>
   );
 };
