@@ -32,35 +32,16 @@ class AssociationController extends Controller
     }
 
     // POST create
-    public function store(Request $request)
+   public function store(Request $request)
     {
         $data = $request->validate([
             'name' => 'required|string',
-            'email' => 'nullable|email',
-            'phone' => 'nullable|string',
-            'address' => 'nullable|string',
-            'status' => 'boolean'
+            'contact_email' => 'nullable|email'
         ]);
 
         return response()->json(
             $this->service->create($data),
             201
-        );
-    }
-
-    // PUT update
-    public function update(Request $request, Association $association)
-    {
-        $data = $request->validate([
-            'name' => 'sometimes|string',
-            'email' => 'nullable|email',
-            'phone' => 'nullable|string',
-            'address' => 'nullable|string',
-            'status' => 'boolean'
-        ]);
-
-        return response()->json(
-            $this->service->update($association, $data)
         );
     }
 

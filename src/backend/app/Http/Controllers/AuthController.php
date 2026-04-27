@@ -7,7 +7,7 @@ use App\Services\AuthService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
-
+use App\Models\User;
 
 class AuthController extends Controller
 {
@@ -50,9 +50,26 @@ class AuthController extends Controller
 //==================================================================================================//
     public function me(Request $request)
     {
-        return response()->json(
-            $this->authService->me($request->user())
-        );
+       $user = $request->user()->load('roles', 'player', 'fmxStaff', 'associationMemberships');
+
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'roles' => $user->roles->pluck('name'),
+            'type' => $user->type, // 🔥 mesma lógica
+        ]);
+    }
+
+    private function resolveUserType(User $user)
+    {
+        if ($user->hasRole('admin')) return 'admin';
+        if ($user->hasRole('fmx')) return 'fmx';
+        if ($user->hasRole('association')) return 'association';
+
+        if ($user->player) return 'player';
+
+        return 'guest';
     }
 
 //==================================================================================================

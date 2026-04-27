@@ -140,9 +140,19 @@ const PlayerDashboard: React.FC = () => {
     formData.append("letter_out", transferForm.letterOut);
     formData.append("letter_in", transferForm.letterIn);
     try {
-      await http.post(endpoints.players.submitLetter, formData, {
+      const formData = new FormData();
+      formData.append('target_association_id', transferForm.targetAssociation);
+      if (transferForm.letterOut) {
+        formData.append('letter_out', transferForm.letterOut);
+      }
+      if (transferForm.letterIn) {
+        formData.append('letter_in', transferForm.letterIn);
+      }
+
+      await http.post(endpoints.players.transferRequest, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+
       alert("Solicitação de transferência enviada com sucesso!");
       setShowTransferModal(false);
       setTransferForm({ targetAssociation: "", letterOut: null, letterIn: null });

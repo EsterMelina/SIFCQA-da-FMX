@@ -13,7 +13,9 @@ use App\Http\Controllers\{
     TransferController,
     TournamentController,
     ReportController,
-    AuditController
+    AuditController,
+    AssociationMemberController,
+    FmxController
 };
 
 /*
@@ -40,9 +42,18 @@ Route::prefix('auth')->group(function () {
 | USERS (ADMIN ONLY)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
+
+    // USERS
     Route::apiResource('users', UserController::class);
     Route::patch('users/{user}/role', [UserController::class, 'updateRole']);
+
+    // CONVITES
+    Route::post('users/invite', [UserController::class, 'invite']);
+
+    // ASSOCIATIONS
+    Route::apiResource('associations', AssociationController::class);
+
 });
 
 
@@ -51,14 +62,59 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 | ASSOCIATIONS (ADMIN + FMX)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum', 'role:admin|fmx'])->group(function () {
 
+Route::middleware(['auth:sanctum', 'role:fmx|admin'])->prefix('fmx')->group(function () {
+
+    // ASSOCIATIONS
     Route::get('associations', [AssociationController::class, 'index']);
-    Route::get('associations/{association}', [AssociationController::class, 'show']);
     Route::post('associations', [AssociationController::class, 'store']);
-    Route::put('associations/{association}', [AssociationController::class, 'update']);
-    Route::patch('associations/{association}/status', [AssociationController::class, 'toggleStatus']);
+
+    // DEFINIR PRESIDENTE DA ASSOCIAÇÃO
+    Route::post('associations/{association}/president', [FmxController::class, 'assignPresident']);
+
+    // STAFF FMX
+    Route::post('staff', [FmxController::class, 'createStaff']);
+    Route::get('staff', [FmxController::class, 'indexStaff']);
+
 });
+
+/*
+|--------------------------------------------------------------------------
+| ASSOCIATIONS_MEMBERS (ADMIN + ASSOCIATION)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware(['auth:sanctum', 'role:association|admin'])->prefix('associations')->group(function () {
+
+    // MEMBROS
+    Route::get('{association}/members', [AssociationMemberController::class, 'index']);
+    Route::post('{association}/members', [AssociationMemberController::class, 'store']);
+
+    // PLAYERS
+    Route::get('{association}/players', [PlayerController::class, 'index']);
+    Route::post('{association}/players', [PlayerController::class, 'store']);
+
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| FMXStaff (FMX)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('fmx')->middleware(['auth:sanctum', 'role:fmx|admin'])->group(function () {
+
+    // ASSOCIATIONS
+    Route::post('associations', [AssociationController::class, 'store']);
+    Route::get('associations', [AssociationController::class, 'index']);
+
+    // PRESIDENTE
+    Route::post('associations/{id}/president', [FmxController::class, 'assignPresident']);
+
+    // STAFF FMX
+    Route::post('staff', [FmxController::class, 'createStaff']);
+});
+
 
 
 /*
@@ -66,42 +122,13 @@ Route::middleware(['auth:sanctum', 'role:admin|fmx'])->group(function () {
 | PLAYERS MANAGMENT
 |--------------------------------------------------------------------------
 */
+Route::middleware(['auth:sanctum'])->prefix('players')->group(function () {
 
-Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
+    Route::post('transfer-request', [PlayerController::class, 'requestTransfer']);
+    Route::get('me', [PlayerController::class, 'me']);
 
-    // READ
-    Route::get('players', [PlayerController::class, 'index']);
-    Route::get('players/{player}', [PlayerController::class, 'show']);
-    Route::get('players/{player}/eligibility', [PlayerController::class, 'eligibility']);
-
-    // WRITE (sem permissions)
-    Route::post('players', [PlayerController::class, 'store']);
-    Route::put('players/{player}', [PlayerController::class, 'update']);
-    Route::patch('players/{player}/status', [PlayerController::class, 'toggleStatus']);
 });
 
-//==================================================================================================
-//Depois verei permissoes
-//==================================================================================================//
-
-// Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
-
-//     Route::get('players', [PlayerController::class, 'index']);
-//     Route::get('players/{player}', [PlayerController::class, 'show']);
-//     Route::get('players/{player}/eligibility', [PlayerController::class, 'eligibility']);
-// });
-
-// Route::middleware(['auth:sanctum'])->group(function () {
-
-//     Route::post('players', [PlayerController::class, 'store'])
-//         ->middleware('permission:create_player');
-
-//     Route::put('players/{player}', [PlayerController::class, 'update'])
-//         ->middleware('permission:edit_player');
-
-//     Route::patch('players/{player}/status', [PlayerController::class, 'toggleStatus'])
-//         ->middleware('permission:deactivate_player');
-// });
 
 
 
@@ -165,6 +192,52 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('payments/{payment}/confirm', [PaymentController::class, 'confirm'])
         ->middleware('role:admin|fmx');
 });
+
+
+
+
+
+/*
+|--------------------------------------------------------------------------
+| PLAYERS MANAGMENT
+|--------------------------------------------------------------------------
+*/
+
+// Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
+
+//     // READ
+//     Route::get('players', [PlayerController::class, 'index']);
+//     Route::get('players/{player}', [PlayerController::class, 'show']);
+//     Route::get('players/{player}/eligibility', [PlayerController::class, 'eligibility']);
+
+//     // WRITE (sem permissions)
+//     Route::post('players', [PlayerController::class, 'store']);
+//     Route::put('players/{player}', [PlayerController::class, 'update']);
+//     Route::patch('players/{player}/status', [PlayerController::class, 'toggleStatus']);
+// });
+
+//==================================================================================================
+//Depois verei permissoes
+//==================================================================================================//
+
+// Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
+
+//     Route::get('players', [PlayerController::class, 'index']);
+//     Route::get('players/{player}', [PlayerController::class, 'show']);
+//     Route::get('players/{player}/eligibility', [PlayerController::class, 'eligibility']);
+// });
+
+// Route::middleware(['auth:sanctum'])->group(function () {
+
+//     Route::post('players', [PlayerController::class, 'store'])
+//         ->middleware('permission:create_player');
+
+//     Route::put('players/{player}', [PlayerController::class, 'update'])
+//         ->middleware('permission:edit_player');
+
+//     Route::patch('players/{player}/status', [PlayerController::class, 'toggleStatus'])
+//         ->middleware('permission:deactivate_player');
+// });
 
 
 /*

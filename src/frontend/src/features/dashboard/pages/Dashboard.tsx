@@ -1,3 +1,4 @@
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/app/providers/AuthProvider";
 import AdminDashboard from "../../admin/pages/AdminDashboard";
 import PlayerDashboard from "../../players/pages/PlayerDashboard";
@@ -7,22 +8,18 @@ import FmxDashboard from "../../fmx/pages/FmxDashboard";
 export default function Dashboard() {
   const { user, isLoading, initialized } = useAuth();
 
-  console.log("🧭 DASHBOARD USER:", user);
+  if (!initialized || isLoading) return <div>Loading...</div>;
+  if (!user) return <Navigate to="/login" replace />;
 
-  if (!initialized || isLoading) {
-    return <div>Loading...</div>;
+  const validTypes = ["admin", "fmx", "association", "player"];
+  if (!validTypes.includes(user.type ?? "")) {
+    return <Navigate to="/login" replace />;
   }
 
-  if (!user) {
-    return <div>Acesso não autorizado</div>;
-  }
+  if (user.type === "admin") return <AdminDashboard />;
+  if (user.type === "fmx") return <FmxDashboard />;
+  if (user.type === "association") return <AssociationDashboard />;
+  if (user.type === "player") return <PlayerDashboard />;
 
-  const roles = user.roles ?? [];
-
-  if (roles.includes("admin")) return <AdminDashboard />;
-  if (roles.includes("fmx")) return <FmxDashboard />;
-  if (roles.includes("association")) return <AssociationDashboard />;
-  if (roles.includes("player")) return <PlayerDashboard />;
-
-  return <div>Acesso não autorizado</div>;
+  return <Navigate to="/login" replace />;
 }

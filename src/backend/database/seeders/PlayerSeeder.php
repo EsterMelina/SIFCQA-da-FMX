@@ -4,30 +4,19 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Player;
+use App\Models\User;
 use App\Models\Association;
 
 class PlayerSeeder extends Seeder
 {
     public function run(): void
     {
-        $association = Association::first();
+
+       $user = User::where('email', 'player@fmx.com')->first();
 
         Player::create([
-            'full_name'      => 'João Silva',
-            'email'          => 'joao@player.com',
-            'birth_date'     => '2000-05-10',
-            'nationality'    => 'Moçambicana',
-            'association_id' => $association?->id,
-            'status'         => true,
-        ]);
-
-        Player::create([
-            'full_name'      => 'Carlos Mendes',
-            'email'          => 'carlos@player.com',
-            'birth_date'     => '2010-03-15',
-            'nationality'    => 'Moçambicana',
-            'association_id' => $association?->id,
-            'status'         => true,
+            'user_id' => $user->id,
+            'association_id' => 1
         ]);
     }
 }

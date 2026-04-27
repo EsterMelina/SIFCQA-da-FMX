@@ -12,14 +12,19 @@ class FmxStaff extends Model
     protected $table = 'fmx_staff';
 
     protected $fillable = [
-        'user_id',
-        'position',
-        'active',
-    ];
+    'user_id',
+    'fmx_id', // 👈 FALTA ISSO
+    'position',
+    'active',
+];
 
     // 🔗 relação com User
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+    public function fmx()
+    {
+        return $this->belongsTo(Fmx::class);
     }
 }

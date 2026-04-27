@@ -11,16 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-       Schema::create('fmx_staff', function (Blueprint $table) {
-    $table->id();
+      Schema::create('fmx_staff', function (Blueprint $table) {
+            $table->id();
 
-    $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('fmx_id')->constrained('fmxes')->cascadeOnDelete();
 
-    $table->string('position')->nullable(); // ex: admin nacional, técnico, etc
-    $table->boolean('active')->default(true);
+            $table->string('position');
+            $table->boolean('active')->default(true);
 
-    $table->timestamps();
-});
+            $table->timestamps();
+
+            $table->unique(['user_id', 'fmx_id']); // evita duplicação
+      });
     }
 
     /**

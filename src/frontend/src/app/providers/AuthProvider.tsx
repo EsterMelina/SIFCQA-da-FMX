@@ -13,7 +13,8 @@ interface User {
   id: number;
   name: string;
   email: string;
-  roles: string[];
+  type: string | null;
+  roles?: string[];
 }
 
 interface AuthContextType {
@@ -30,18 +31,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
   const navigate = useNavigate();
 
-  const normalizeRoles = (roles: any[]) =>
-    Array.isArray(roles)
-      ? roles.map((r) => (typeof r === "string" ? r : r.name))
-      : [];
+  // Extrai o tipo: prioriza o campo 'type' do usuário, depois tenta pegar da lista 'roles'
+  const extractUserType = (userData: any): string | null => {
+    if (userData.type && typeof userData.type === "string") {
+      return userData.type;
+    }
+    const roles = userData.roles ?? [];
+    if (roles.length === 0) return null;
+    const order = ["admin", "fmx", "association", "player"];
+    for (const role of order) {
+      if (roles.includes(role)) return role;
+    }
+    return roles[0];
+  };
 
-  // ================= INIT =================
+  // Carrega o usuário ao iniciar
   useEffect(() => {
     const token = localStorage.getItem("token");
-
     if (!token) {
       setInitialized(true);
       return;
@@ -51,12 +59,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .get(endpoints.auth.me)
       .then((res) => {
         const data = res.data.user ?? res.data;
+        const userType = extractUserType(data);
 
         setUser({
           id: data.id,
           name: data.name,
           email: data.email,
-          roles: normalizeRoles(res.data.roles ?? data.roles),
+          type: userType,
+          roles: data.roles ?? [],
         });
       })
       .catch(() => {
@@ -69,77 +79,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
   }, []);
 
-// ================= LOGIN =================
-const login = async (email: string, password: string) => {
-  console.log("🚀 LOGIN START");
+  // Login
+  const login = async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const res = await http.post(endpoints.auth.login, { email, password });
+      const userData = res.data.user;
+      const userType = extractUserType(userData);
 
-  setIsLoading(true);
+      const newUser: User = {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        type: userType,
+        roles: userData.roles ?? [],
+      };
 
-  try {
-    const res = await http.post(endpoints.auth.login, {
-      email,
-      password,
-    });
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(newUser));
+      setUser(newUser);
 
-    console.log("📡 LOGIN RESPONSE FULL:", res.data);
+      const dashboardRoute = getDashboardRoute(userType);
+      navigate(dashboardRoute, { replace: true });
+    } catch (err) {
+      console.error("Login error:", err);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    const data = res.data.user;
-
-    console.log("👤 USER RAW:", data);
-    console.log("🏷️ ROLES RAW:", res.data.roles);
-    console.log("🔐 TOKEN RAW:", res.data.token);
-
-    const newUser: User = {
-      id: data.id,
-      name: data.name,
-      email: data.email,
-      roles: normalizeRoles(res.data.roles),
-    };
-
-    console.log("🧠 NORMALIZED USER:", newUser);
-
-    // ================= STORAGE =================
-    localStorage.setItem("token", res.data.token);
-    localStorage.setItem("user", JSON.stringify(newUser));
-
-    console.log("💾 TOKEN SAVED:", localStorage.getItem("token"));
-    console.log("💾 USER SAVED:", localStorage.getItem("user"));
-
-    // ================= STATE =================
-    setUser(newUser);
-    console.log("⚡ setUser CALLED");
-
-    // ================= NAVIGATION =================
-    setTimeout(() => {
-      console.log("🧭 NAVIGATING TO /");
-      navigate("/", { replace: true });
-    }, 50);
-
-  } catch (err) {
-    console.log("💥 LOGIN ERROR:", err);
-  } finally {
-    console.log("🏁 LOGIN END");
-    setIsLoading(false);
-  }
-};
-
-  // ================= LOGOUT =================
   const logout = async () => {
     try {
       await http.post(endpoints.auth.logout);
     } catch {}
-
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-
     setUser(null);
     navigate("/login", { replace: true });
   };
 
   return (
-    <AuthContext.Provider
-      value={{ user, isLoading, initialized, login, logout }}
-    >
+    <AuthContext.Provider value={{ user, isLoading, initialized, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -149,4 +130,19 @@ export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
+};
+
+const getDashboardRoute = (type: string | null): string => {
+  switch (type) {
+    case "admin":
+      return "/admin";
+    case "fmx":
+      return "/fmx";
+    case "association":
+      return "/association";
+    case "player":
+      return "/player";
+    default:
+      return "/";
+  }
 };

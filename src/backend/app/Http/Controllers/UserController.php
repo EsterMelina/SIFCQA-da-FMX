@@ -126,6 +126,30 @@ public function store(Request $request)
     return response()->json($user->load('roles'), 201);
 }
 
+// public function store(Request $request)
+// {
+//     $data = $request->validate([
+//         'name'  => 'required|string',
+//         'email' => 'required|email|unique:users,email',
+//         'password' => 'nullable|min:6',
+//         'status' => 'boolean',
+//     ]);
+
+//     $user = User::create([
+//         'name' => $data['name'],
+//         'email' => $data['email'],
+//         'password' => $data['password']
+//             ? Hash::make($data['password'])
+//             : null,
+//         'status' => $data['status'] ?? true,
+//     ]);
+
+//     if (!$data['password']) {
+//         $this->authService->sendInvite($user);
+//     }
+
+//     return response()->json($user, 201);
+// }
 
 
 

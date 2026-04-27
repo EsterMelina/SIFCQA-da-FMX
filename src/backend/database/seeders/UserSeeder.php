@@ -17,33 +17,37 @@ class UserSeeder extends Seeder
             'email_verified_at' => now(),
             'password' => Hash::make('password123'),
         ]);
+
         $admin->assignRole('admin');
 
-        // ================= PLAYER =================
-        $player = User::create([
-            'name' => 'John Player',
-            'email' => 'player@fmx.com',
-            'email_verified_at' => null,
-            'password' => Hash::make('password123'),
-        ]);
-        $player->assignRole('player');
-
-        // ================= ASSOCIATION =================
-        $association = User::create([
-            'name' => 'Association Manager',
-            'email' => 'association@fmx.com',
-            'email_verified_at' => now(),
-            'password' => Hash::make('password123'),
-        ]);
-        $association->assignRole('association');
-
-        // ================= FMX =================
-        $fmx = User::create([
-            'name' => 'FMX Operator',
+        // ================= FMX USER =================
+        $fmxUser = User::create([
+            'name' => 'FMX User',
             'email' => 'fmx@fmx.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password123'),
         ]);
-        $fmx->assignRole('fmx');
+
+        $fmxUser->assignRole('fmx');
+
+        // ================= ASSOCIATION USER =================
+        $associationUser = User::create([
+            'name' => 'Association User',
+            'email' => 'association@fmx.com',
+            'email_verified_at' => now(),
+            'password' => Hash::make('password123'),
+        ]);
+
+        $associationUser->assignRole('association');
+
+        // ================= PLAYER USER =================
+        $playerUser = User::create([
+            'name' => 'Player User',
+            'email' => 'player@fmx.com',
+            'email_verified_at' => null,
+            'password' => Hash::make('password123'),
+        ]);
+
+        // ❌ NÃO atribui role player
     }
 }

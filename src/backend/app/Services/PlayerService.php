@@ -47,23 +47,32 @@ class PlayerService
     }
 
      // 🟢 CREATE
-    public function create(array $data)
+    public function create(int $associationId, int $userId)
     {
-        $validated = validator($data, [
-            'name'       => 'required|string',
-            'email'      => 'required|email|unique:players,email',
-            'birth_date' => 'nullable|date',
-            'team'       => 'nullable|string',
-            'active'     => 'sometimes|boolean',
-        ])->validate();
+        if (Player::where('user_id', $userId)->exists()) {
+            throw ValidationException::withMessages([
+                'user' => 'Já é jogador'
+            ]);
+        }
 
         return Player::create([
-            'name'       => $validated['name'],
-            'email'      => $validated['email'],
-            'birth_date' => $validated['birth_date'] ?? null,
-            'team'       => $validated['team'] ?? null,
-            'active'     => $validated['active'] ?? true,
+            'user_id' => $userId,
+            'association_id' => $associationId
         ]);
     }
+
+//     public function create(array $data)
+// {
+//     $validated = validator($data, [
+//         'user_id' => 'required|exists:users,id',
+//         'association_id' => 'required|exists:associations,id',
+//     ])->validate();
+
+//     return Player::create([
+//         'user_id' => $validated['user_id'],
+//         'association_id' => $validated['association_id'],
+//         'active' => true,
+//     ]);
+// }
 
 }

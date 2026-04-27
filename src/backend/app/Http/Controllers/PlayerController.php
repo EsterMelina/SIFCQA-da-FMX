@@ -32,14 +32,16 @@ class PlayerController extends Controller
     }
 
     // POST /players
-    public function store(Request $request)
+    public function store(Request $request, $id)
     {
-        $player = $this->service->create($request->all());
+        $data = $request->validate([
+            'user_id' => 'required|exists:users,id'
+        ]);
 
-        return response()->json([
-            'message' => 'Player criado com sucesso',
-            'data' => $player
-        ], 201);
+        return response()->json(
+            $this->service->create($id, $data['user_id']),
+            201
+        );
     }
 
     // GET /players/{player}/eligibility

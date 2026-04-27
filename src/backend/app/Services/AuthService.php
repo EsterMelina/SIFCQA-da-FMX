@@ -21,35 +21,68 @@ class AuthService
 //==================================================================================================
 // Este método é chamado quando um usuário tenta logar
 //==================================================================================================//  
+    // public function login(array $data)
+    // {
+    //     if (!Auth::attempt($data)) {
+    //         throw ValidationException::withMessages([
+    //             'email' => ['Credenciais inválidas'],
+    //         ]);
+    //     }
+
+    //     $user = Auth::user();
+
+    //     if (!$user->status) {
+    //         throw ValidationException::withMessages([
+    //             'user' => ['Usuário desativado'],
+    //         ]);
+    //     }
+
+    //     $token = $user->createToken('auth_token')->plainTextToken;
+
+    //     return [
+    //         'user' => [
+    //             'id' => $user->id,
+    //             'name' => $user->name,
+    //             'email' => $user->email,
+    //         ],
+    //         'roles' => $user->getRoleNames(),
+    //         'permissions' => $user->getAllPermissions()->pluck('name'),
+    //         'token' => $token,
+    //     ];
+    // }
+
     public function login(array $data)
-    {
-        if (!Auth::attempt($data)) {
-            throw ValidationException::withMessages([
-                'email' => ['Credenciais inválidas'],
-            ]);
-        }
-
-        $user = Auth::user();
-
-        if (!$user->status) {
-            throw ValidationException::withMessages([
-                'user' => ['Usuário desativado'],
-            ]);
-        }
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return [
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
-            'roles' => $user->getRoleNames(),
-            'permissions' => $user->getAllPermissions()->pluck('name'),
-            'token' => $token,
-        ];
+{
+    if (!Auth::attempt($data)) {
+        throw ValidationException::withMessages([
+            'email' => ['Credenciais inválidas'],
+        ]);
     }
+
+    $user = Auth::user();
+
+    if (!$user->status) {
+        throw ValidationException::withMessages([
+            'user' => ['Usuário desativado'],
+        ]);
+    }
+
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+   $user = Auth::user()->load('player', 'roles');
+
+    return [
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'type' => $user->type, // 🔥 mágico agora
+        ],
+        'roles' => $user->getRoleNames(),
+        'permissions' => $user->getAllPermissions()->pluck('name'),
+        'token' => $token,
+    ];
+}
 
 //==================================================================================================
 // Este método é chamado quando um usuário quer se deslogar
@@ -252,5 +285,17 @@ public function sendInvite(User $user): void
     Mail::raw("Você foi convidado. Defina sua senha: $link", function ($message) use ($user) {
         $message->to($user->email)->subject('Convite para acesso');
     });
+}
+
+//==================================================================================================
+// Método para resolver o tipo do usuário baseado em roles
+//==================================================================================================//
+public static function resolveUserType(User $user): string
+{
+    $roles = $user->getRoleNames();
+    if ($roles->contains('admin')) {
+        return 'admin';
+    }
+    return 'user';
 }
 }
