@@ -54,6 +54,39 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     // ASSOCIATIONS
     Route::apiResource('associations', AssociationController::class);
 
+    //FMX
+    Route::post('fmx', [FmxController::class, 'store']);
+    Route::get('fmx', [FmxController::class, 'show']);
+    Route::put('fmx', [FmxController::class, 'update']);
+
+    Route::middleware(['auth:sanctum', 'role:admin'])
+    ->prefix('fmx')
+    ->group(function () {
+
+        // ==================== FMX ====================
+
+        Route::post('/', [FmxController::class, 'store']);
+        Route::get('/', [FmxController::class, 'show']);
+        Route::put('/', [FmxController::class, 'update']);
+
+        // ==================== STAFF FMX ====================
+
+        Route::post('staff', [FmxController::class, 'createStaff']);
+        Route::get('staff', [FmxController::class, 'indexStaff']);
+
+        // ==================== PRESIDENTE DA ASSOCIAÇÃO ====================
+
+        Route::post(
+            'associations/{associationId}/president',
+            [FmxController::class, 'assignPresident']
+        );
+
+        Route::patch(
+            'staff/{staff}/status',
+            [FmxController::class, 'toggleStaffStatus']
+        );
+
+    });
 });
 
 
@@ -102,17 +135,31 @@ Route::middleware(['auth:sanctum', 'role:association|admin'])->prefix('associati
 | FMXStaff (FMX)
 |--------------------------------------------------------------------------
 */
-Route::prefix('fmx')->middleware(['auth:sanctum', 'role:fmx|admin'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:fmx|admin'])
+->prefix('fmx')
+->group(function () {
+
+    // FMX INFO
+    Route::get('/', [FmxController::class, 'show']);
+    Route::put('/', [FmxController::class, 'update']);
 
     // ASSOCIATIONS
-    Route::post('associations', [AssociationController::class, 'store']);
     Route::get('associations', [AssociationController::class, 'index']);
+    Route::post('associations', [AssociationController::class, 'store']);
 
     // PRESIDENTE
-    Route::post('associations/{id}/president', [FmxController::class, 'assignPresident']);
+    Route::post(
+        'associations/{association}/president',
+        [FmxController::class, 'assignPresident']
+    );
 
-    // STAFF FMX
+    // STAFF
+    Route::get('staff', [FmxController::class, 'indexStaff']);
     Route::post('staff', [FmxController::class, 'createStaff']);
+    Route::get('staff/{staff}', [FmxController::class, 'showStaff']);
+    Route::put('staff/{staff}', [FmxController::class, 'updateStaff']);
+    Route::delete('staff/{staff}', [FmxController::class, 'destroyStaff']);
+
 });
 
 

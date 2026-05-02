@@ -12,7 +12,7 @@ class PlayerSeeder extends Seeder
     public function run(): void
     {
 
-       $user = User::where('email', 'player@fmx.com')->first();
+       $user = User::query()->where('email', 'player@fmx.com')->first();
 
         Player::create([
             'user_id' => $user->id,
