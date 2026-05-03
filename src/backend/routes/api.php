@@ -95,20 +95,28 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
 | ASSOCIATIONS (ADMIN + FMX)
 |--------------------------------------------------------------------------
 */
-
+// Dentro do grupo 'fmx' (auth:sanctum + role:fmx|admin)
 Route::middleware(['auth:sanctum', 'role:fmx|admin'])->prefix('fmx')->group(function () {
 
-    // ASSOCIATIONS
-    Route::get('associations', [AssociationController::class, 'index']);
-    Route::post('associations', [AssociationController::class, 'store']);
+    // ASSOCIAÇÕES (completas)
+    Route::get('associations', [AssociationController::class, 'index']);          // já funciona
+    Route::post('associations', [AssociationController::class, 'store']);         // já funciona
+    Route::get('associations/{association}', [AssociationController::class, 'show']);      // NOVO
+    Route::put('associations/{association}', [AssociationController::class, 'update']);    // NOVO
+    Route::patch('associations/{association}/status', [AssociationController::class, 'toggleStatus']); // já funciona
 
-    // DEFINIR PRESIDENTE DA ASSOCIAÇÃO
-    Route::post('associations/{association}/president', [FmxController::class, 'assignPresident']);
+    // PRESIDENTE DA ASSOCIAÇÃO
+    Route::post('associations/{association}/president', [FmxController::class, 'assignPresident']); // já existia
 
     // STAFF FMX
     Route::post('staff', [FmxController::class, 'createStaff']);
     Route::get('staff', [FmxController::class, 'indexStaff']);
 
+    // UTILIZADORES (para escolher presidente)
+    Route::get('users', [UserController::class, 'indexForFmx']);  // NOVO
+
+    // JOGADORES (base de dados nacional)
+    Route::get('players', [PlayerController::class, 'index']);    // NOVO (reutiliza o PlayerController)
 });
 
 /*

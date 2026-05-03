@@ -6,6 +6,7 @@ use App\Models\Fmx;
 use App\Models\FmxStaff;
 use App\Models\AssociationMember;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 class FmxService
 {
@@ -113,6 +114,9 @@ class FmxService
      */
     public function assignPresident(int $associationId, int $userId)
     {
+        Log::info("Atribuindo novo presidente para a associação {$associationId}");
+        Log::info("Novo presidente: user_id={$userId}");
+        Log::debug("Verificando se o utilizador já é membro da associação...");
         // Remove presidente atual
         \App\Models\AssociationMember::where('association_id', $associationId)
             ->where('position', 'president')

@@ -198,5 +198,12 @@ public function store(Request $request)
         );
     }
 
+    public function indexForFmx(Request $request)
+{
+    // Retorna todos os utilizadores (pode filtrar por role se necessário)
+    $users = User::with('roles')->get();
+    return response()->json($users);
+}
+
 
 }
