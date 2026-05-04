@@ -116,6 +116,8 @@ export const endpoints = {
     // myQuotas: "/players/me/quotas",        ⚠️ não existe
     // myTransfers: "/players/me/transfers",  ⚠️ não existe
     // submitLetter: "/players/me/letters",   ⚠️ não existe
+    detail: (id: number) => `/players/${id}`,
+    toggleStatus: (id: number) => `/players/${id}/toggle-status`,
     transferRequest: "/players/transfer-request", // existe
     // quotas: (id: string) => `/players/${id}/quotas`,  ⚠️ não existe
     // transfers: (id: string) => `/players/${id}/transfers`, ⚠️ não existe

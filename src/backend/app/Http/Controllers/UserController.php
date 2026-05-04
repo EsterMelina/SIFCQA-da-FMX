@@ -89,7 +89,7 @@ public function store(Request $request)
     ]);
 
     if (!$password) {
-    $this->authService->sendInvite($user);
+    $this->authService->sendInvite($user); 
     }
     $user->assignRole($data['role']);
 
