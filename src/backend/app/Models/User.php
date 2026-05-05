@@ -12,12 +12,11 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
-    protected $fillable = [
+   protected $fillable = [
         'name',
         'email',
         'password',
         'status',
-          'role',
     ];
 
     protected $hidden = [
@@ -29,4 +28,31 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    public function fmxStaff()
+    {
+        return $this->hasOne(FmxStaff::class);
+    }
+
+    public function player()
+    {
+        return $this->hasOne(Player::class);
+    }
+
+    public function associationMemberships()
+    {
+        return $this->hasMany(AssociationMember::class);
+    }
+
+    public function getTypeAttribute()
+    {
+        if ($this->hasRole('admin')) return 'admin';
+        if ($this->hasRole('fmx')) return 'fmx';
+        if ($this->hasRole('association')) return 'association';
+
+        if ($this->relationLoaded('player') && $this->player) return 'player';
+
+        return 'guest';
+    }
+
 }

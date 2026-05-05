@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Player;
+use Illuminate\Validation\ValidationException;
 
 class PlayerService
 {
@@ -44,4 +45,34 @@ class PlayerService
             'age' => $age
         ];
     }
+
+     // 🟢 CREATE
+    public function create(int $associationId, int $userId)
+    {
+        if (Player::where('user_id', $userId)->exists()) {
+            throw ValidationException::withMessages([
+                'user' => 'Já é jogador'
+            ]);
+        }
+
+        return Player::create([
+            'user_id' => $userId,
+            'association_id' => $associationId
+        ]);
+    }
+
+//     public function create(array $data)
+// {
+//     $validated = validator($data, [
+//         'user_id' => 'required|exists:users,id',
+//         'association_id' => 'required|exists:associations,id',
+//     ])->validate();
+
+//     return Player::create([
+//         'user_id' => $validated['user_id'],
+//         'association_id' => $validated['association_id'],
+//         'active' => true,
+//     ]);
+// }
+
 }

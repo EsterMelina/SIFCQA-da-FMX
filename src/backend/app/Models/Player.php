@@ -9,29 +9,15 @@ class Player extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'name',
-        'email',
-        'birth_date',
-        'team',
-        'active'
-    ];
+  protected $fillable = ['user_id', 'association_id', 'active'];
 
-    protected $casts = [
-        'birth_date' => 'date',
-        'active' => 'boolean',
-    ];
-
-    /*
-    |--------------------------------------------------------------------------
-    | Accessors
-    |--------------------------------------------------------------------------
-    */
-
-    public function getAgeAttribute()
+    public function user()
     {
-        return $this->birth_date
-            ? now()->diffInYears($this->birth_date)
-            : null;
+        return $this->belongsTo(User::class);
+    }
+
+    public function association()
+    {
+        return $this->belongsTo(Association::class);
     }
 }

@@ -58,23 +58,19 @@ interface ToastMessage {
   message: string;
 }
 
+// Interface que reflete os dados reais do utilizador (backend)
 interface AssociationUser {
   id: number;
   name: string;
   email: string;
-  roles?: (string | { name: string })[];
+  roles?: string[] | { name: string }[]; // aceita ambos os formatos
   association_id?: number;
-}
-
-interface UserCandidate {
-  id: number;
-  name: string;
-  email: string;
 }
 
 /* ==================== HELPERS ==================== */
 const getUserRole = (user: AssociationUser | null): "president" | "secretary" => {
-  if (!user?.roles) return "secretary";
+  if (!user || !user.roles) return "secretary";
+  // Extrai os nomes das roles independentemente do formato
   const roles = user.roles.map((r: any) => (typeof r === "string" ? r : r.name));
   if (roles.includes("association_president") || roles.includes("president")) return "president";
   return "secretary";
@@ -83,7 +79,8 @@ const getUserRole = (user: AssociationUser | null): "president" | "secretary" =>
 /* ==================== COMPONENTE PRINCIPAL ==================== */
 const AssociationDashboard: React.FC = () => {
   const { user, logout } = useAuth();
-  const authUser = user as unknown as AssociationUser | null;
+  // user pode ser null → lança para AssociationUser através de unknown
+  const authUser = (user as unknown) as AssociationUser | null;
   const associationId = authUser?.association_id || 1;
 
   const [theme, setTheme] = useState<"light" | "dark">(() =>
@@ -96,21 +93,21 @@ const AssociationDashboard: React.FC = () => {
   const role = getUserRole(authUser);
 
   const [stats, setStats] = useState<DashboardStats>({
-    totalPlayers: 0, activePlayers: 0, pendingQuotas: 0, pendingTransfers: 0,
+    totalPlayers: 0,
+    activePlayers: 0,
+    pendingQuotas: 0,
+    pendingTransfers: 0,
   });
 
-  // Modal Secretário
   const [showSecretaryModal, setShowSecretaryModal] = useState(false);
   const [editingSecretary, setEditingSecretary] = useState<AssociationMember | null>(null);
-
-  // Modal Jogador
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
 
   const addToast = useCallback((type: ToastMessage["type"], message: string) => {
     const id = Date.now().toString();
-    setToasts(prev => [...prev, { id, type, message }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   }, []);
 
   useEffect(() => {
@@ -118,7 +115,7 @@ const AssociationDashboard: React.FC = () => {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme(prev => (prev === "light" ? "dark" : "light"));
+  const toggleTheme = () => setTheme((prev) => (prev === "light" ? "dark" : "light"));
 
   useEffect(() => {
     if (activeTab !== "dashboard") return;
@@ -132,6 +129,7 @@ const AssociationDashboard: React.FC = () => {
         const players = playersRes.data.data || playersRes.data;
         const quotas = quotasRes.data.data || quotasRes.data;
         const transfers = transfersRes.data.data || transfersRes.data;
+
         setStats({
           totalPlayers: players.length,
           activePlayers: players.filter((p: Player) => p.active).length,
@@ -154,28 +152,13 @@ const AssociationDashboard: React.FC = () => {
     { key: "reports", label: "Relatórios", icon: "assessment", roles: ["president", "secretary"] },
   ];
 
-  const visibleMenu = menuItems.filter(item => item.roles.includes(role));
+  const visibleMenu = menuItems.filter((item) => item.roles.includes(role));
 
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard": return <DashboardContent stats={stats} role={role} />;
-      case "secretaries": return (
-        <SecretariesSection
-          addToast={addToast}
-          associationId={associationId}
-          onEdit={s => { setEditingSecretary(s); setShowSecretaryModal(true); }}
-          onCreate={() => { setEditingSecretary(null); setShowSecretaryModal(true); }}
-        />
-      );
-      case "players": return (
-        <PlayersSection
-          addToast={addToast}
-          associationId={associationId}
-          role={role}
-          onEdit={p => { setEditingPlayer(p); setShowPlayerModal(true); }}
-          onCreate={() => { setEditingPlayer(null); setShowPlayerModal(true); }}
-        />
-      );
+      case "secretaries": return <SecretariesSection addToast={addToast} associationId={associationId} onEdit={(s) => { setEditingSecretary(s); setShowSecretaryModal(true); }} onCreate={() => { setEditingSecretary(null); setShowSecretaryModal(true); }} />;
+      case "players": return <PlayersSection addToast={addToast} associationId={associationId} role={role} onEdit={(p) => { setEditingPlayer(p); setShowPlayerModal(true); }} onCreate={() => { setEditingPlayer(null); setShowPlayerModal(true); }} />;
       case "quotas": return <QuotasSection addToast={addToast} role={role} />;
       case "transfers": return <TransfersSection addToast={addToast} role={role} />;
       case "reports": return <ReportsSection role={role} />;
@@ -187,15 +170,21 @@ const AssociationDashboard: React.FC = () => {
     <div className={styles.container}>
       <div className={styles.layout}>
         <div className={`${styles.overlay} ${isSidebarOpen ? styles.overlayVisible : ""}`} onClick={() => setIsSidebarOpen(false)} />
+
         <aside className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ""}`}>
           <div className={styles.sidebarHeader}>
             <div className={styles.brand}>
-              <div className={styles.logo}><span className="material-symbols-outlined">chess</span></div>
-              <div><h1>Associação</h1><p>{role === "president" ? "Presidência" : "Secretaria"}</p></div>
+              <div className={styles.logo}>
+                <span className="material-symbols-outlined">chess</span>
+              </div>
+              <div>
+                <h1>Associação</h1>
+                <p>{role === "president" ? "Presidência" : "Secretaria"}</p>
+              </div>
             </div>
           </div>
           <nav className={styles.nav}>
-            {visibleMenu.map(item => (
+            {visibleMenu.map((item) => (
               <button key={item.key} className={`${styles.navLink} ${activeTab === item.key ? styles.active : ""}`} onClick={() => { setActiveTab(item.key); setIsSidebarOpen(false); }}>
                 <span className="material-symbols-outlined">{item.icon}</span>
                 <span>{item.label}</span>
@@ -203,17 +192,24 @@ const AssociationDashboard: React.FC = () => {
             ))}
           </nav>
           <div className={styles.sidebarFooter}>
-            <button className={styles.footerLink} onClick={logout}><span className="material-symbols-outlined">logout</span> Sair</button>
+            <button className={styles.footerLink} onClick={logout}>
+              <span className="material-symbols-outlined">logout</span> Sair
+            </button>
           </div>
         </aside>
+
         <main className={styles.main}>
           <header className={styles.topbar}>
             <div className={styles.topbarLeft}>
-              <button className={styles.menuButton} onClick={() => setIsSidebarOpen(v => !v)}><span className="material-symbols-outlined">menu</span></button>
+              <button className={styles.menuButton} onClick={() => setIsSidebarOpen((v) => !v)}>
+                <span className="material-symbols-outlined">menu</span>
+              </button>
               <span className={styles.systemName}>SIFCQA - Associação</span>
             </div>
             <div className={styles.topbarRight}>
-              <button className={styles.themeToggle} onClick={toggleTheme}><span className="material-symbols-outlined">{theme === "light" ? "dark_mode" : "light_mode"}</span></button>
+              <button className={styles.themeToggle} onClick={toggleTheme}>
+                <span className="material-symbols-outlined">{theme === "light" ? "dark_mode" : "light_mode"}</span>
+              </button>
               <div className={styles.avatar}><img src="https://via.placeholder.com/40" alt="User" /></div>
             </div>
           </header>
@@ -222,43 +218,27 @@ const AssociationDashboard: React.FC = () => {
         </main>
       </div>
 
-      {showSecretaryModal && (
-        <SecretaryModal
-          isOpen={showSecretaryModal}
-          secretary={editingSecretary}
-          associationId={associationId}
-          onClose={() => setShowSecretaryModal(false)}
-          onSuccess={() => { setShowSecretaryModal(false); addToast("success", "Secretário guardado!"); }}
-        />
-      )}
-      {showPlayerModal && (
-        <PlayerModal
-          isOpen={showPlayerModal}
-          player={editingPlayer}
-          associationId={associationId}
-          onClose={() => setShowPlayerModal(false)}
-          onSuccess={() => { setShowPlayerModal(false); addToast("success", "Jogador guardado!"); }}
-        />
-      )}
-      <ToastContainer toasts={toasts} onClose={id => setToasts(prev => prev.filter(t => t.id !== id))} />
+      {showSecretaryModal && <SecretaryModal isOpen={showSecretaryModal} secretary={editingSecretary} associationId={associationId} onClose={() => setShowSecretaryModal(false)} onSuccess={() => { setShowSecretaryModal(false); addToast("success", "Secretário guardado!"); }} />}
+      {showPlayerModal && <PlayerModal isOpen={showPlayerModal} player={editingPlayer} associationId={associationId} onClose={() => setShowPlayerModal(false)} onSuccess={() => { setShowPlayerModal(false); addToast("success", "Jogador guardado!"); }} />}
+      <ToastContainer toasts={toasts} onClose={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
     </div>
   );
 };
 
-/* ==================== DASHBOARD ==================== */
+/* ==================== DASHBOARD CONTENT ==================== */
 const DashboardContent: React.FC<{ stats: DashboardStats; role: string }> = ({ stats, role }) => (
   <div className={styles.pageContainer}>
     <h2>Dashboard {role === "president" ? "do Presidente" : "do Secretário"}</h2>
     <div className={styles.statsGrid}>
       <div className={styles.statCard}><span className="material-symbols-outlined">groups</span><div><p>Jogadores Ativos</p><strong>{stats.activePlayers}</strong></div></div>
       <div className={styles.statCard}><span className="material-symbols-outlined">payments</span><div><p>Quotas Pendentes</p><strong>{stats.pendingQuotas}</strong></div></div>
-      <div className={styles.statCard}><span className="material-symbols-outlined">swap_horiz</span><div><p>Transf. Pendentes</p><strong>{stats.pendingTransfers}</strong></div></div>
+      <div className={styles.statCard}><span className="material-symbols-outlined">swap_horiz</span><div><p>Transferências Pendentes</p><strong>{stats.pendingTransfers}</strong></div></div>
       <div className={styles.statCard}><span className="material-symbols-outlined">people</span><div><p>Total Jogadores</p><strong>{stats.totalPlayers}</strong></div></div>
     </div>
   </div>
 );
 
-/* ==================== SECRETÁRIOS ==================== */
+/* ==================== SECRETÁRIOS (gestão) ==================== */
 const SecretariesSection: React.FC<{
   addToast: (type: ToastMessage["type"], msg: string) => void;
   associationId: number;
@@ -278,10 +258,10 @@ const SecretariesSection: React.FC<{
   useEffect(() => { fetchSecretaries(); }, []);
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Remover secretário?")) return;
+    if (!confirm("Remover?")) return;
     try {
       await http.delete(`${endpoints.associations.members(associationId)}/${id}`);
-      addToast("success", "Secretário removido");
+      addToast("success", "Removido");
       fetchSecretaries();
     } catch (err: any) { addToast("error", err.response?.data?.message || "Erro"); }
   };
@@ -298,7 +278,7 @@ const SecretariesSection: React.FC<{
         <table className={styles.table}>
           <thead><tr><th>Nome</th><th>Email</th><th>Ativo</th><th>Ações</th></tr></thead>
           <tbody>
-            {secretaries.map(s => (
+            {secretaries.map((s) => (
               <tr key={s.id}>
                 <td>{s.user?.name}</td><td>{s.user?.email}</td><td>{s.active ? "Sim" : "Não"}</td>
                 <td>
@@ -314,7 +294,7 @@ const SecretariesSection: React.FC<{
   );
 };
 
-/* ==================== JOGADORES (mantido) ==================== */
+/* ==================== JOGADORES ==================== */
 const PlayersSection: React.FC<{
   addToast: (type: ToastMessage["type"], msg: string) => void;
   associationId: number;
@@ -355,7 +335,7 @@ const PlayersSection: React.FC<{
         <table className={styles.table}>
           <thead><tr><th>Nome</th><th>Email</th><th>Equipa</th><th>Ativo</th><th>Ações</th></tr></thead>
           <tbody>
-            {players.map(p => (
+            {players.map((p) => (
               <tr key={p.id}>
                 <td>{p.name}</td><td>{p.email || "—"}</td><td>{p.team || "—"}</td>
                 <td><span className={`${styles.statusBadge} ${p.active ? styles.active : styles.inactive}`}>{p.active ? "Ativo" : "Inativo"}</span></td>
@@ -372,14 +352,14 @@ const PlayersSection: React.FC<{
   );
 };
 
-/* ==================== QUOTAS / TRANSFERÊNCIAS / RELATÓRIOS (mantidos) ==================== */
+/* ==================== QUOTAS ==================== */
 const QuotasSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: string) => void; role: string }> = ({ addToast, role }) => {
   const [quotas, setQuotas] = useState<Quota[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchQuotas = async () => {
     try {
-      const res = await http.get("/quotas");
+      const res = await http.get("/quotas"); // ajustar endpoint
       setQuotas(res.data.data || res.data);
     } catch (err: any) { addToast("error", "Erro ao carregar"); } finally { setLoading(false); }
   };
@@ -403,12 +383,12 @@ const QuotasSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: stri
         <table className={styles.table}>
           <thead><tr><th>Jogador</th><th>Valor (MT)</th><th>Status</th><th>Vencimento</th>{role === "president" && <th>Ações</th>}</tr></thead>
           <tbody>
-            {quotas.map(q => (
+            {quotas.map((q) => (
               <tr key={q.id}>
                 <td>{q.player?.name || `#${q.player_id}`}</td><td>{q.amount}</td>
                 <td><span className={`${styles.statusBadge} ${q.status === "paid" ? styles.validated : styles.pending}`}>{q.status === "paid" ? "Pago" : "Pendente"}</span></td>
                 <td>{q.due_date || "—"}</td>
-                {role === "president" && <td>{q.status === "pending" && <button className={styles.actionBtn} onClick={() => handleConfirm(q.id)}>Confirmar</button>}</td>}
+                {role === "president" && <td>{q.status === "pending" && <button className={styles.actionBtn} onClick={() => handleConfirm(q.id)}>Confirmar Pagamento</button>}</td>}
               </tr>
             ))}
           </tbody>
@@ -418,13 +398,14 @@ const QuotasSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: stri
   );
 };
 
+/* ==================== TRANSFERÊNCIAS ==================== */
 const TransfersSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: string) => void; role: string }> = ({ addToast, role }) => {
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchTransfers = async () => {
     try {
-      const res = await http.get("/transfers");
+      const res = await http.get("/transfers"); // ajustar
       setTransfers(res.data.data || res.data);
     } catch (err: any) { addToast("error", "Erro ao carregar"); } finally { setLoading(false); }
   };
@@ -433,7 +414,7 @@ const TransfersSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: s
 
   const handleApprove = async (transferId: number) => {
     try {
-      await http.post(`/transfers/${transferId}/approve`);
+      await http.post(`/transfers/${transferId}/approve`); // ajustar rota real
       addToast("success", "Transferência aprovada!");
       fetchTransfers();
     } catch (err: any) { addToast("error", err.response?.data?.message || "Erro"); }
@@ -448,7 +429,7 @@ const TransfersSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: s
         <table className={styles.table}>
           <thead><tr><th>Jogador</th><th>Origem</th><th>Destino</th><th>Status</th>{role === "president" && <th>Ações</th>}</tr></thead>
           <tbody>
-            {transfers.map(t => (
+            {transfers.map((t) => (
               <tr key={t.id}>
                 <td>{t.player?.name || `#${t.player_id}`}</td><td>{t.from_association}</td><td>{t.to_association}</td>
                 <td><span className={`${styles.statusBadge} ${styles[t.status]}`}>{t.status === "pending" ? "Pendente" : t.status === "approved" ? "Aprovada" : "Rejeitada"}</span></td>
@@ -462,6 +443,7 @@ const TransfersSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: s
   );
 };
 
+/* ==================== RELATÓRIOS ==================== */
 const ReportsSection: React.FC<{ role: string }> = ({ role }) => (
   <div className={styles.pageContainer}>
     <h2>Relatórios {role === "president" ? "da Associação" : "Básicos"}</h2>
@@ -469,97 +451,60 @@ const ReportsSection: React.FC<{ role: string }> = ({ role }) => (
   </div>
 );
 
-/* ==================== MODAL SECRETÁRIO (com seleção dinâmica de utilizador) ==================== */
-const SecretaryModal: React.FC<{
+/* ==================== MODAIS ==================== */
+interface SecretaryModalProps {
   isOpen: boolean;
   secretary: AssociationMember | null;
   associationId: number;
   onClose: () => void;
   onSuccess: () => void;
-}> = ({ isOpen, secretary, associationId, onClose, onSuccess }) => {
+}
+
+const SecretaryModal: React.FC<SecretaryModalProps> = ({ isOpen, secretary, associationId, onClose, onSuccess }) => {
   const [userId, setUserId] = useState("");
-  const [users, setUsers] = useState<UserCandidate[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      setLoadingUsers(true);
-      http.get("/fmx/users") // endpoint que lista utilizadores
-        .then(res => setUsers(res.data.data || res.data))
-        .catch(() => {})
-        .finally(() => setLoadingUsers(false));
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    setUserId(secretary ? String(secretary.user_id) : "");
-  }, [secretary]);
+  useEffect(() => { if (secretary) setUserId(String(secretary.user_id)); else setUserId(""); }, [secretary]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userId) return;
-    setSaving(true);
+    setLoading(true);
     try {
-      const payload = { user_id: Number(userId), position: "secretary" };
       if (secretary) {
-        await http.put(`${endpoints.associations.members(associationId)}/${secretary.id}`, payload);
+        await http.put(`${endpoints.associations.members(associationId)}/${secretary.id}`, { user_id: Number(userId), position: "secretary" });
       } else {
-        await http.post(endpoints.associations.storeMember(associationId), payload);
+        await http.post(endpoints.associations.storeMember(associationId), { user_id: Number(userId), position: "secretary" });
       }
       onSuccess();
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Erro ao guardar secretário");
-    } finally {
-      setSaving(false);
-    }
+    } catch (err: any) { alert(err.response?.data?.message || "Erro"); } finally { setLoading(false); }
   };
 
   if (!isOpen) return null;
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h3>{secretary ? "Editar Secretário" : "Novo Secretário"}</h3>
-          <button onClick={onClose} className={styles.modalClose}>×</button>
-        </div>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader}><h3>{secretary ? "Editar Secretário" : "Novo Secretário"}</h3><button onClick={onClose} className={styles.modalClose}>×</button></div>
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
-            <div className={styles.formGroup}>
-              <label>Utilizador</label>
-              {loadingUsers ? (
-                <p>Carregando utilizadores…</p>
-              ) : (
-                <select value={userId} onChange={e => setUserId(e.target.value)} required>
-                  <option value="">Selecionar utilizador</option>
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-                  ))}
-                </select>
-              )}
-            </div>
+            <div className={styles.formGroup}><label>ID do Utilizador</label><input type="number" value={userId} onChange={(e) => setUserId(e.target.value)} required /></div>
           </div>
-          <div className={styles.modalActions}>
-            <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
-            <button type="submit" className={styles.submitButton} disabled={saving || !userId}>
-              {saving ? "Salvando..." : "Guardar"}
-            </button>
-          </div>
+          <div className={styles.modalActions}><button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button><button type="submit" className={styles.submitButton} disabled={loading}>{loading ? "Salvando..." : "Guardar"}</button></div>
         </form>
       </div>
     </div>
   );
 };
 
-/* ==================== MODAL JOGADOR ==================== */
-const PlayerModal: React.FC<{
+interface PlayerModalProps {
   isOpen: boolean;
   player: Player | null;
   associationId: number;
   onClose: () => void;
   onSuccess: () => void;
-}> = ({ isOpen, player, associationId, onClose, onSuccess }) => {
+}
+
+const PlayerModal: React.FC<PlayerModalProps> = ({ isOpen, player, associationId, onClose, onSuccess }) => {
   const [form, setForm] = useState({ name: "", email: "", team: "", active: true });
   const [loading, setLoading] = useState(false);
 
@@ -585,14 +530,14 @@ const PlayerModal: React.FC<{
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}><h3>{player ? "Editar Jogador" : "Registar Jogador"}</h3><button onClick={onClose} className={styles.modalClose}>×</button></div>
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
-            <div className={styles.formGroup}><label>Nome *</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></div>
-            <div className={styles.formGroup}><label>Email</label><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
-            <div className={styles.formGroup}><label>Equipa</label><input value={form.team} onChange={e => setForm({ ...form, team: e.target.value })} /></div>
-            <div className={styles.formGroup}><label><input type="checkbox" checked={form.active} onChange={e => setForm({ ...form, active: e.target.checked })} /> Ativo</label></div>
+            <div className={styles.formGroup}><label>Nome *</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
+            <div className={styles.formGroup}><label>Email</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div className={styles.formGroup}><label>Equipa</label><input value={form.team} onChange={(e) => setForm({ ...form, team: e.target.value })} /></div>
+            <div className={styles.formGroup}><label><input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} /> Ativo</label></div>
           </div>
           <div className={styles.modalActions}><button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button><button type="submit" className={styles.submitButton} disabled={loading}>{loading ? "Salvando..." : "Guardar"}</button></div>
         </form>
@@ -604,7 +549,7 @@ const PlayerModal: React.FC<{
 /* ==================== TOAST ==================== */
 const ToastContainer: React.FC<{ toasts: ToastMessage[]; onClose: (id: string) => void }> = ({ toasts, onClose }) => (
   <div className={styles.toastContainer}>
-    {toasts.map(t => (
+    {toasts.map((t) => (
       <div key={t.id} className={`${styles.toast} ${styles[t.type]}`}>
         <span>{t.type === "success" ? "✓" : t.type === "error" ? "⚠️" : "ℹ️"}</span>
         <p>{t.message}</p>
