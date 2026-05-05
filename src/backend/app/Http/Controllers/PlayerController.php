@@ -4,11 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Player;
 use App\Services\PlayerService;
-use Illuminate\Http\Request;
 
 class PlayerController extends Controller
 {
-    protected PlayerService $service;
+    protected $service;
 
     public function __construct(PlayerService $service)
     {
@@ -31,19 +30,6 @@ class PlayerController extends Controller
         );
     }
 
-    // POST /players
-    public function store(Request $request, $id)
-    {
-        $data = $request->validate([
-            'user_id' => 'required|exists:users,id'
-        ]);
-
-        return response()->json(
-            $this->service->create($id, $data['user_id']),
-            201
-        );
-    }
-
     // GET /players/{player}/eligibility
     public function eligibility(Player $player)
     {
@@ -51,6 +37,4 @@ class PlayerController extends Controller
             $this->service->checkEligibility($player)
         );
     }
-
-
 }

@@ -32,16 +32,35 @@ class AssociationController extends Controller
     }
 
     // POST create
-   public function store(Request $request)
+    public function store(Request $request)
     {
         $data = $request->validate([
             'name' => 'required|string',
-            'contact_email' => 'nullable|email'
+            'email' => 'nullable|email',
+            'phone' => 'nullable|string',
+            'address' => 'nullable|string',
+            'status' => 'boolean'
         ]);
 
         return response()->json(
             $this->service->create($data),
             201
+        );
+    }
+
+    // PUT update
+    public function update(Request $request, Association $association)
+    {
+        $data = $request->validate([
+            'name' => 'sometimes|string',
+            'email' => 'nullable|email',
+            'phone' => 'nullable|string',
+            'address' => 'nullable|string',
+            'status' => 'boolean'
+        ]);
+
+        return response()->json(
+            $this->service->update($association, $data)
         );
     }
 
@@ -52,26 +71,4 @@ class AssociationController extends Controller
             $this->service->toggleStatus($association)
         );
     }
-
-    // AssociationController.php
-
-
-
-public function update(Request $request, $id)
-{
-    $association = Association::findOrFail($id);
-
-    $data = $request->validate([
-        'name'    => 'sometimes|required|string|max:255',
-        'email'   => 'nullable|email',
-        'phone'   => 'nullable|string',
-        'address' => 'nullable|string',
-        'status'  => 'nullable|boolean',
-    ]);
-
-    $association->update($data);
-    return $association;
-}
-
-
 }

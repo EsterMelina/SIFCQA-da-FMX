@@ -10,44 +10,29 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // ================= ADMIN =================
         $admin = User::create([
-            'name' => 'System Admin',
+            'name' => 'Admin',
             'email' => 'admin@fmx.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password123'),
         ]);
-
         $admin->assignRole('admin');
 
-        // ================= FMX USER =================
-        $fmxUser = User::create([
-            'name' => 'FMX User',
-            'email' => 'fmx@fmx.com',
-            'email_verified_at' => now(),
-            'password' => Hash::make('password123'),
-        ]);
-
-        $fmxUser->assignRole('fmx');
-
-        // ================= ASSOCIATION USER =================
-        $associationUser = User::create([
-            'name' => 'Association User',
-            'email' => 'association@fmx.com',
-            'email_verified_at' => now(),
-            'password' => Hash::make('password123'),
-        ]);
-
-        $associationUser->assignRole('association');
-
-        // ================= PLAYER USER =================
-        $playerUser = User::create([
-            'name' => 'Player User',
-            'email' => 'player@fmx.com',
+        $player = User::create([
+            'name' => 'Test User',
+            'email' => 'test@example.com',
             'email_verified_at' => null,
             'password' => Hash::make('password123'),
         ]);
+        $player->assignRole('player');
 
-        // ❌ NÃO atribui role player
+
+        $assoc = User::create([
+            'name' => 'Admin',
+            'email' => 'assoc@fmx.com',
+            'email_verified_at' => now(),
+            'password' => Hash::make('password123'),
+        ]);
+        $assoc->assignRole('association');
     }
 }

@@ -13,15 +13,15 @@ public function up(): void
 {
     Schema::create('players', function (Blueprint $table) {
         $table->id();
-
-        $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-        $table->foreignId('association_id')->constrained()->cascadeOnDelete();
-
-        $table->boolean('active')->default(true);
-
+        $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade');
+        $table->foreignId('association_id')->nullable()->constrained()->onDelete('cascade');
+        $table->string('full_name');
+        $table->string('email')->nullable();
+        $table->date('birth_date');
+        $table->string('nationality')->default('Moçambicana');
+        $table->string('position')->nullable();
+        $table->boolean('status')->default(true);
         $table->timestamps();
-
-        $table->unique(['user_id']); // 1 player por user
     });
 }
 

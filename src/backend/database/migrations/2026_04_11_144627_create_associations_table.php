@@ -12,14 +12,14 @@ return new class extends Migration
   public function up(): void
 {
     Schema::create('associations', function (Blueprint $table) {
-        $table->id();
-        $table->string('name');
-        $table->string('contact_email')->nullable();
-        $table->string('phone')->nullable();
-        $table->string('address')->nullable();
-        $table->boolean('status')->default(true);
-        $table->timestamps();
-    });
+    $table->id();
+    $table->string('name');
+    $table->string('email')->nullable();
+    $table->string('phone')->nullable();
+    $table->string('address')->nullable();
+    $table->boolean('status')->default(true);
+    $table->timestamps();
+});
 }
 
     /**

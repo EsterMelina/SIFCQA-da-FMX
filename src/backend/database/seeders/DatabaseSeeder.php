@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\AssociationMember;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -15,12 +14,11 @@ class DatabaseSeeder extends Seeder
 
         // ✅ Keep only this:
         $this->call([
+            AssociationSeeder::class,
             RoleSeeder::class,
             UserSeeder::class,
-            FMXSeeder::class,
-            AssociationSeeder::class,   
             PlayerSeeder::class,
-            FmxStaffSeeder::class,      
+            
         ]);
     }
 }
