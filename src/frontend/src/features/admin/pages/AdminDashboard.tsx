@@ -46,6 +46,11 @@ interface ToastMessage {
   message: string;
 }
 
+interface Association {
+  id: number;
+  name: string;
+}
+
 /* ==================== COMPONENTE PRINCIPAL ==================== */
 const AdminDashboard: React.FC = () => {
   const { logout } = useAuth();
@@ -58,10 +63,29 @@ const AdminDashboard: React.FC = () => {
 
   const [activeMain, setActiveMain] = useState<MainMenu>("dashboard");
 
-  // Dados globais
+  // Dados globais de utilizadores
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [errorUsers, setErrorUsers] = useState<string | null>(null);
+
+  // Função partilhada para buscar utilizadores
+  const fetchUsers = useCallback(async () => {
+    setLoadingUsers(true);
+    setErrorUsers(null);
+    try {
+      const res = await http.get(endpoints.users.base);
+      setUsers(res.data.data || res.data);
+    } catch (err: any) {
+      setErrorUsers("Erro ao carregar utilizadores");
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, []);
+
+  // Carrega utilizadores na montagem
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   // Modais
   const [showUserModal, setShowUserModal] = useState(false);
@@ -227,7 +251,7 @@ const AdminDashboard: React.FC = () => {
         </main>
       </div>
 
-      {/* Modais globais */}
+      {/* Modal de utilizador – refresh automático após salvar */}
       {showUserModal && (
         <UserModal
           isOpen={showUserModal}
@@ -236,6 +260,7 @@ const AdminDashboard: React.FC = () => {
           onSuccess={() => {
             setShowUserModal(false);
             addToast("success", "Utilizador guardado!");
+            fetchUsers(); // ← recarrega a lista
           }}
         />
       )}
@@ -523,17 +548,6 @@ const UtilizadoresSection: React.FC<{
 }> = ({ users, setUsers, loading, error, addToast, onOpenCreate, onEditUser }) => {
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      if (users.length > 0) return;
-      try {
-        const res = await http.get(endpoints.users.base);
-        setUsers(res.data.data || res.data);
-      } catch (err: any) { addToast("error", "Erro ao carregar utilizadores"); }
-    };
-    fetchUsers();
-  }, []);
-
   const filtered = search
     ? users.filter(
         (u) =>
@@ -556,7 +570,7 @@ const UtilizadoresSection: React.FC<{
   const handleToggleStatus = async (user: User) => {
     const newStatus = user.status === "active" ? "inactive" : "active";
     try {
-      await http.patch(`${endpoints.users.base}/${user.id}/status`, { status: newStatus });
+      await http.patch(`${endpoints.users.base}/${user.id}/status`, { status: newStatus }); //rever endpoint
       addToast("success", `Status alterado`);
       setUsers((prev) =>
         prev.map((u) => (u.id === user.id ? { ...u, status: newStatus } : u))
@@ -771,30 +785,76 @@ const UserModal: React.FC<{
   onClose: () => void;
   onSuccess: () => void;
 }> = ({ isOpen, user, onClose, onSuccess }) => {
-  const [form, setForm] = useState({ name: "", email: "", role: "player", password: "" });
+  const isEdit = !!user;
+
+  // Campos base
+  const [form, setForm] = useState({ name: "", email: "", role: "association" });
+  // Campos adicionais (apenas edição)
+  const [associationId, setAssociationId] = useState<number | "">("");
+  const [position, setPosition] = useState<string>("Secretário");
+  const [associations, setAssociations] = useState<Association[]>([]);
+  const [loadingAssoc, setLoadingAssoc] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Resetar formulário ao abrir/fechar
   useEffect(() => {
-    if (user) {
-      setForm({
-        name: user.name,
-        email: user.email,
-        role: user.roles?.[0]?.name || "player",
-        password: "",
-      });
-    } else {
-      setForm({ name: "", email: "", role: "player", password: "" });
+    if (isOpen) {
+      if (user) {
+        // Modo edição: pré‑preencher nome, email e role
+        const currentRole = user.roles?.[0]?.name || "association";
+        setForm({
+          name: user.name,
+          email: user.email,
+          role: currentRole,
+        });
+        fetchAssociations();
+        // Inicializar campos extra vazios (seriam preenchidos com dados existentes se disponíveis)
+        setAssociationId("");
+        setPosition("Secretário");
+      } else {
+        // Modo criação
+        setForm({ name: "", email: "", role: "association" });
+        setAssociationId("");
+        setPosition("Secretário");
+      }
     }
-  }, [user]);
+  }, [isOpen, user]);
+
+  const fetchAssociations = async () => {
+    setLoadingAssoc(true);
+    try {
+      const res = await http.get("/admin/associations"); // Ajuste a rota conforme necessário
+      setAssociations(res.data.data || res.data);
+    } catch {
+      // Se falhar, deixamos lista vazia
+    } finally {
+      setLoadingAssoc(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      if (user) {
-        await http.put(`${endpoints.users.base}/${user.id}`, form);
+      const payload: any = {
+        name: form.name,
+        email: form.email,
+        role: form.role,
+      };
+
+      if (isEdit) {
+        // Adiciona campos conforme a função escolhida
+        if (form.role === "association") {
+          if (associationId) payload.association_id = Number(associationId);
+          payload.position = position; // Presidente ou Secretário
+        } else if (form.role === "fmx") {
+          payload.cargo = "Secretário"; // fixo
+        }
+
+        await http.put(`${endpoints.users.base}/${user!.id}`, payload);
       } else {
-        await http.post(endpoints.users.base, form);
+        // Criação: apenas nome, email e role
+        await http.post(endpoints.users.base, payload);
       }
       onSuccess();
     } catch (err: any) {
@@ -805,41 +865,100 @@ const UserModal: React.FC<{
   };
 
   if (!isOpen) return null;
+
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h3>{user ? "Editar Utilizador" : "Novo Utilizador"}</h3>
+          <h3>{isEdit ? "Editar Utilizador" : "Novo Utilizador"}</h3>
           <button onClick={onClose} className={styles.modalClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
+            {/* Nome */}
             <div className={styles.formGroup}>
               <label>Nome</label>
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              <input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
             </div>
+            {/* Email */}
             <div className={styles.formGroup}>
               <label>Email</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                required
+              />
             </div>
+            {/* Função */}
             <div className={styles.formGroup}>
               <label>Função</label>
-              <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-                <option value="admin">Admin</option>
-                <option value="fmx">FMX</option>
+              <select
+                value={form.role}
+                onChange={(e) => {
+                  setForm({ ...form, role: e.target.value });
+                  if (!isEdit) return;
+                  // Resetar campos extra ao mudar de função
+                  setAssociationId("");
+                  setPosition("Secretário");
+                }}
+                required
+              >
                 <option value="association">Associação</option>
-                <option value="player">Jogador</option>
+                <option value="fmx">FMX</option>
               </select>
             </div>
-            {!user && (
+
+            {/* Campos extras apenas no modo edição */}
+            {isEdit && form.role === "association" && (
+              <>
+                <div className={styles.formGroup}>
+                  <label>Associação</label>
+                  {loadingAssoc ? (
+                    <select disabled><option>Carregando...</option></select>
+                  ) : (
+                    <select
+                      value={associationId}
+                      onChange={(e) => setAssociationId(e.target.value ? Number(e.target.value) : "")}
+                    >
+                      <option value="">Selecione uma associação</option>
+                      {associations.map((a) => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div className={styles.formGroup}>
+                  <label>position</label>
+                  <select
+                    value={position}
+                    onChange={(e) => setPosition(e.target.value)}
+                  >
+                    <option value="Presidente">Presidente</option>
+                    <option value="Secretário">Secretário</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            {isEdit && form.role === "fmx" && (
               <div className={styles.formGroup}>
-                <label>Password (deixe vazio para convite)</label>
-                <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                <label>Cargo</label>
+                <select value="Secretário" disabled>
+                  <option>Secretário</option>
+                </select>
               </div>
             )}
           </div>
+
           <div className={styles.modalActions}>
-            <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
+            <button type="button" onClick={onClose} className={styles.cancelButton}>
+              Cancelar
+            </button>
             <button type="submit" className={styles.submitButton} disabled={loading}>
               {loading ? "Salvando..." : "Guardar"}
             </button>
@@ -857,7 +976,7 @@ const PresidentModal: React.FC<{
   onClose: () => void;
   onSuccess: () => void;
 }> = ({ isOpen, mode, currentPresident, onClose, onSuccess }) => {
-  const [form, setForm] = useState({ user_id: "", position: "President", active: true });
+  const [form, setForm] = useState({ user_id: "", position: "Presidente", active: true });
   const [loading, setLoading] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
 
@@ -879,7 +998,7 @@ const PresidentModal: React.FC<{
         active: currentPresident.active,
       });
     } else {
-      setForm({ user_id: "", position: "President", active: true });
+      setForm({ user_id: "", position: "Presidente", active: true });
     }
   }, [mode, currentPresident]);
 

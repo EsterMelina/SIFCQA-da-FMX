@@ -266,9 +266,16 @@ public function sendResetLink(string $email)
     //==================================================================================================//      
 public function sendInvite(User $user): void
 {
+    Log::info('SEND INVITE INICIOU');
     // 1. gera token
     $token = Str::random(60);
 
+    // DB::table('user_invites')->insert([
+    //     'email'      => $user->email,
+    //     'token'      => $token,
+    //     'expires_at' => now()->addHours(24),
+    //     'created_at' => now()
+    // ]);
     DB::table('user_invites')->insert([
         'email' => $user->email,
         'token' => hash('sha256', $token),
@@ -282,9 +289,19 @@ public function sendInvite(User $user): void
     Log::info("📨 INVITE LINK", ['link' => $link]);
 
     // 3. email
-    Mail::raw("Você foi convidado. Defina sua senha: $link", function ($message) use ($user) {
-        $message->to($user->email)->subject('Convite para acesso');
-    });
+    try {
+        Mail::raw("Você foi convidado. Defina sua senha: $link", function ($message) use ($user) {
+            $message->to($user->email)
+                    ->subject('Convite para acesso');
+        });
+
+        Log::info("MAIL ENVIADO", ['email' => $user->email]);
+
+    } catch (\Throwable $e) {
+        Log::error("MAIL ERROR", [
+            'message' => $e->getMessage()
+        ]);
+    }
 }
 
 //==================================================================================================

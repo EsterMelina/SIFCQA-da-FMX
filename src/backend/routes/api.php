@@ -47,6 +47,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     // USERS
     Route::apiResource('users', UserController::class);
     Route::patch('users/{user}/role', [UserController::class, 'updateRole']);
+    Route::patch('users/{user}/status', [UserController::class, 'toggleStatus']);
 
     // CONVITES
     Route::post('users/invite', [UserController::class, 'invite']);
@@ -58,6 +59,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('fmx', [FmxController::class, 'store']);
     Route::get('fmx', [FmxController::class, 'show']);
     Route::put('fmx', [FmxController::class, 'update']);
+
 
     Route::middleware(['auth:sanctum', 'role:admin'])
     ->prefix('fmx')

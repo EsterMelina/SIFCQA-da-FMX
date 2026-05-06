@@ -10,6 +10,7 @@ class AssociationMember extends Model
         'user_id',
         'association_id',
         'position',
+        'active',
     ];
 
     const POSITIONS = ['president', 'secretary', 'member'];

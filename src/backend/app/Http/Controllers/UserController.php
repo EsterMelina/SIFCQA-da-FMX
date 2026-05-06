@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
+use App\Models\Fmx;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -31,33 +33,7 @@ class UserController extends Controller
         );
     }
 
-    // POST /users
-// public function store(Request $request)
-// {
-//     $data = $request->validate([
-//         'name'     => 'required|string',
-//         'email'    => 'required|email|unique:users,email',
-//         'password' => 'required|min:6',
-//         'status'   => 'boolean',
-//         'role'     => 'required|string|exists:roles,name', // valida que a role existe no Spatie
-//     ]);
 
-//     $user = User::create([
-//         'name'     => $data['name'],
-//         'email'    => $data['email'],
-//         'password' => Hash::make($data['password']),
-//         'status'   => $data['status'] ?? true,
-//     ]);
-
-//     $user->assignRole($data['role']);
-
-//     return response()->json($user->load('roles'), 201);
-// }
-
-
-//==================================================================================================
-// Este método é chamado quando um admin cria um usuário sem senha, para enviar o convite
-//==================================================================================================//  
 public function store(Request $request)
 {
     $data = $request->validate([
@@ -66,16 +42,16 @@ public function store(Request $request)
         'password' => 'nullable|min:6',
         'status'   => 'sometimes|boolean',
         'role'     => 'required|string|exists:roles,name',
-        'association_id' => 'nullable|exists:associations,id',
-        'position' => 'nullable|string', // 👈 novo campo para FMX
     ]);
 
     $authUser = Auth::user();
+
     $isAdminCreating = $authUser?->hasRole('admin') ?? false;
 
-    $password = $data['password'] ?? null;
-
-    if (!$isAdminCreating && !$password) {
+    /**
+     * Password obrigatória se não for admin
+     */
+    if (!$isAdminCreating && empty($data['password'])) {
         return response()->json([
             'message' => 'Password é obrigatória'
         ], 422);
@@ -84,72 +60,105 @@ public function store(Request $request)
     $user = User::create([
         'name'     => $data['name'],
         'email'    => $data['email'],
-        'password' => $password ? Hash::make($password) : null,
+        'password' => !empty($data['password'])
+            ? Hash::make($data['password'])
+            : null,
         'status'   => $data['status'] ?? true,
     ]);
 
-    if (!$password) {
-    $this->authService->sendInvite($user); 
-    }
     $user->assignRole($data['role']);
 
-    // 🔥 ASSOCIATION
-    if ($data['role'] === 'association' && $data['association_id']) {
-        DB::table('association_members')->insert([
-            'user_id' => $user->id,
-            'association_id' => $data['association_id'],
-            'type' => 'manager',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-    }
-
-    // 🔥 PLAYER
-    if ($data['role'] === 'player' && $data['association_id']) {
-        DB::table('players')->insert([
-            'user_id' => $user->id,
-            'association_id' => $data['association_id'],
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-    }
-
-    // 🟥 FMX STAFF
-    if ($data['role'] === 'fmx') {
-        \App\Models\FmxStaff::create([
-            'user_id' => $user->id,
-            'position' => $data['position'] ?? 'Staff',
-            'active' => true,
-        ]);
-    }
-
-    return response()->json($user->load('roles'), 201);
+    return response()->json(
+        $user->load('roles'),
+        201
+    );
 }
 
-// public function store(Request $request)
-// {
-//     $data = $request->validate([
-//         'name'  => 'required|string',
-//         'email' => 'required|email|unique:users,email',
-//         'password' => 'nullable|min:6',
-//         'status' => 'boolean',
-//     ]);
 
-//     $user = User::create([
-//         'name' => $data['name'],
-//         'email' => $data['email'],
-//         'password' => $data['password']
-//             ? Hash::make($data['password'])
-//             : null,
-//         'status' => $data['status'] ?? true,
-//     ]);
+public function update(Request $request, User $user)
+{
+    Log::info('UPDATE USER REQUEST', [
+        'user_id' => $user->id,
+        'payload' => $request->all(),
+    ]);
 
-//     if (!$data['password']) {
-//         $this->authService->sendInvite($user);
-//     }
 
-//     return response()->json($user, 201);
-// }
+    $data = $request->validate([
+        'name'     => 'sometimes|string',
+        'email'    => 'sometimes|email|unique:users,email,' . $user->id,
+        'password' => 'nullable|min:6',
+        'status'   => 'sometimes|boolean',
+        'position' => 'nullable|string',
+    ]);
+
+    $oldEmail = $user->email;
+
+    $updatedUser = $this->service->update($user, $data);
+
+    /**
+     * 📩 EMAIL ALTERADO → enviar convite / notificação
+     * 
+     * Se alguém ganhou posição institucional
+     * E ainda não ativou conta
+     * → enviar convite
+     */
+   if (
+        isset($data['position']) &&
+        empty($updatedUser->password)
+    ) {
+        $this->authService->sendInvite($updatedUser);
+    }
+
+    /**
+     * FMX STAFF
+     */
+    if (
+        $user->hasRole('fmx') &&
+        isset($data['position'])
+    ) {
+
+        $fmx = \App\Models\Fmx::first();
+
+        if (!$fmx) {
+            return response()->json([
+                'message' => 'FMX não encontrada'
+            ], 500);
+        }
+
+        \App\Models\FmxStaff::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'fmx_id'   => $fmx->id,
+                'position' => $data['position'],
+                'active'   => true,
+            ]
+        );
+    }
+
+    /**
+     * ASSOCIATION MEMBER
+     */
+    if (
+        $user->hasRole('association') &&
+        isset($data['position'])
+    ) {
+
+        $associationMember = \App\Models\AssociationMember::where('user_id', $user->id)->first();
+
+        if ($associationMember) {
+            $associationMember->update([
+                'position' => $data['position'],
+                'active'   => true,
+            ]);
+        }
+    }
+
+    return response()->json(
+        $updatedUser->load('roles')
+    );
+}
+
+
 
 
 
@@ -161,20 +170,9 @@ public function store(Request $request)
         );
     }
 
-    // PUT/PATCH /users/{user}
-    public function update(Request $request, User $user)
-    {
-        $data = $request->validate([
-            'name' => 'sometimes|string',
-            'email' => 'sometimes|email|unique:users,email,' . $user->id,
-            'password' => 'nullable|min:6',
-            'status' => 'boolean'
-        ]);
 
-        return response()->json(
-            $this->service->update($user, $data)
-        );
-    }
+
+
 
     // DELETE /users/{user}
     public function destroy(User $user)
@@ -185,6 +183,8 @@ public function store(Request $request)
             'message' => 'Usuário removido'
         ]);
     }
+
+
 
     // PATCH /users/{user}/role
     public function updateRole(Request $request, User $user)
@@ -203,6 +203,46 @@ public function store(Request $request)
     // Retorna todos os utilizadores (pode filtrar por role se necessário)
     $users = User::with('roles')->get();
     return response()->json($users);
+}
+
+public function toggleStatus(User $user)
+{
+    // 🔁 alterna status global
+    $user->status = !$user->status;
+    $user->save();
+
+    /**
+     * 🟥 FMX STAFF
+     */
+    if ($user->hasRole('fmx')) {
+
+        $fmxStaff = \App\Models\FmxStaff::where('user_id', $user->id)->first();
+
+        if ($fmxStaff) {
+            $fmxStaff->update([
+                'active' => $user->status
+            ]);
+        }
+    }
+
+    /**
+     * 🟦 ASSOCIATION MEMBER
+     */
+    if ($user->hasRole('association')) {
+
+        $member = \App\Models\AssociationMember::where('user_id', $user->id)->first();
+
+        if ($member) {
+            $member->update([
+                'active' => $user->status
+            ]);
+        }
+    }
+
+    return response()->json([
+        'message' => 'Status atualizado com sucesso',
+        'status'  => $user->status
+    ]);
 }
 
 
