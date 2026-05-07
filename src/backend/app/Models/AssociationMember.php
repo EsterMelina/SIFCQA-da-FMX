@@ -13,7 +13,7 @@ class AssociationMember extends Model
         'active',
     ];
 
-    const POSITIONS = ['president', 'secretary', 'member'];
+    const POSITIONS = ['presidente', 'secretaria'];
     
     public function user()
     {

@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Player;
 use App\Services\PlayerService;
 use Illuminate\Http\Request;
-
+use App\Models\Association;
 class PlayerController extends Controller
 {
     protected PlayerService $service;
@@ -16,10 +16,10 @@ class PlayerController extends Controller
     }
 
     // GET /players
-    public function index()
+   public function index(Association $association)
     {
         return response()->json(
-            $this->service->getAll()
+            $this->service->getAssociationPlayers($association->id)
         );
     }
 

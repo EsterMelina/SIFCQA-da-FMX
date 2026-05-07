@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 use App\Models\Fmx;
 use Illuminate\Support\Facades\Log;
-
+use App\Models\Player;
+use App\Models\Association;
 class UserController extends Controller
 {
     protected $service;
@@ -34,46 +35,104 @@ class UserController extends Controller
     }
 
 
-public function store(Request $request)
+public function store(Request $request, Association $association)
 {
-    $data = $request->validate([
-        'name'     => 'required|string',
-        'email'    => 'required|email|unique:users,email',
-        'password' => 'nullable|min:6',
-        'status'   => 'sometimes|boolean',
-        'role'     => 'required|string|exists:roles,name',
-    ]);
-
     $authUser = Auth::user();
 
-    $isAdminCreating = $authUser?->hasRole('admin') ?? false;
+    $isAdmin = $authUser->hasRole('admin');
+    $isAssociation = $authUser->hasRole('association');
+
+    Log::info('STORE PLAYER REQUEST', [
+        'request' => $request->all(),
+        'auth_user' => $authUser,
+    ]);
 
     /**
-     * Password obrigatória se não for admin
+     * VALIDAÇÃO BASE
      */
-    if (!$isAdminCreating && empty($data['password'])) {
-        return response()->json([
-            'message' => 'Password é obrigatória'
-        ], 422);
+    $rules = [
+        'name'   => 'required|string',
+        'email'  => 'required|email|unique:users,email',
+        'status' => 'sometimes|boolean',
+    ];
+
+    /**
+     * ADMIN
+     */
+    if ($isAdmin) {
+        $rules['password'] = 'nullable|min:6';
+        $rules['role'] = 'required|string|exists:roles,name';
     }
 
+    /**
+     * ASSOCIATION
+     */
+    if ($isAssociation) {
+        $rules['active'] = 'sometimes|boolean';
+    }
+
+    $data = $request->validate($rules);
+
+    /**
+     * CRIAR USER
+     */
     $user = User::create([
-        'name'     => $data['name'],
-        'email'    => $data['email'],
+        'name' => $data['name'],
+        'email' => $data['email'],
         'password' => !empty($data['password'])
             ? Hash::make($data['password'])
             : null,
-        'status'   => $data['status'] ?? true,
+        'status' => $data['status'] ?? true,
     ]);
 
-    $user->assignRole($data['role']);
+    /**
+     * ADMIN FLOW
+     */
+    if ($isAdmin) {
 
-    return response()->json(
-        $user->load('roles'),
-        201
-    );
+        $user->assignRole($data['role']);
+
+        return response()->json([
+            'message' => 'Utilizador criado com sucesso',
+            'user' => $user->load('roles'),
+        ], 201);
+    }
+
+    /**
+     * ASSOCIATION FLOW (PLAYER CREATION)
+     */
+    if ($isAssociation) {
+
+        /**
+         * FORÇA ROLE PLAYER
+         */
+        $user->assignRole('player');
+
+        /**
+         * CRIA PLAYER LIGADO À ASSOCIAÇÃO DA ROTA
+         */
+        Player::create([
+            'user_id' => $user->id,
+            'association_id' => $association->id,
+            'position' => 'player',
+            'active' => $data['active'] ?? true,
+        ]);
+
+        /**
+         * ENVIAR EMAIL DE CONVITE
+         */
+        $this->authService->sendInvite($user);
+
+        return response()->json([
+            'message' => 'Jogador criado com sucesso',
+            'user' => $user->load('roles'),
+        ], 201);
+    }
+
+    return response()->json([
+        'message' => 'Sem permissão'
+    ], 403);
 }
-
 
 public function update(Request $request, User $user)
 {

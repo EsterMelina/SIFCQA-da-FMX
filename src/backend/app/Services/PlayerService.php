@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Player;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class PlayerService
@@ -11,6 +12,33 @@ class PlayerService
     {
         return Player::all();
     }
+
+    public function getAssociationPlayers($associationId)
+    {
+        Log::info("Fetching players for association ID: $associationId");
+        Log::info("Association ID: $associationId");
+
+        return Player::with([
+                'user.roles',
+                'association'
+            ])
+            ->where('association_id', $associationId)
+            ->whereHas('user.roles', function ($query) {
+                $query->where('name', 'player');
+            })
+            ->get();
+
+    }
+
+    //=========================================================//
+    //  CASO SEJA NECESSÁRIO MOSTRAR OS DADOS DO USUÁRIO JUNTO //
+    //=========================================================//
+    // public function getAll($associationId)
+    // {
+    //     return Player::with('user')
+    //         ->where('association_id', $associationId)
+    //         ->get();
+    // }
 
     public function getById(Player $player)
     {

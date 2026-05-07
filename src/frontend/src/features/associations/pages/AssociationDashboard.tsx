@@ -18,12 +18,29 @@ interface AssociationMember {
 
 interface Player {
   id: number;
-  name: string;
-  email?: string;
-  birth_date?: string;
-  team?: string;
+  user_id: number;           // mantido se ainda precisares nalgum sítio
+  association_id?: number;
+  position?: string;
   active: boolean;
   created_at?: string;
+  updated_at?: string;
+  // Relação com o utilizador
+  user?: {
+    id?: number;             // opcional porque a resposta pode não incluir
+    name: string;
+    email: string;
+  };
+  // Relação com a associação
+  association?: {
+    id: number;
+    name: string;
+  };
+  // Campos extra que usas na edição (podem vir ou não da listagem)
+  age?: number;
+  rating?: number;
+  province?: string;
+  monthly_fee?: number;
+  team?: string;             // se mais tarde voltares a precisar
 }
 
 interface Quota {
@@ -58,19 +75,17 @@ interface ToastMessage {
   message: string;
 }
 
-// Interface que reflete os dados reais do utilizador (backend)
 interface AssociationUser {
   id: number;
   name: string;
   email: string;
-  roles?: string[] | { name: string }[]; // aceita ambos os formatos
+  roles?: string[] | { name: string }[];
   association_id?: number;
 }
 
 /* ==================== HELPERS ==================== */
 const getUserRole = (user: AssociationUser | null): "president" | "secretary" => {
   if (!user || !user.roles) return "secretary";
-  // Extrai os nomes das roles independentemente do formato
   const roles = user.roles.map((r: any) => (typeof r === "string" ? r : r.name));
   if (roles.includes("association_president") || roles.includes("president")) return "president";
   return "secretary";
@@ -79,7 +94,6 @@ const getUserRole = (user: AssociationUser | null): "president" | "secretary" =>
 /* ==================== COMPONENTE PRINCIPAL ==================== */
 const AssociationDashboard: React.FC = () => {
   const { user, logout } = useAuth();
-  // user pode ser null → lança para AssociationUser através de unknown
   const authUser = (user as unknown) as AssociationUser | null;
   const associationId = authUser?.association_id || 1;
 
@@ -103,6 +117,10 @@ const AssociationDashboard: React.FC = () => {
   const [editingSecretary, setEditingSecretary] = useState<AssociationMember | null>(null);
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+
+  // 🔄 Chaves de refresh para forçar remontagem das secções
+  const [secretariesRefreshKey, setSecretariesRefreshKey] = useState(0);
+  const [playersRefreshKey, setPlayersRefreshKey] = useState(0);
 
   const addToast = useCallback((type: ToastMessage["type"], message: string) => {
     const id = Date.now().toString();
@@ -157,8 +175,25 @@ const AssociationDashboard: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard": return <DashboardContent stats={stats} role={role} />;
-      case "secretaries": return <SecretariesSection addToast={addToast} associationId={associationId} onEdit={(s) => { setEditingSecretary(s); setShowSecretaryModal(true); }} onCreate={() => { setEditingSecretary(null); setShowSecretaryModal(true); }} />;
-      case "players": return <PlayersSection addToast={addToast} associationId={associationId} role={role} onEdit={(p) => { setEditingPlayer(p); setShowPlayerModal(true); }} onCreate={() => { setEditingPlayer(null); setShowPlayerModal(true); }} />;
+      case "secretaries": return (
+        <SecretariesSection
+          key={secretariesRefreshKey}   // 👈 remonta quando a chave muda
+          addToast={addToast}
+          associationId={associationId}
+          onEdit={(s) => { setEditingSecretary(s); setShowSecretaryModal(true); }}
+          onCreate={() => { setEditingSecretary(null); setShowSecretaryModal(true); }}
+        />
+      );
+      case "players": return (
+        <PlayersSection
+          key={playersRefreshKey}       // 👈 remonta quando a chave muda
+          addToast={addToast}
+          associationId={associationId}
+          role={role}
+          onEdit={(p) => { setEditingPlayer(p); setShowPlayerModal(true); }}
+          onCreate={() => { setEditingPlayer(null); setShowPlayerModal(true); }}
+        />
+      );
       case "quotas": return <QuotasSection addToast={addToast} role={role} />;
       case "transfers": return <TransfersSection addToast={addToast} role={role} />;
       case "reports": return <ReportsSection role={role} />;
@@ -218,8 +253,8 @@ const AssociationDashboard: React.FC = () => {
         </main>
       </div>
 
-      {showSecretaryModal && <SecretaryModal isOpen={showSecretaryModal} secretary={editingSecretary} associationId={associationId} onClose={() => setShowSecretaryModal(false)} onSuccess={() => { setShowSecretaryModal(false); addToast("success", "Secretário guardado!"); }} />}
-      {showPlayerModal && <PlayerModal isOpen={showPlayerModal} player={editingPlayer} associationId={associationId} onClose={() => setShowPlayerModal(false)} onSuccess={() => { setShowPlayerModal(false); addToast("success", "Jogador guardado!"); }} />}
+      {showSecretaryModal && <SecretaryModal isOpen={showSecretaryModal} secretary={editingSecretary} associationId={associationId} onClose={() => setShowSecretaryModal(false)} onSuccess={() => { setShowSecretaryModal(false); addToast("success", "Secretário guardado!"); setSecretariesRefreshKey(prev => prev + 1); }} />}
+      {showPlayerModal && <PlayerModal isOpen={showPlayerModal} player={editingPlayer} associationId={associationId} onClose={() => setShowPlayerModal(false)} onSuccess={() => { setShowPlayerModal(false); addToast("success", editingPlayer ? "Jogador atualizado!" : "Jogador registado!"); setPlayersRefreshKey(prev => prev + 1); }} />}
       <ToastContainer toasts={toasts} onClose={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
     </div>
   );
@@ -307,9 +342,17 @@ const PlayersSection: React.FC<{
 
   const fetchPlayers = async () => {
     try {
-      const res = await http.get(endpoints.associations.associationPlayers(associationId));
+      const res = await http.get(
+        endpoints.associations.associationPlayers(associationId)
+      );
+      console.log("PLAYERS RESPONSE:", res);
       setPlayers(res.data.data || res.data);
-    } catch (err: any) { addToast("error", "Erro ao carregar"); } finally { setLoading(false); }
+    } catch (err: any) {
+      console.log("PLAYERS ERROR:", err.response);
+      addToast("error", "Erro ao carregar");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchPlayers(); }, []);
@@ -320,7 +363,20 @@ const PlayersSection: React.FC<{
       await http.patch(endpoints.players.toggleStatus(player.id));
       addToast("success", `Jogador ${player.active ? "suspenso" : "ativado"}`);
       fetchPlayers();
-    } catch (err: any) { addToast("error", err.response?.data?.message || "Erro"); }
+    } catch (err: any) {
+      addToast("error", err.response?.data?.message || "Erro");
+    }
+  };
+
+  const handleDelete = async (playerId: number) => {
+    if (!confirm("Tem certeza que deseja eliminar este jogador?")) return;
+    try {
+      await http.delete(endpoints.players.detail(playerId));
+      addToast("success", "Jogador eliminado");
+      fetchPlayers();
+    } catch (err: any) {
+      addToast("error", err.response?.data?.message || "Erro ao eliminar");
+    }
   };
 
   if (loading) return <div className={styles.loading}>Carregando...</div>;
@@ -329,19 +385,44 @@ const PlayersSection: React.FC<{
     <div className={styles.pageContainer}>
       <div className={styles.pageHeader}>
         <h2>Jogadores</h2>
-        <button className={styles.primaryButton} onClick={onCreate}><span className="material-symbols-outlined">add</span> Registar Jogador</button>
+        <button className={styles.primaryButton} onClick={onCreate}>
+          <span className="material-symbols-outlined">add</span> Registar Jogador
+        </button>
       </div>
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
-          <thead><tr><th>Nome</th><th>Email</th><th>Equipa</th><th>Ativo</th><th>Ações</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Email</th>
+              <th>Associação</th>
+              <th>Ativo</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
           <tbody>
             {players.map((p) => (
               <tr key={p.id}>
-                <td>{p.name}</td><td>{p.email || "—"}</td><td>{p.team || "—"}</td>
-                <td><span className={`${styles.statusBadge} ${p.active ? styles.active : styles.inactive}`}>{p.active ? "Ativo" : "Inativo"}</span></td>
+                <td>{p.user?.name}</td>
+                <td>{p.user?.email || "—"}</td>
+                <td>{p.association?.name || "—"}</td>
                 <td>
-                  <button className={styles.actionBtn} onClick={() => onEdit(p)}>{role === "secretary" ? "Atualizar" : "Editar"}</button>
-                  {role === "president" && <button className={styles.actionBtn} onClick={() => handleToggleActive(p)}>{p.active ? "Suspender" : "Ativar"}</button>}
+                  <span
+                    className={`${styles.statusBadge} ${p.active ? styles.active : styles.inactive}`}
+                  >
+                    {p.active ? "Ativo" : "Inativo"}
+                  </span>
+                </td>
+                <td>
+                  <button className={styles.actionBtn} onClick={() => onEdit(p)}>
+                    Editar
+                  </button>
+                  <button className={styles.actionBtn} onClick={() => handleToggleActive(p)}>
+                    {p.active ? "Suspender" : "Ativar"}
+                  </button>
+                  <button className={styles.actionBtn} onClick={() => handleDelete(p.id)}>
+                    Eliminar
+                  </button>
                 </td>
               </tr>
             ))}
@@ -359,7 +440,7 @@ const QuotasSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: stri
 
   const fetchQuotas = async () => {
     try {
-      const res = await http.get("/quotas"); // ajustar endpoint
+      const res = await http.get("/quotas");
       setQuotas(res.data.data || res.data);
     } catch (err: any) { addToast("error", "Erro ao carregar"); } finally { setLoading(false); }
   };
@@ -405,7 +486,7 @@ const TransfersSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: s
 
   const fetchTransfers = async () => {
     try {
-      const res = await http.get("/transfers"); // ajustar
+      const res = await http.get("/transfers");
       setTransfers(res.data.data || res.data);
     } catch (err: any) { addToast("error", "Erro ao carregar"); } finally { setLoading(false); }
   };
@@ -414,7 +495,7 @@ const TransfersSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: s
 
   const handleApprove = async (transferId: number) => {
     try {
-      await http.post(`/transfers/${transferId}/approve`); // ajustar rota real
+      await http.post(`/transfers/${transferId}/approve`);
       addToast("success", "Transferência aprovada!");
       fetchTransfers();
     } catch (err: any) { addToast("error", err.response?.data?.message || "Erro"); }
@@ -446,7 +527,7 @@ const TransfersSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: s
 /* ==================== RELATÓRIOS ==================== */
 const ReportsSection: React.FC<{ role: string }> = ({ role }) => (
   <div className={styles.pageContainer}>
-    <h2>Relatórios {role === "president" ? "da Associação" : "Básicos"}</h2>
+    <h2>Relatórios {role === "presidente" ? "da Associação" : "Básicos"}</h2>
     <div className={styles.placeholder}><span className="material-symbols-outlined">construction</span><p>Em desenvolvimento</p></div>
   </div>
 );
@@ -498,32 +579,71 @@ const SecretaryModal: React.FC<SecretaryModalProps> = ({ isOpen, secretary, asso
 
 interface PlayerModalProps {
   isOpen: boolean;
-  player: Player | null;
+  player: Player | null;      // null = criação, objeto = edição
   associationId: number;
   onClose: () => void;
   onSuccess: () => void;
 }
 
 const PlayerModal: React.FC<PlayerModalProps> = ({ isOpen, player, associationId, onClose, onSuccess }) => {
-  const [form, setForm] = useState({ name: "", email: "", team: "", active: true });
+  // Campos comuns (criação e edição)
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [active, setActive] = useState(true);
+
+  // Campos exclusivos da edição
+  const [age, setAge] = useState("");
+  const [rating, setRating] = useState("");
+  const [province, setProvince] = useState("");
+  const [monthlyFee] = useState(0); // automático
+
   const [loading, setLoading] = useState(false);
+  const isEditing = !!player;
 
   useEffect(() => {
-    if (player) setForm({ name: player.name, email: player.email || "", team: player.team || "", active: player.active });
-    else setForm({ name: "", email: "", team: "", active: true });
+    if (player) {
+      setName(player.user?.name || "");
+      setEmail(player.user?.email || "");
+      setActive(player.active);
+      setAge(player.age?.toString() || "");
+      setRating(player.rating?.toString() || "");
+      setProvince(player.province || "");
+    } else {
+      setName("");
+      setEmail("");
+      setActive(true);
+      setAge("");
+      setRating("");
+      setProvince("");
+    }
   }, [player]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      if (player) {
-        await http.put(endpoints.players.detail(player.id), form);
+      if (isEditing) {
+        // Edição: envia age, rating, province, active
+        await http.put(endpoints.players.detail(player.id), {
+          age: age ? Number(age) : undefined,
+          rating: rating ? Number(rating) : undefined,
+          province,
+          active,
+        });
       } else {
-        await http.post(endpoints.associations.associationPlayers(associationId), form);
+        // Criação: envia name, email, status (active)
+        await http.post(endpoints.associations.associationPlayers(associationId), {
+          name,
+          email,
+          status: active,
+        });
       }
       onSuccess();
-    } catch (err: any) { alert(err.response?.data?.message || "Erro"); } finally { setLoading(false); }
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Erro ao guardar jogador");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -531,15 +651,70 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ isOpen, player, associationId
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}><h3>{player ? "Editar Jogador" : "Registar Jogador"}</h3><button onClick={onClose} className={styles.modalClose}>×</button></div>
+        <div className={styles.modalHeader}>
+          <h3>{isEditing ? "Editar Jogador" : "Registar Jogador"}</h3>
+          <button onClick={onClose} className={styles.modalClose}>×</button>
+        </div>
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
-            <div className={styles.formGroup}><label>Nome *</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
-            <div className={styles.formGroup}><label>Email</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-            <div className={styles.formGroup}><label>Equipa</label><input value={form.team} onChange={(e) => setForm({ ...form, team: e.target.value })} /></div>
-            <div className={styles.formGroup}><label><input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} /> Ativo</label></div>
+            {isEditing ? (
+              <>
+                <div className={styles.formGroup}>
+                  <label>Nome</label>
+                  <input value={name} disabled className={styles.readonly} />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Idade</label>
+                  <input type="number" value={age} onChange={(e) => setAge(e.target.value)} />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Rating</label>
+                  <input type="number" step="0.1" value={rating} onChange={(e) => setRating(e.target.value)} />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Província</label>
+                  <input value={province} onChange={(e) => setProvince(e.target.value)} />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Mensalidade (automática)</label>
+                  <input value={monthlyFee} disabled className={styles.readonly} />
+                  <small>Calculado automaticamente pelo sistema</small>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={styles.formGroup}>
+                  <label>Nome *</label>
+                  <input value={name} onChange={(e) => setName(e.target.value)} required />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Email *</label>
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                </div>
+              </>
+            )}
+
+            {/* Campo "Ativo" visível em ambos os modos */}
+            <div className={styles.formGroup}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={(e) => setActive(e.target.checked)}
+                />
+                Ativo
+              </label>
+            </div>
           </div>
-          <div className={styles.modalActions}><button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button><button type="submit" className={styles.submitButton} disabled={loading}>{loading ? "Salvando..." : "Guardar"}</button></div>
+
+          <div className={styles.modalActions}>
+            <button type="button" onClick={onClose} className={styles.cancelButton}>
+              Cancelar
+            </button>
+            <button type="submit" className={styles.submitButton} disabled={loading}>
+              {loading ? "Salvando..." : "Guardar"}
+            </button>
+          </div>
         </form>
       </div>
     </div>
