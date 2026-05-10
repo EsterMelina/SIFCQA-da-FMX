@@ -6,21 +6,78 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('transfers', function (Blueprint $table) {
+
             $table->id();
-            $table->foreignId('player_id')->constrained('players')->onDelete('cascade');
-            $table->foreignId('from_association_id')->constrained('associations')->onDelete('cascade');
-            $table->foreignId('to_association_id')->constrained('associations')->onDelete('cascade');
-            // $table->date('transfer_date');
-            $table->date('transfer_date')->nullable()->default(now());
-            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
-            $table->text('reason')->nullable();
+
+            /*
+            |--------------------------------------------------------------------------
+            | RELAÇÕES
+            |--------------------------------------------------------------------------
+            */
+
+            $table->foreignId('player_id')
+                ->constrained()
+                ->cascadeOnDelete();
+
+            $table->foreignId('from_association_id')
+                ->constrained('associations')
+                ->cascadeOnDelete();
+
+            $table->foreignId('to_association_id')
+                ->constrained('associations')
+                ->cascadeOnDelete();
+
+            $table->foreignId('requested_by')
+                ->constrained('users');
+
+            $table->foreignId('approved_by')
+                ->nullable()
+                ->constrained('users');
+
+            /*
+            |--------------------------------------------------------------------------
+            | ESTADO DA TRANSFERÊNCIA
+            |--------------------------------------------------------------------------
+            */
+
+            $table->enum('status', [
+                'pending_origin',
+                'pending_destination',
+                'approved',
+                'rejected',
+                'cancelled',
+            ])->default('pending_origin');
+
+            /*
+            |--------------------------------------------------------------------------
+            | DADOS DO PEDIDO
+            |--------------------------------------------------------------------------
+            */
+
+            $table->text('reason');
+
+            $table->string('origin_document')
+                ->nullable();
+
+            $table->string('dest_document')
+                ->nullable();
+
+            $table->text('rejection_reason')
+                ->nullable();
+
             $table->timestamps();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('transfers');

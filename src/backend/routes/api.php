@@ -179,22 +179,25 @@ Route::middleware(['auth:sanctum', 'role:fmx|admin'])
 | PLAYERS MANAGMENT
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum'])->prefix('players')->group(function () {
+// Route::middleware(['auth:sanctum'])->prefix('players')->group(function () {
 
-    Route::post('transfer-request', [PlayerController::class, 'requestTransfer']);
-    Route::get('me', [PlayerController::class, 'me']);
+//     Route::post('transfer-request', [PlayerController::class, 'requestTransfer']);
+//     Route::get('me', [PlayerController::class, 'me']);
 
-});
-
-
-
+// });
 
 /*
 |--------------------------------------------------------------------------
 | PLAYER SELF SERVICE
 |--------------------------------------------------------------------------
 */
+
+// Route::get('/players/me', [PlayerController::class, 'myProfile'])
+//     ->middleware('auth:sanctum');
+
 Route::middleware(['auth:sanctum', 'role:player'])->group(function () {
+
+    Route::get('associations/get', [AssociationController::class, 'index']);
 
     Route::get('players/me', [PlayerController::class, 'myProfile']);
 
@@ -211,6 +214,37 @@ Route::middleware(['auth:sanctum', 'role:player'])->group(function () {
     Route::post('players/me/letters', [PlayerController::class, 'submitLetter'])
         ->middleware('permission:submit_letter');
 });
+
+
+/*
+|--------------------------------------------------------------------------
+| TRANSFERS
+|--------------------------------------------------------------------------
+*/
+
+// Route::post('/transfers', function () {
+//     return 'CHEGUEI NA ROTA';
+// })->middleware('auth:sanctum');
+
+Route::middleware(['auth:sanctum'])->group(function () {
+
+    // PLAYER
+    Route::post('/transfers', [TransferController::class, 'store']);
+    Route::patch('/transfers/{transfer}/cancel', [TransferController::class, 'cancel']);
+    Route::get('/players/{playerId}/transfers', [TransferController::class, 'playerTransfers']);
+
+    // ORIGIN ASSOCIATION
+    Route::post('/transfers/{transfer}/origin/approve', [TransferController::class, 'approveByOrigin']);
+    Route::patch('/transfers/{transfer}/origin/reject', [TransferController::class, 'rejectByOrigin']);
+
+    // DESTINATION ASSOCIATION
+    Route::patch('/transfers/{transfer}/destination/approve', [TransferController::class, 'approveByDestination']);
+    Route::patch('/transfers/{transfer}/destination/reject', [TransferController::class, 'rejectByDestination']);
+
+    //LISTAR
+     Route::get('/associations/{id}/transfers', [TransferController::class, 'associationTransfers']);
+});
+
 
 
 /*
@@ -236,19 +270,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
 | PAYMENTS
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
+// Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
 
-    Route::get('payments', [PaymentController::class, 'index']);
-});
+//     Route::get('payments', [PaymentController::class, 'index']);
+// });
 
-Route::middleware(['auth:sanctum'])->group(function () {
+// Route::middleware(['auth:sanctum'])->group(function () {
 
-    Route::post('payments', [PaymentController::class, 'store'])
-        ->middleware('permission:register_payment');
+//     Route::post('payments', [PaymentController::class, 'store'])
+//         ->middleware('permission:register_payment');
 
-    Route::post('payments/{payment}/confirm', [PaymentController::class, 'confirm'])
-        ->middleware('role:admin|fmx');
-});
+//     Route::post('payments/{payment}/confirm', [PaymentController::class, 'confirm'])
+//         ->middleware('role:admin|fmx');
+// });
 
 
 
@@ -318,16 +352,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
 //     Route::get('players/{player}/transfers', [TransferController::class, 'playerTransfers']);
 // });
 
-Route::middleware(['auth:sanctum'])->group(function () {
+// Route::middleware(['auth:sanctum'])->group(function () {
 
-    Route::post('transfers', [TransferController::class, 'store'])
-        ->middleware('role:association');
+//     Route::post('transfers', [TransferController::class, 'store'])
+//         ->middleware('role:association');
 
-    Route::post('transfers/{transfer}/cancel', [TransferController::class, 'cancel'])
-        ->middleware('role:association');
+//     Route::post('transfers/{transfer}/cancel', [TransferController::class, 'cancel'])
+//         ->middleware('role:association');
 
-    Route::get('players/{player}/transfers', [TransferController::class, 'playerTransfers']);
-});
+//     Route::get('players/{player}/transfers', [TransferController::class, 'playerTransfers']);
+// });
 
 
 /*

@@ -13,10 +13,35 @@ class Transfer extends Model
         'player_id',
         'from_association_id',
         'to_association_id',
+        'requested_by',
+        'approved_by',
         'status',
-        'letter_path',
-        'approved_by'
+        'reason',
+        'origin_document',
+        'dest_document',
+        'rejection_reason',
     ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | STATUS HELPERS
+    |--------------------------------------------------------------------------
+    */
+
+    public function isPendingOrigin(): bool
+    {
+        return $this->status === 'pending_origin';
+    }
+
+    public function isPendingDestination(): bool
+    {
+        return $this->status === 'pending_destination';
+    }
+
+    public function isActive(): bool
+    {
+        return in_array($this->status, ['pending_origin', 'pending_destination']);
+    }
 
     /*
     |--------------------------------------------------------------------------

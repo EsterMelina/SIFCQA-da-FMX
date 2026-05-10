@@ -6,6 +6,8 @@ use App\Models\Player;
 use App\Services\PlayerService;
 use Illuminate\Http\Request;
 use App\Models\Association;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 class PlayerController extends Controller
 {
     protected PlayerService $service;
@@ -14,6 +16,49 @@ class PlayerController extends Controller
     {
         $this->service = $service;
     }
+
+    public function myProfile()
+{
+
+
+Log::info('REQUEST COMPLETA', [
+    'method' => request()->method(),
+    'url' => request()->fullUrl(),
+    'headers' => request()->headers->all(),
+    'body' => request()->all(),
+    'ip' => request()->ip(),
+]);
+
+    $user = Auth::user();
+
+    $player = Player::with('association')
+        ->where('user_id', $user->id)
+        ->first();
+
+    if (!$player) {
+        return response()->json([
+            'message' => 'Jogador não encontrado'
+        ], 404);
+    }
+
+    return response()->json([
+        'id' => $player->id,
+        'user_id' => $user->id,
+
+        'name' => $user->name,
+
+        'association_id' => $player->association_id,
+        'association' => $player->association,
+
+        'birth_date' => $player->birth_date,
+        'birth_place' => $player->birth_place,
+        'category' => $player->category,
+
+        'license' => $player->license,
+        'license_status' => $player->license_status,
+        'license_valid_until' => $player->license_valid_until,
+    ]);
+}
 
     // GET /players
    public function index(Association $association)

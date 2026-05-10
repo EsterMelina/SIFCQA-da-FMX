@@ -20,7 +20,8 @@ class DatabaseSeeder extends Seeder
             FMXSeeder::class,
             AssociationSeeder::class,   
             PlayerSeeder::class,
-            FmxStaffSeeder::class,      
+            FmxStaffSeeder::class,   
+            TransferSeeder::class,   
         ]);
     }
 }

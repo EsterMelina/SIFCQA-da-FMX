@@ -18,29 +18,26 @@ interface AssociationMember {
 
 interface Player {
   id: number;
-  user_id: number;           // mantido se ainda precisares nalgum sítio
+  user_id: number;
   association_id?: number;
   position?: string;
   active: boolean;
   created_at?: string;
   updated_at?: string;
-  // Relação com o utilizador
   user?: {
-    id?: number;             // opcional porque a resposta pode não incluir
+    id?: number;
     name: string;
     email: string;
   };
-  // Relação com a associação
   association?: {
     id: number;
     name: string;
   };
-  // Campos extra que usas na edição (podem vir ou não da listagem)
   age?: number;
   rating?: number;
   province?: string;
   monthly_fee?: number;
-  team?: string;             // se mais tarde voltares a precisar
+  team?: string;
 }
 
 interface Quota {
@@ -52,14 +49,21 @@ interface Quota {
   player?: { name: string };
 }
 
+// Interface Transfer atualizada
 interface Transfer {
   id: number;
   player_id: number;
-  from_association: string;
-  to_association: string;
-  status: "pending" | "approved" | "rejected";
+  from_association_id: number;
+  to_association_id: number;
+  status: "pending_origin" | "pending_destination" | "approved" | "rejected" | "cancelled";
+  reason?: string;
+  origin_document?: string;
+  dest_document?: string;
+  rejection_reason?: string;
+  created_at: string;
   player?: { name: string };
-  created_at?: string;
+  from_association?: { id: number; name: string };
+  to_association?: { id: number; name: string };
 }
 
 interface DashboardStats {
@@ -118,7 +122,6 @@ const AssociationDashboard: React.FC = () => {
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
 
-  // 🔄 Chaves de refresh para forçar remontagem das secções
   const [secretariesRefreshKey, setSecretariesRefreshKey] = useState(0);
   const [playersRefreshKey, setPlayersRefreshKey] = useState(0);
 
@@ -152,7 +155,7 @@ const AssociationDashboard: React.FC = () => {
           totalPlayers: players.length,
           activePlayers: players.filter((p: Player) => p.active).length,
           pendingQuotas: quotas.filter((q: Quota) => q.status === "pending").length,
-          pendingTransfers: transfers.filter((t: Transfer) => t.status === "pending").length,
+          pendingTransfers: transfers.filter((t: Transfer) => t.status === "pending_origin" || t.status === "pending_destination").length,
         });
       } catch (err) {
         console.error("Erro ao carregar dashboard:", err);
@@ -177,7 +180,7 @@ const AssociationDashboard: React.FC = () => {
       case "dashboard": return <DashboardContent stats={stats} role={role} />;
       case "secretaries": return (
         <SecretariesSection
-          key={secretariesRefreshKey}   // 👈 remonta quando a chave muda
+          key={secretariesRefreshKey}
           addToast={addToast}
           associationId={associationId}
           onEdit={(s) => { setEditingSecretary(s); setShowSecretaryModal(true); }}
@@ -186,7 +189,7 @@ const AssociationDashboard: React.FC = () => {
       );
       case "players": return (
         <PlayersSection
-          key={playersRefreshKey}       // 👈 remonta quando a chave muda
+          key={playersRefreshKey}
           addToast={addToast}
           associationId={associationId}
           role={role}
@@ -195,7 +198,7 @@ const AssociationDashboard: React.FC = () => {
         />
       );
       case "quotas": return <QuotasSection addToast={addToast} role={role} />;
-      case "transfers": return <TransfersSection addToast={addToast} role={role} />;
+      case "transfers": return <TransfersSection addToast={addToast} role={role} associationId={associationId} />;
       case "reports": return <ReportsSection role={role} />;
       default: return null;
     }
@@ -345,10 +348,8 @@ const PlayersSection: React.FC<{
       const res = await http.get(
         endpoints.associations.associationPlayers(associationId)
       );
-      console.log("PLAYERS RESPONSE:", res);
       setPlayers(res.data.data || res.data);
     } catch (err: any) {
-      console.log("PLAYERS ERROR:", err.response);
       addToast("error", "Erro ao carregar");
     } finally {
       setLoading(false);
@@ -479,26 +480,88 @@ const QuotasSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: stri
   );
 };
 
-/* ==================== TRANSFERÊNCIAS ==================== */
-const TransfersSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: string) => void; role: string }> = ({ addToast, role }) => {
+/* ==================== TRANSFERÊNCIAS (ATUALIZADO) ==================== */
+const TransfersSection: React.FC<{
+  addToast: (type: "success" | "error" | "info", msg: string) => void;
+  role: string;
+  associationId: number;
+}> = ({ addToast, associationId }) => {
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [showOriginApprove, setShowOriginApprove] = useState<Transfer | null>(null);
+  const [showReject, setShowReject] = useState<{ transfer: Transfer; type: "origin" | "destination" } | null>(null);
+
   const fetchTransfers = async () => {
     try {
-      const res = await http.get("/transfers");
+      // Endpoint hipotético: /associations/{id}/transfers (precisa ser implementado no backend)
+      const res = await http.get(`/associations/${associationId}/transfers`);
       setTransfers(res.data.data || res.data);
-    } catch (err: any) { addToast("error", "Erro ao carregar"); } finally { setLoading(false); }
+    } catch (err: any) {
+      addToast("error", "Erro ao carregar transferências");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchTransfers(); }, []);
+  useEffect(() => { fetchTransfers(); }, [associationId]);
 
-  const handleApprove = async (transferId: number) => {
+  const handleOriginApprove = async (transferId: number, file: File) => {
+    const formData = new FormData();
+    formData.append("document", file);
     try {
-      await http.post(`/transfers/${transferId}/approve`);
-      addToast("success", "Transferência aprovada!");
+      await http.post(`/transfers/${transferId}/origin/approve`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      addToast("success", "Saída aprovada com sucesso!");
+      setShowOriginApprove(null);
       fetchTransfers();
-    } catch (err: any) { addToast("error", err.response?.data?.message || "Erro"); }
+    } catch (err: any) {
+      addToast("error", err.response?.data?.message || "Erro ao aprovar");
+    }
+  };
+
+  const handleReject = async (transferId: number, type: "origin" | "destination", reason: string) => {
+    try {
+      if (type === "origin") {
+        await http.patch(`/transfers/${transferId}/origin/reject`, { reason });
+      } else {
+        await http.patch(`/transfers/${transferId}/destination/reject`, { reason });
+      }
+      addToast("success", "Transferência rejeitada.");
+      setShowReject(null);
+      fetchTransfers();
+    } catch (err: any) {
+      addToast("error", err.response?.data?.message || "Erro ao rejeitar");
+    }
+  };
+
+  const handleDestinationApprove = async (transferId: number) => {
+    if (!confirm("Confirmar receção deste jogador?")) return;
+    try {
+      await http.patch(`/transfers/${transferId}/destination/approve`);
+      addToast("success", "Entrada aprovada com sucesso!");
+      fetchTransfers();
+    } catch (err: any) {
+      addToast("error", err.response?.data?.message || "Erro ao aprovar");
+    }
+  };
+
+  const getStatusLabel = (status: Transfer["status"]) => {
+    const map: Record<Transfer["status"], string> = {
+      pending_origin: "Aguard. Origem",
+      pending_destination: "Aguard. Destino",
+      approved: "Aprovada",
+      rejected: "Rejeitada",
+      cancelled: "Cancelada",
+    };
+    return map[status] || status;
+  };
+
+  const getStatusClass = (status: Transfer["status"]) => {
+    if (status === "approved") return styles.validated;
+    if (status === "rejected" || status === "cancelled") return styles.rejected;
+    return styles.pending;
   };
 
   if (loading) return <div className={styles.loading}>Carregando...</div>;
@@ -508,18 +571,79 @@ const TransfersSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: s
       <h2>Transferências</h2>
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
-          <thead><tr><th>Jogador</th><th>Origem</th><th>Destino</th><th>Status</th>{role === "president" && <th>Ações</th>}</tr></thead>
+          <thead>
+            <tr>
+              <th>Jogador</th>
+              <th>Origem</th>
+              <th>Destino</th>
+              <th>Status</th>
+              <th>Data</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
           <tbody>
-            {transfers.map((t) => (
-              <tr key={t.id}>
-                <td>{t.player?.name || `#${t.player_id}`}</td><td>{t.from_association}</td><td>{t.to_association}</td>
-                <td><span className={`${styles.statusBadge} ${styles[t.status]}`}>{t.status === "pending" ? "Pendente" : t.status === "approved" ? "Aprovada" : "Rejeitada"}</span></td>
-                {role === "president" && <td>{t.status === "pending" && <button className={styles.actionBtn} onClick={() => handleApprove(t.id)}>Aprovar Saída</button>}</td>}
-              </tr>
-            ))}
+            {transfers.map((t) => {
+              const isOrigin = t.from_association_id === associationId;
+              const isDestination = t.to_association_id === associationId;
+              const showOriginActions = isOrigin && t.status === "pending_origin";
+              const showDestActions = isDestination && t.status === "pending_destination";
+
+              return (
+                <tr key={t.id}>
+                  <td>{t.player?.name || `#${t.player_id}`}</td>
+                  <td>{t.from_association?.name || "—"}</td>
+                  <td>{t.to_association?.name || "—"}</td>
+                  <td>
+                    <span className={`${styles.statusBadge} ${getStatusClass(t.status)}`}>
+                      {getStatusLabel(t.status)}
+                    </span>
+                  </td>
+                  <td>{new Date(t.created_at).toLocaleDateString()}</td>
+                  <td>
+                    {showOriginActions && (
+                      <>
+                        <button className={styles.actionBtn} onClick={() => setShowOriginApprove(t)}>
+                          Aprovar Saída
+                        </button>
+                        <button className={styles.actionBtn} onClick={() => setShowReject({ transfer: t, type: "origin" })}>
+                          Rejeitar Saída
+                        </button>
+                      </>
+                    )}
+                    {showDestActions && (
+                      <>
+                        <button className={styles.actionBtn} onClick={() => handleDestinationApprove(t.id)}>
+                          Aprovar Entrada
+                        </button>
+                        <button className={styles.actionBtn} onClick={() => setShowReject({ transfer: t, type: "destination" })}>
+                          Rejeitar Entrada
+                        </button>
+                      </>
+                    )}
+                    {!showOriginActions && !showDestActions && "—"}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+
+      {showOriginApprove && (
+        <OriginApproveModal
+          transfer={showOriginApprove}
+          onClose={() => setShowOriginApprove(null)}
+          onApprove={handleOriginApprove}
+        />
+      )}
+
+      {showReject && (
+        <RejectModal
+          title={showReject.type === "origin" ? "Rejeitar Saída" : "Rejeitar Entrada"}
+          onClose={() => setShowReject(null)}
+          onSubmit={(reason) => handleReject(showReject.transfer.id, showReject.type, reason)}
+        />
+      )}
     </div>
   );
 };
@@ -527,7 +651,7 @@ const TransfersSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: s
 /* ==================== RELATÓRIOS ==================== */
 const ReportsSection: React.FC<{ role: string }> = ({ role }) => (
   <div className={styles.pageContainer}>
-    <h2>Relatórios {role === "presidente" ? "da Associação" : "Básicos"}</h2>
+    <h2>Relatórios</h2>
     <div className={styles.placeholder}><span className="material-symbols-outlined">construction</span><p>Em desenvolvimento</p></div>
   </div>
 );
@@ -579,24 +703,19 @@ const SecretaryModal: React.FC<SecretaryModalProps> = ({ isOpen, secretary, asso
 
 interface PlayerModalProps {
   isOpen: boolean;
-  player: Player | null;      // null = criação, objeto = edição
+  player: Player | null;
   associationId: number;
   onClose: () => void;
   onSuccess: () => void;
 }
 
 const PlayerModal: React.FC<PlayerModalProps> = ({ isOpen, player, associationId, onClose, onSuccess }) => {
-  // Campos comuns (criação e edição)
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [active, setActive] = useState(true);
-
-  // Campos exclusivos da edição
   const [age, setAge] = useState("");
   const [rating, setRating] = useState("");
   const [province, setProvince] = useState("");
-  const [monthlyFee] = useState(0); // automático
-
   const [loading, setLoading] = useState(false);
   const isEditing = !!player;
 
@@ -623,7 +742,6 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ isOpen, player, associationId
     setLoading(true);
     try {
       if (isEditing) {
-        // Edição: envia age, rating, province, active
         await http.put(endpoints.players.detail(player.id), {
           age: age ? Number(age) : undefined,
           rating: rating ? Number(rating) : undefined,
@@ -631,7 +749,6 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ isOpen, player, associationId
           active,
         });
       } else {
-        // Criação: envia name, email, status (active)
         await http.post(endpoints.associations.associationPlayers(associationId), {
           name,
           email,
@@ -659,61 +776,112 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ isOpen, player, associationId
           <div className={styles.modalBody}>
             {isEditing ? (
               <>
-                <div className={styles.formGroup}>
-                  <label>Nome</label>
-                  <input value={name} disabled className={styles.readonly} />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Idade</label>
-                  <input type="number" value={age} onChange={(e) => setAge(e.target.value)} />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Rating</label>
-                  <input type="number" step="0.1" value={rating} onChange={(e) => setRating(e.target.value)} />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Província</label>
-                  <input value={province} onChange={(e) => setProvince(e.target.value)} />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Mensalidade (automática)</label>
-                  <input value={monthlyFee} disabled className={styles.readonly} />
-                  <small>Calculado automaticamente pelo sistema</small>
-                </div>
+                <div className={styles.formGroup}><label>Nome</label><input value={name} disabled className={styles.readonly} /></div>
+                <div className={styles.formGroup}><label>Idade</label><input type="number" value={age} onChange={(e) => setAge(e.target.value)} /></div>
+                <div className={styles.formGroup}><label>Rating</label><input type="number" step="0.1" value={rating} onChange={(e) => setRating(e.target.value)} /></div>
+                <div className={styles.formGroup}><label>Província</label><input value={province} onChange={(e) => setProvince(e.target.value)} /></div>
+                <div className={styles.formGroup}><label>Mensalidade (automática)</label><input value={0} disabled className={styles.readonly} /><small>Calculado automaticamente</small></div>
               </>
             ) : (
               <>
-                <div className={styles.formGroup}>
-                  <label>Nome *</label>
-                  <input value={name} onChange={(e) => setName(e.target.value)} required />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Email *</label>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                </div>
+                <div className={styles.formGroup}><label>Nome *</label><input value={name} onChange={(e) => setName(e.target.value)} required /></div>
+                <div className={styles.formGroup}><label>Email *</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
               </>
             )}
-
-            {/* Campo "Ativo" visível em ambos os modos */}
             <div className={styles.formGroup}>
               <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={active}
-                  onChange={(e) => setActive(e.target.checked)}
-                />
-                Ativo
+                <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Ativo
               </label>
             </div>
           </div>
-
           <div className={styles.modalActions}>
-            <button type="button" onClick={onClose} className={styles.cancelButton}>
-              Cancelar
-            </button>
-            <button type="submit" className={styles.submitButton} disabled={loading}>
-              {loading ? "Salvando..." : "Guardar"}
-            </button>
+            <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
+            <button type="submit" className={styles.submitButton} disabled={loading}>{loading ? "Salvando..." : "Guardar"}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+/* ==================== MODAL APROVAÇÃO DE ORIGEM (UPLOAD) ==================== */
+const OriginApproveModal: React.FC<{
+  transfer: Transfer;
+  onClose: () => void;
+  onApprove: (transferId: number, file: File) => void;
+}> = ({ transfer, onClose, onApprove }) => {
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) return;
+    setLoading(true);
+    await onApprove(transfer.id, file);
+    setLoading(false);
+  };
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3>Aprovar Saída (Documento)</h3>
+          <button onClick={onClose} className={styles.modalClose}>×</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className={styles.modalBody}>
+            <div className={styles.formGroup}>
+              <label>Documento obrigatório (PDF ou imagem, máx. 5MB)</label>
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setFile(e.target.files?.[0] || null)} required />
+            </div>
+            <div className={styles.modalActions}>
+              <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
+              <button type="submit" className={styles.submitButton} disabled={!file || loading}>{loading ? "Enviando..." : "Aprovar"}</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+/* ==================== MODAL DE REJEIÇÃO (MOTIVO) ==================== */
+const RejectModal: React.FC<{
+  title: string;
+  onClose: () => void;
+  onSubmit: (reason: string) => void;
+}> = ({ title, onClose, onSubmit }) => {
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (reason.trim().length < 5) {
+      alert("O motivo deve ter pelo menos 5 caracteres.");
+      return;
+    }
+    setLoading(true);
+    onSubmit(reason);
+    setLoading(false);
+  };
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3>{title}</h3>
+          <button onClick={onClose} className={styles.modalClose}>×</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className={styles.modalBody}>
+            <div className={styles.formGroup}>
+              <label>Motivo (mín. 5 caracteres)</label>
+              <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} minLength={5} required />
+            </div>
+            <div className={styles.modalActions}>
+              <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
+              <button type="submit" className={styles.submitButton} disabled={loading}>{loading ? "Enviando..." : "Confirmar"}</button>
+            </div>
           </div>
         </form>
       </div>

@@ -26,6 +26,21 @@ interface Notification {
   highlight?: boolean;
 }
 
+interface Transfer {
+  id: number;
+  player_id: number;
+  from_association_id: number;
+  to_association_id: number;
+  status: "pending_origin" | "pending_destination" | "approved" | "rejected" | "cancelled";
+  reason: string;
+  origin_document?: string;
+  dest_document?: string;
+  rejection_reason?: string;
+  created_at: string;
+  to_association?: { id: number; name: string };
+  from_association?: { id: number; name: string };
+}
+
 const PlayerDashboard: React.FC = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -35,18 +50,20 @@ const PlayerDashboard: React.FC = () => {
     return saved ?? null;
   });
   const [loading, setLoading] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [playerData, setPlayerData] = useState({
-    name: "Nuno Domingos Mendes",
-    birthDate: "12 de Maio de 2002",
-    birthPlace: "Maputo, MZ",
-    association: "AP Maputo Cidade",
-    category: "Sénior Profissional",
-    license: "MT-98234-X",
-    licenseStatus: "Ativa",
-    licenseValidUntil: "31 de Dezembro de 2024",
-    playerId: "FMX-2024-089",
+    name: "",
+    birthDate: "",
+    birthPlace: "",
+    association: "",
+    category: "",
+    license: "",
+    licenseStatus: "",
+    licenseValidUntil: "",
+    playerId: "",
+    fromAssociationId: null as number | null,
   });
 
   const [pendingQuota, setPendingQuota] = useState({
@@ -80,10 +97,15 @@ const PlayerDashboard: React.FC = () => {
 
   const [transferForm, setTransferForm] = useState({
     targetAssociation: "",
-    letterOut: null as File | null,
-    letterIn: null as File | null,
+    reason: "",
+    originDocument: null as File | null,
+    destDocument: null as File | null,
   });
 
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [activeTransfer, setActiveTransfer] = useState<Transfer | null>(null);
+
+  // Tema
   useEffect(() => {
     const root = document.documentElement;
     const isDark =
@@ -103,21 +125,54 @@ const PlayerDashboard: React.FC = () => {
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
   const closeSidebar = () => setIsSidebarOpen(false);
 
+  // Carrega perfil do jogador
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    const loadPlayer = async () => {
+      setProfileLoaded(false);
       try {
-        // const profileRes = await http.get(endpoints.players.me);
-        // setPlayerData(profileRes.data);
+        const { data } = await http.get("/players/me");
+        setPlayerData({
+          playerId: data.id,
+          fromAssociationId: data.association_id,
+          name: data.name,
+          association: data.association?.name || data.association_name,
+          birthDate: data.birth_date || "12 de Maio de 2002",
+          birthPlace: data.birth_place || "Maputo, MZ",
+          category: data.category || "Sénior Profissional",
+          license: data.license || "MT-98234-X",
+          licenseStatus: data.license_status || "Ativa",
+          licenseValidUntil: data.license_valid_until || "31 de Dezembro de 2024",
+        });
+        setProfileLoaded(true);
       } catch (err) {
-        console.error("Erro ao carregar dados:", err);
-        setError("Não foi possível carregar os dados.");
-      } finally {
-        setLoading(false);
+        console.error("Erro ao carregar dados do jogador", err);
+        setError("Não foi possível carregar o seu perfil. Recarregue a página.");
+        setProfileLoaded(false);
       }
     };
-    fetchData();
+
+    loadPlayer();
   }, []);
+
+  // Carrega histórico de transferências
+  useEffect(() => {
+    if (!playerData.playerId) return;
+
+    const fetchTransfers = async () => {
+      try {
+        const { data } = await http.get(`/players/${playerData.playerId}/transfers`);
+        setTransfers(data);
+        const active = data.find(
+          (t: Transfer) => t.status === "pending_origin" || t.status === "pending_destination"
+        );
+        setActiveTransfer(active || null);
+      } catch (err) {
+        console.error("Erro ao carregar transferências", err);
+      }
+    };
+
+    fetchTransfers();
+  }, [playerData.playerId]);
 
   const handleLogout = async () => {
     await logout();
@@ -128,24 +183,71 @@ const PlayerDashboard: React.FC = () => {
 
   const handleTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!transferForm.letterOut || !transferForm.letterIn) {
-      alert("Por favor, anexe ambas as cartas.");
+
+    if (!profileLoaded || playerData.fromAssociationId === null) {
+      alert("Ainda estamos a carregar os seus dados. Aguarde um instante.");
       return;
     }
+
+    if (!transferForm.targetAssociation) {
+      alert("Selecione a associação de destino.");
+      return;
+    }
+
+    if (!transferForm.reason || transferForm.reason.trim().length < 10) {
+      alert("O motivo deve ter pelo menos 10 caracteres.");
+      return;
+    }
+
     const formData = new FormData();
-    formData.append("target_association_id", transferForm.targetAssociation);
-    formData.append("letter_out", transferForm.letterOut);
-    formData.append("letter_in", transferForm.letterIn);
+    formData.append("player_id", playerData.playerId);
+    formData.append("from_association_id", String(playerData.fromAssociationId));
+    formData.append("to_association_id", transferForm.targetAssociation);
+    formData.append("reason", transferForm.reason);
+
+    if (transferForm.originDocument) {
+      formData.append("origin_document", transferForm.originDocument);
+    }
+    if (transferForm.destDocument) {
+      formData.append("dest_document", transferForm.destDocument);
+    }
+
     try {
       await http.post(endpoints.players.transferRequest, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       alert("Solicitação de transferência enviada com sucesso!");
       setShowTransferModal(false);
-      setTransferForm({ targetAssociation: "", letterOut: null, letterIn: null });
+      setTransferForm({
+        targetAssociation: "",
+        reason: "",
+        originDocument: null,
+        destDocument: null,
+      });
+      // Recarrega transferências
+      const { data } = await http.get(`/players/${playerData.playerId}/transfers`);
+      setTransfers(data);
+      const active = data.find(
+        (t: Transfer) => t.status === "pending_origin" || t.status === "pending_destination"
+      );
+      setActiveTransfer(active || null);
     } catch (error) {
       console.error("Erro ao enviar transferência:", error);
       alert("Erro ao enviar solicitação.");
+    }
+  };
+
+  const handleCancelTransfer = async (transferId: number) => {
+    if (!confirm("Tem certeza que deseja cancelar esta solicitação?")) return;
+    try {
+      await http.patch(`/transfers/${transferId}/cancel`);
+      alert("Solicitação cancelada com sucesso!");
+      const { data } = await http.get(`/players/${playerData.playerId}/transfers`);
+      setTransfers(data);
+      setActiveTransfer(null);
+    } catch (error) {
+      console.error("Erro ao cancelar transferência", error);
+      alert("Não foi possível cancelar a solicitação.");
     }
   };
 
@@ -160,7 +262,14 @@ const PlayerDashboard: React.FC = () => {
       case "notifications":
         return <NotificationsContent notifications={notifications} />;
       case "transfer":
-        return <TransferContent onOpenModal={() => setShowTransferModal(true)} />;
+        return (
+          <TransferContent
+            onOpenModal={() => setShowTransferModal(true)}
+            activeTransfer={activeTransfer}
+            onCancelTransfer={handleCancelTransfer}
+            transfers={transfers}
+          />
+        );
       default:
         return null;
     }
@@ -253,12 +362,20 @@ const PlayerDashboard: React.FC = () => {
       <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} />
       <NotificationsModal isOpen={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} notifications={notifications} />
       <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} player={playerData} onLogout={handleLogout} />
-      <TransferModal isOpen={showTransferModal} onClose={() => setShowTransferModal(false)} form={transferForm} setForm={setTransferForm} onSubmit={handleTransferSubmit} />
+      <TransferModal
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        form={transferForm}
+        setForm={setTransferForm}
+        onSubmit={handleTransferSubmit}
+        profileLoaded={profileLoaded}
+        disabled={!!activeTransfer}
+      />
     </div>
   );
 };
 
-// ===== CONTEÚDOS DAS ABAS (CSS classes padronizadas) =====
+// ===== CONTEÚDOS DAS ABAS =====
 
 const ProfileContent: React.FC<{ player: any; stats: any; pendingQuota: any; paymentHistory: PaymentRecord[]; notifications: Notification[]; onMakePayment: () => void; onViewCard: () => void }> = ({ player, stats, pendingQuota, paymentHistory, notifications, onMakePayment, onViewCard }) => (
   <div className={styles.profileGrid}>
@@ -277,7 +394,6 @@ const ProfileContent: React.FC<{ player: any; stats: any; pendingQuota: any; pay
         </div>
       </div>
     </div>
-
     <div className={styles.licenseCard}>
       <div className={styles.licenseHeader}>
         <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>verified_user</span>
@@ -290,7 +406,6 @@ const ProfileContent: React.FC<{ player: any; stats: any; pendingQuota: any; pay
       </div>
       <button onClick={onViewCard}>Ver Cartão Digital</button>
     </div>
-
     <div className={styles.quotaSidebar}>
       <div className={styles.pendingQuota}>
         <h4><span className={styles.dot}></span>Quotas Pendentes</h4>
@@ -309,7 +424,6 @@ const ProfileContent: React.FC<{ player: any; stats: any; pendingQuota: any; pay
         <p>"Informamos que as inscrições para o Campeonato Nacional de Inverno estão abertas até ao dia 15 de Junho."</p>
       </div>
     </div>
-
     <div className={styles.paymentHistory}>
       <div className={styles.sectionHeader}>
         <h4>Últimos Pagamentos</h4>
@@ -329,7 +443,6 @@ const ProfileContent: React.FC<{ player: any; stats: any; pendingQuota: any; pay
         </tbody>
       </table>
     </div>
-
     <div className={styles.notificationsSection}>
       <h4>Notificações Recentes</h4>
       <div className={styles.notificationList}>
@@ -341,7 +454,6 @@ const ProfileContent: React.FC<{ player: any; stats: any; pendingQuota: any; pay
         ))}
       </div>
     </div>
-
     <div className={styles.statsCard}>
       <h4>Estatísticas Institucionais</h4>
       <div><span>{stats.yearsAffiliated}</span><span>Anos de Filiação</span></div>
@@ -352,6 +464,7 @@ const ProfileContent: React.FC<{ player: any; stats: any; pendingQuota: any; pay
 );
 
 const QuotasContent: React.FC<{ pendingQuota: any; paymentHistory: PaymentRecord[]; onMakePayment: () => void }> = ({ pendingQuota, paymentHistory, onMakePayment }) => (
+  // ... código idêntico ao fornecido anteriormente ...
   <div className={styles.pageContainer}>
     <h2>Minhas Quotas</h2>
     <div className={styles.pendingHighlight}>
@@ -371,6 +484,7 @@ const QuotasContent: React.FC<{ pendingQuota: any; paymentHistory: PaymentRecord
 );
 
 const HistoryContent: React.FC<{ paymentHistory: PaymentRecord[] }> = ({ paymentHistory }) => (
+  // ... código idêntico ...
   <div className={styles.pageContainer}>
     <h2>Histórico de Pagamentos</h2>
     <div className={styles.tableWrapper}>
@@ -390,6 +504,7 @@ const HistoryContent: React.FC<{ paymentHistory: PaymentRecord[] }> = ({ payment
 );
 
 const NotificationsContent: React.FC<{ notifications: Notification[] }> = ({ notifications }) => (
+  // ... código idêntico ...
   <div className={styles.pageContainer}>
     <h2>Notificações</h2>
     <div className={styles.notificationListFull}>
@@ -403,24 +518,118 @@ const NotificationsContent: React.FC<{ notifications: Notification[] }> = ({ not
   </div>
 );
 
-const TransferContent: React.FC<{ onOpenModal: () => void }> = ({ onOpenModal }) => (
-  <div className={styles.pageContainer}>
-    <h2>Solicitar Transferência</h2>
-    <div className={styles.transferInfo}>
-      <p>Para solicitar uma transferência entre clubes/associações, você precisa anexar:</p>
-      <ul>
-        <li><strong>Carta de Saída</strong> – documento do clube atual autorizando a transferência.</li>
-        <li><strong>Carta de Aceitação</strong> – documento do novo clube confirmando a recepção.</li>
-      </ul>
-      <button className={styles.primaryButton} onClick={onOpenModal}>
-        <span className="material-symbols-outlined">upload</span>
-        Iniciar Solicitação
-      </button>
-    </div>
-  </div>
-);
+// ===== TRANSFER CONTENT ATUALIZADO =====
+const TransferContent: React.FC<{
+  onOpenModal: () => void;
+  activeTransfer: Transfer | null;
+  onCancelTransfer: (id: number) => void;
+  transfers: Transfer[];
+}> = ({ onOpenModal, activeTransfer, onCancelTransfer, transfers }) => {
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "pending_origin": return "Aguardando origem";
+      case "pending_destination": return "Aguardando destino";
+      case "approved": return "Aprovada";
+      case "rejected": return "Rejeitada";
+      case "cancelled": return "Cancelada";
+      default: return status;
+    }
+  };
 
-// ===== MODAIS (usando classes do design system) =====
+  const getStatusClass = (status: string) => {
+    if (status === "approved") return styles.validated;
+    if (status === "rejected" || status === "cancelled") return styles.rejected;
+    return styles.pending;
+  };
+
+  return (
+    <div className={styles.pageContainer}>
+      <h2>Transferências</h2>
+
+      {/* Solicitação ativa */}
+      {activeTransfer ? (
+        <div className={styles.activeTransferCard}>
+          <div className={styles.activeTransferHeader}>
+            <span className={`${styles.statusBadge} ${getStatusClass(activeTransfer.status)}`}>
+              {getStatusLabel(activeTransfer.status)}
+            </span>
+            <button
+              className={styles.dangerButton}
+              onClick={() => onCancelTransfer(activeTransfer.id)}
+            >
+              Cancelar Solicitação
+            </button>
+          </div>
+          <div className={styles.activeTransferBody}>
+            <div className={styles.transferDetail}>
+              <span>Destino</span>
+              <strong>{activeTransfer.to_association?.name || "N/A"}</strong>
+            </div>
+            <div className={styles.transferDetail}>
+              <span>Motivo</span>
+              <p>{activeTransfer.reason}</p>
+            </div>
+            <div className={styles.transferDetail}>
+              <span>Data do pedido</span>
+              <span>{new Date(activeTransfer.created_at).toLocaleDateString()}</span>
+            </div>
+          </div>
+          <p className={styles.infoText}>
+            Você já possui uma solicitação em andamento. Aguarde a conclusão antes de abrir uma nova.
+          </p>
+        </div>
+      ) : (
+        <div className={styles.transferInfo}>
+          <p>Para solicitar uma transferência entre clubes/associações, você precisa anexar:</p>
+          <ul>
+            <li><strong>Carta de Saída</strong> – documento do clube atual autorizando a transferência.</li>
+            <li><strong>Carta de Aceitação</strong> – documento do novo clube confirmando a recepção.</li>
+          </ul>
+          <p>O motivo deve descrever claramente a razão do pedido (mínimo 10 caracteres).</p>
+          <button className={styles.primaryButton} onClick={onOpenModal}>
+            <span className="material-symbols-outlined">upload</span>
+            Iniciar Solicitação
+          </button>
+        </div>
+      )}
+
+      {/* Histórico completo */}
+      <div>
+        <h3 style={{ marginBottom: "1rem", fontSize: "1.25rem", fontWeight: 700 }}>Histórico de Transferências</h3>
+        {transfers.length === 0 ? (
+          <p className={styles.infoText}>Nenhuma transferência encontrada.</p>
+        ) : (
+          <div className={styles.tableWrapper}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Destino</th>
+                  <th>Status</th>
+                  <th>Data</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transfers.map((t) => (
+                  <tr key={t.id}>
+                    <td>{t.to_association?.name || "N/A"}</td>
+                    <td>
+                      <span className={`${styles.statusBadge} ${getStatusClass(t.status)}`}>
+                        {getStatusLabel(t.status)}
+                      </span>
+                    </td>
+                    <td>{new Date(t.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ===== MODAIS =====
 
 const PaymentModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
@@ -500,40 +709,111 @@ const TransferModal: React.FC<{
   form: any;
   setForm: React.Dispatch<React.SetStateAction<any>>;
   onSubmit: (e: React.FormEvent) => void;
-}> = ({ isOpen, onClose, form, setForm, onSubmit }) => {
-  if (!isOpen) return null;
+  profileLoaded: boolean;
+  disabled?: boolean;
+}> = ({ isOpen, onClose, form, setForm, onSubmit, profileLoaded, disabled = false }) => {
+  const [associations, setAssociations] = useState<{ id: number | string; name: string }[]>([]);
+  const [loadingAssociations, setLoadingAssociations] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchAssociations = async () => {
+      setLoadingAssociations(true);
+      try {
+        const { data } = await http.get("/associations/get");
+        setAssociations(data);
+      } catch (err) {
+        console.error("Erro ao carregar associações", err);
+        alert("Não foi possível carregar a lista de associações.");
+      } finally {
+        setLoadingAssociations(false);
+      }
+    };
+
+    fetchAssociations();
+  }, [isOpen]);
+
+  if (!isOpen || disabled) return null;
+
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={`${styles.modal} ${styles.transferModal}`} onClick={e => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h3>Nova Solicitação de Transferência</h3>
-          <button onClick={onClose} className={styles.modalClose}><span className="material-symbols-outlined">close</span></button>
+          <button onClick={onClose} className={styles.modalClose}>
+            <span className="material-symbols-outlined">close</span>
+          </button>
         </div>
-        <form onSubmit={onSubmit}>
+
+        {!profileLoaded ? (
           <div className={styles.modalBody}>
-            <div className={styles.formGroup}>
-              <label>Associação de Destino</label>
-              <select value={form.targetAssociation} onChange={e => setForm({ ...form, targetAssociation: e.target.value })} required>
-                <option value="">Selecione...</option>
-                <option value="maputo">Maputo Cidade</option>
-                <option value="beira">Beira (Sofala)</option>
-                <option value="nampula">Nampula</option>
-              </select>
-            </div>
-            <div className={styles.formGroup}>
-              <label>Carta de Saída (PDF)</label>
-              <input type="file" accept=".pdf,image/*" onChange={e => setForm({ ...form, letterOut: e.target.files?.[0] || null })} required />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Carta de Aceitação (PDF)</label>
-              <input type="file" accept=".pdf,image/*" onChange={e => setForm({ ...form, letterIn: e.target.files?.[0] || null })} required />
-            </div>
-            <div className={styles.modalActions}>
-              <button type="button" className={styles.cancelButton} onClick={onClose}>Cancelar</button>
-              <button type="submit" className={styles.submitButton}>Enviar Solicitação</button>
-            </div>
+            <p>A carregar o seu perfil…</p>
           </div>
-        </form>
+        ) : (
+          <form onSubmit={onSubmit}>
+            <div className={styles.modalBody}>
+              <div className={styles.formGroup}>
+                <label>Associação de Destino</label>
+                {loadingAssociations ? (
+                  <p>A carregar lista de associações…</p>
+                ) : (
+                  <select
+                    value={form.targetAssociation}
+                    onChange={(e) => setForm({ ...form, targetAssociation: e.target.value })}
+                    required
+                  >
+                    <option value="">Selecione...</option>
+                    {associations.map((assoc) => (
+                      <option key={assoc.id} value={assoc.id}>
+                        {assoc.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Motivo da Transferência</label>
+                <textarea
+                  value={form.reason}
+                  onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                  placeholder="Explique o motivo do pedido (mín. 10 caracteres)"
+                  rows={3}
+                  minLength={10}
+                  required
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Carta de Saída (opcional)</label>
+                <input
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={(e) => setForm({ ...form, originDocument: e.target.files?.[0] || null })}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Carta de Aceitação (opcional)</label>
+                <input
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={(e) => setForm({ ...form, destDocument: e.target.files?.[0] || null })}
+                />
+              </div>
+
+              <div className={styles.modalActions}>
+                <button type="button" className={styles.cancelButton} onClick={onClose}>
+                  Cancelar
+                </button>
+                <button type="submit" className={styles.submitButton}>
+                  Enviar Solicitação
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
