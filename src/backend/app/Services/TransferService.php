@@ -31,19 +31,36 @@ class TransferService
     |      Obrigatório: foto do documento de pedido
     |--------------------------------------------------------------------------
     */
-    public function approveByOrigin(Transfer $transfer, UploadedFile $document): Transfer
-    {
-        $this->assertStatus($transfer, 'pending_origin', 'Transferência não está aguardando aprovação da associação de origem.');
+    // public function approveByOrigin(Transfer $transfer, UploadedFile $document): Transfer
+    // {
+    //     $this->assertStatus($transfer, 'pending_origin', 'Transferência não está aguardando aprovação da associação de origem.');
 
-        $path = $document->store('transfers/origin_documents', 'public');
+    //     $path = $document->store('transfers/origin_documents', 'public');
 
-        $transfer->update([
-            'status'            => 'pending_destination',
-            'origin_document'   => $path,
-        ]);
+    //     $transfer->update([
+    //         'status'            => 'pending_destination',
+    //         'origin_document'   => $path,
+    //     ]);
 
-        return $transfer->fresh();
-    }
+    //     return $transfer->fresh();
+    // }
+
+    public function approveByOrigin(Transfer $transfer, int $approverId): Transfer
+{
+    $this->assertStatus(
+        $transfer,
+        'pending_origin',
+        'Transferência não está aguardando aprovação da associação de origem.'
+    );
+
+    $transfer->update([
+        'status'      => 'pending_destination',
+        'approved_by' => $approverId,
+        'origin_document' => null, // opcional: mantém explícito
+    ]);
+
+    return $transfer->fresh();
+}
 
     /*
     |--------------------------------------------------------------------------
@@ -83,6 +100,7 @@ class TransferService
 
         return $transfer->fresh();
     }
+
 
     /*
     |--------------------------------------------------------------------------

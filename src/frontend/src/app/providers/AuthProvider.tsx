@@ -15,6 +15,7 @@ interface User {
   email: string;
   type: string | null;
   roles?: string[];
+  association_id?: number | null; // 🔥 ADD ISTO
 }
 
 interface AuthContextType {
@@ -87,13 +88,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userData = res.data.user;
       const userType = extractUserType(userData);
 
-      const newUser: User = {
-        id: userData.id,
-        name: userData.name,
-        email: userData.email,
-        type: userType,
-        roles: userData.roles ?? [],
-      };
+     const newUser: User = {
+  id: userData.id,
+  name: userData.name,
+  email: userData.email,
+  type: extractUserType(userData),
+  roles: userData.roles ?? [],
+  association_id: userData.association_id ?? null, // 🔥 aqui é o sítio certo
+};
 
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(newUser));

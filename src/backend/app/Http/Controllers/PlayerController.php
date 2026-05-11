@@ -60,6 +60,14 @@ Log::info('REQUEST COMPLETA', [
     ]);
 }
 
+//BUSCAR JOGADORES DAQUELA ASSOCIAÇÃO A PARTIR DO ID DA ASSOCIAÇÃO
+public function associationPlayers($associationId)
+{
+    return Player::with('user', 'association')
+        ->where('association_id', $associationId)
+        ->get();
+}
+
     // GET /players
    public function index(Association $association)
     {

@@ -59,17 +59,22 @@ const Login: React.FC = () => {
     if (error) setError(null);
   };
 
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await login(formData.email, formData.password);
     } catch (err: any) {
       console.error("Login error:", err);
+     
       const message =
         err.response?.data?.message ||
         "Credenciais inválidas. Tente novamente.";
+        
       setError(message);
     }
+    
   };
 
   return (

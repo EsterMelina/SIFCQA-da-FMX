@@ -69,19 +69,47 @@ class AuthService
 
     $token = $user->createToken('auth_token')->plainTextToken;
 
-   $user = Auth::user()->load('player', 'roles');
+  $user = Auth::user()->load([
+    'player',
+    'associationMember',
+    'fmxStaff',
+    'roles'
+]);
+$associationId = $user->associationMember?->association_id;
+$associationMember = $user->associationMember;
+$fmxStaff = $user->fmxStaff;
+$player = $user->player;
+    // return [
+    //     'user' => [
+    //         'id' => $user->id,
+    //         'name' => $user->name,
+    //         'email' => $user->email,
+    //         'type' => $user->type, // 🔥 mágico agora
+    //         'association_id' => $associationId,
+    //     ],
+    //     'roles' => $user->getRoleNames(),
+    //     'permissions' => $user->getAllPermissions()->pluck('name'),
+    //     'token' => $token,
+    // ];
 
     return [
-        'user' => [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'type' => $user->type, // 🔥 mágico agora
-        ],
-        'roles' => $user->getRoleNames(),
-        'permissions' => $user->getAllPermissions()->pluck('name'),
-        'token' => $token,
-    ];
+    'user' => [
+        'id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+        'type' => $user->type,
+
+        // 🔥 relações principais
+        'association_member' => $associationMember,
+        'fmx_staff' => $fmxStaff,
+        'player' => $player,
+    ],
+
+    'roles' => $user->getRoleNames(),
+    'permissions' => $user->getAllPermissions()->pluck('name'),
+
+    'token' => $token,
+];
 }
 
 //==================================================================================================

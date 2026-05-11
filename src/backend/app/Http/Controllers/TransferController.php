@@ -50,16 +50,26 @@ class TransferController extends Controller
     | 2a. ASSOCIAÇÃO ORIGEM — Aprovar saída (envia foto do documento)
     |--------------------------------------------------------------------------
     */
-    public function approveByOrigin(Request $request, Transfer $transfer)
-    {
-        $request->validate([
-            'document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
-        ]);
+    // public function approveByOrigin(Request $request, Transfer $transfer)
+    // {
+    //     $request->validate([
+    //         'document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+    //     ]);
 
-        return response()->json(
-            $this->service->approveByOrigin($transfer, $request->file('document'))
-        );
-    }
+    //     return response()->json(
+    //         $this->service->approveByOrigin($transfer, $request->file('document'))
+    //     );
+    // }
+
+    public function approveByOrigin(Transfer $transfer)
+{
+    $transfer = $this->service->approveByOrigin(
+        $transfer,
+        auth()->id()
+    );
+
+    return response()->json($transfer);
+}
 
     /*
     |--------------------------------------------------------------------------

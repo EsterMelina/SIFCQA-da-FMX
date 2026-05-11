@@ -228,6 +228,10 @@ Route::middleware(['auth:sanctum', 'role:player'])->group(function () {
 
 Route::middleware(['auth:sanctum'])->group(function () {
 
+ // Jogadores da associação
+    Route::get('/associations/{id}/players', [PlayerController::class, 'associationPlayers']);
+    
+    
     // PLAYER
     Route::post('/transfers', [TransferController::class, 'store']);
     Route::patch('/transfers/{transfer}/cancel', [TransferController::class, 'cancel']);
@@ -241,7 +245,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::patch('/transfers/{transfer}/destination/approve', [TransferController::class, 'approveByDestination']);
     Route::patch('/transfers/{transfer}/destination/reject', [TransferController::class, 'rejectByDestination']);
 
-    //LISTAR
+    //LISTAR  // Transferências da associação (você já tem o método no controller)
      Route::get('/associations/{id}/transfers', [TransferController::class, 'associationTransfers']);
 });
 
@@ -253,7 +257,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
-
+     // Quotas da associação (filtrar por association_id)
+    Route::get('/quotas', [QuotaController::class, 'index']); // aceitar ?association_id=
     Route::get('quotas', [QuotaController::class, 'index']);
     Route::get('players/{player}/quotas', [QuotaController::class, 'playerQuotas']);
 });

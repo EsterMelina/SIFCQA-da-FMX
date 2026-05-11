@@ -13,6 +13,7 @@ interface AssociationMember {
   user_id: number;
   position: string;
   active: boolean;
+  association_id: number;
   user?: { name: string; email: string };
 }
 
@@ -24,15 +25,8 @@ interface Player {
   active: boolean;
   created_at?: string;
   updated_at?: string;
-  user?: {
-    id?: number;
-    name: string;
-    email: string;
-  };
-  association?: {
-    id: number;
-    name: string;
-  };
+  user?: { id?: number; name: string; email: string };
+  association?: { id: number; name: string };
   age?: number;
   rating?: number;
   province?: string;
@@ -49,7 +43,6 @@ interface Quota {
   player?: { name: string };
 }
 
-// Interface Transfer atualizada
 interface Transfer {
   id: number;
   player_id: number;
@@ -79,6 +72,7 @@ interface ToastMessage {
   message: string;
 }
 
+// Representa o utilizador autenticado conforme a resposta JSON fornecida
 interface AssociationUser {
   id: number;
   name: string;
@@ -87,10 +81,17 @@ interface AssociationUser {
   association_id?: number;
 }
 
+interface UserOption {
+  id: number;
+  name: string;
+  email: string;
+}
+
 /* ==================== HELPERS ==================== */
 const getUserRole = (user: AssociationUser | null): "president" | "secretary" => {
   if (!user || !user.roles) return "secretary";
   const roles = user.roles.map((r: any) => (typeof r === "string" ? r : r.name));
+  // Se contiver "president" ou "association_president" retorna presidente, senão secretário
   if (roles.includes("association_president") || roles.includes("president")) return "president";
   return "secretary";
 };
@@ -98,8 +99,9 @@ const getUserRole = (user: AssociationUser | null): "president" | "secretary" =>
 /* ==================== COMPONENTE PRINCIPAL ==================== */
 const AssociationDashboard: React.FC = () => {
   const { user, logout } = useAuth();
-  const authUser = (user as unknown) as AssociationUser | null;
-  const associationId = authUser?.association_id || 1;
+  // Cast direto para AssociationUser – a propriedade association_id virá do user
+  const authUser = user as AssociationUser | null;
+  const associationId = authUser?.association_id ?? null;
 
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     localStorage.getItem("theme") === "dark" ? "dark" : "light"
@@ -116,6 +118,7 @@ const AssociationDashboard: React.FC = () => {
     pendingQuotas: 0,
     pendingTransfers: 0,
   });
+
 
   const [showSecretaryModal, setShowSecretaryModal] = useState(false);
   const [editingSecretary, setEditingSecretary] = useState<AssociationMember | null>(null);
@@ -138,14 +141,15 @@ const AssociationDashboard: React.FC = () => {
 
   const toggleTheme = () => setTheme((prev) => (prev === "light" ? "dark" : "light"));
 
+  // Dashboard stats – apenas se associationId válido
   useEffect(() => {
-    if (activeTab !== "dashboard") return;
+    if (activeTab !== "dashboard" || !associationId) return;
     const fetchStats = async () => {
       try {
         const [playersRes, quotasRes, transfersRes] = await Promise.all([
           http.get(endpoints.associations.associationPlayers(associationId)),
-          http.get("/quotas"),
-          http.get("/transfers"),
+          http.get(`/quotas?association_id=${associationId}`),
+          http.get(`/associations/${associationId}/transfers`),
         ]);
         const players = playersRes.data.data || playersRes.data;
         const quotas = quotasRes.data.data || quotasRes.data;
@@ -155,7 +159,9 @@ const AssociationDashboard: React.FC = () => {
           totalPlayers: players.length,
           activePlayers: players.filter((p: Player) => p.active).length,
           pendingQuotas: quotas.filter((q: Quota) => q.status === "pending").length,
-          pendingTransfers: transfers.filter((t: Transfer) => t.status === "pending_origin" || t.status === "pending_destination").length,
+          pendingTransfers: transfers.filter((t: Transfer) =>
+            t.status === "pending_origin" || t.status === "pending_destination"
+          ).length,
         });
       } catch (err) {
         console.error("Erro ao carregar dashboard:", err);
@@ -175,7 +181,22 @@ const AssociationDashboard: React.FC = () => {
 
   const visibleMenu = menuItems.filter((item) => item.roles.includes(role));
 
+  // Debugging: log do utilizador autenticado, role e associationId
+  //
+  // Este log é crucial para verificar se o user está a ser corretamente identificado e se a association_id está presente.
+console.log("Userteste:", authUser, "Role:", role, "Association ID:", associationId);
+
+
   const renderContent = () => {
+    if (!associationId) {
+      return (
+        <div className={styles.pageContainer}>
+          <h2>Acesso restrito</h2>
+          <p>Não tem uma associação atribuída. Contacte o administrador.</p>
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case "dashboard": return <DashboardContent stats={stats} role={role} />;
       case "secretaries": return (
@@ -197,7 +218,7 @@ const AssociationDashboard: React.FC = () => {
           onCreate={() => { setEditingPlayer(null); setShowPlayerModal(true); }}
         />
       );
-      case "quotas": return <QuotasSection addToast={addToast} role={role} />;
+      case "quotas": return <QuotasSection addToast={addToast} role={role} associationId={associationId} />;
       case "transfers": return <TransfersSection addToast={addToast} role={role} associationId={associationId} />;
       case "reports": return <ReportsSection role={role} />;
       default: return null;
@@ -223,7 +244,11 @@ const AssociationDashboard: React.FC = () => {
           </div>
           <nav className={styles.nav}>
             {visibleMenu.map((item) => (
-              <button key={item.key} className={`${styles.navLink} ${activeTab === item.key ? styles.active : ""}`} onClick={() => { setActiveTab(item.key); setIsSidebarOpen(false); }}>
+              <button
+                key={item.key}
+                className={`${styles.navLink} ${activeTab === item.key ? styles.active : ""}`}
+                onClick={() => { setActiveTab(item.key); setIsSidebarOpen(false); }}
+              >
                 <span className="material-symbols-outlined">{item.icon}</span>
                 <span>{item.label}</span>
               </button>
@@ -256,8 +281,32 @@ const AssociationDashboard: React.FC = () => {
         </main>
       </div>
 
-      {showSecretaryModal && <SecretaryModal isOpen={showSecretaryModal} secretary={editingSecretary} associationId={associationId} onClose={() => setShowSecretaryModal(false)} onSuccess={() => { setShowSecretaryModal(false); addToast("success", "Secretário guardado!"); setSecretariesRefreshKey(prev => prev + 1); }} />}
-      {showPlayerModal && <PlayerModal isOpen={showPlayerModal} player={editingPlayer} associationId={associationId} onClose={() => setShowPlayerModal(false)} onSuccess={() => { setShowPlayerModal(false); addToast("success", editingPlayer ? "Jogador atualizado!" : "Jogador registado!"); setPlayersRefreshKey(prev => prev + 1); }} />}
+      {showSecretaryModal && (
+        <SecretaryModal
+          isOpen={showSecretaryModal}
+          secretary={editingSecretary}
+          associationId={associationId!}
+          onClose={() => setShowSecretaryModal(false)}
+          onSuccess={() => {
+            setShowSecretaryModal(false);
+            addToast("success", "Secretário guardado!");
+            setSecretariesRefreshKey(prev => prev + 1);
+          }}
+        />
+      )}
+      {showPlayerModal && (
+        <PlayerModal
+          isOpen={showPlayerModal}
+          player={editingPlayer}
+          associationId={associationId!}
+          onClose={() => setShowPlayerModal(false)}
+          onSuccess={() => {
+            setShowPlayerModal(false);
+            addToast("success", editingPlayer ? "Jogador atualizado!" : "Jogador registado!");
+            setPlayersRefreshKey(prev => prev + 1);
+          }}
+        />
+      )}
       <ToastContainer toasts={toasts} onClose={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
     </div>
   );
@@ -276,7 +325,7 @@ const DashboardContent: React.FC<{ stats: DashboardStats; role: string }> = ({ s
   </div>
 );
 
-/* ==================== SECRETÁRIOS (gestão) ==================== */
+/* ==================== SECRETÁRIOS ==================== */
 const SecretariesSection: React.FC<{
   addToast: (type: ToastMessage["type"], msg: string) => void;
   associationId: number;
@@ -293,7 +342,7 @@ const SecretariesSection: React.FC<{
     } catch (err: any) { addToast("error", "Erro ao carregar"); } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchSecretaries(); }, []);
+  useEffect(() => { fetchSecretaries(); }, [associationId]);
 
   const handleDelete = async (id: number) => {
     if (!confirm("Remover?")) return;
@@ -345,18 +394,12 @@ const PlayersSection: React.FC<{
 
   const fetchPlayers = async () => {
     try {
-      const res = await http.get(
-        endpoints.associations.associationPlayers(associationId)
-      );
+      const res = await http.get(endpoints.associations.associationPlayers(associationId));
       setPlayers(res.data.data || res.data);
-    } catch (err: any) {
-      addToast("error", "Erro ao carregar");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err: any) { addToast("error", "Erro ao carregar"); } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchPlayers(); }, []);
+  useEffect(() => { fetchPlayers(); }, [associationId]);
 
   const handleToggleActive = async (player: Player) => {
     if (!confirm(`Deseja ${player.active ? "suspender" : "ativar"} este jogador?`)) return;
@@ -364,9 +407,7 @@ const PlayersSection: React.FC<{
       await http.patch(endpoints.players.toggleStatus(player.id));
       addToast("success", `Jogador ${player.active ? "suspenso" : "ativado"}`);
       fetchPlayers();
-    } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro");
-    }
+    } catch (err: any) { addToast("error", err.response?.data?.message || "Erro"); }
   };
 
   const handleDelete = async (playerId: number) => {
@@ -375,9 +416,7 @@ const PlayersSection: React.FC<{
       await http.delete(endpoints.players.detail(playerId));
       addToast("success", "Jogador eliminado");
       fetchPlayers();
-    } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro ao eliminar");
-    }
+    } catch (err: any) { addToast("error", err.response?.data?.message || "Erro ao eliminar"); }
   };
 
   if (loading) return <div className={styles.loading}>Carregando...</div>;
@@ -393,13 +432,7 @@ const PlayersSection: React.FC<{
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Email</th>
-              <th>Associação</th>
-              <th>Ativo</th>
-              <th>Ações</th>
-            </tr>
+            <tr><th>Nome</th><th>Email</th><th>Associação</th><th>Ativo</th><th>Ações</th></tr>
           </thead>
           <tbody>
             {players.map((p) => (
@@ -408,22 +441,16 @@ const PlayersSection: React.FC<{
                 <td>{p.user?.email || "—"}</td>
                 <td>{p.association?.name || "—"}</td>
                 <td>
-                  <span
-                    className={`${styles.statusBadge} ${p.active ? styles.active : styles.inactive}`}
-                  >
+                  <span className={`${styles.statusBadge} ${p.active ? styles.active : styles.inactive}`}>
                     {p.active ? "Ativo" : "Inativo"}
                   </span>
                 </td>
                 <td>
-                  <button className={styles.actionBtn} onClick={() => onEdit(p)}>
-                    Editar
-                  </button>
+                  <button className={styles.actionBtn} onClick={() => onEdit(p)}>Editar</button>
                   <button className={styles.actionBtn} onClick={() => handleToggleActive(p)}>
                     {p.active ? "Suspender" : "Ativar"}
                   </button>
-                  <button className={styles.actionBtn} onClick={() => handleDelete(p.id)}>
-                    Eliminar
-                  </button>
+                  <button className={styles.actionBtn} onClick={() => handleDelete(p.id)}>Eliminar</button>
                 </td>
               </tr>
             ))}
@@ -434,19 +461,23 @@ const PlayersSection: React.FC<{
   );
 };
 
-/* ==================== QUOTAS ==================== */
-const QuotasSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: string) => void; role: string }> = ({ addToast, role }) => {
+/* ==================== QUOTAS (ASSOCIAÇÃO FILTRADA) ==================== */
+const QuotasSection: React.FC<{
+  addToast: (type: ToastMessage["type"], msg: string) => void;
+  role: string;
+  associationId: number;
+}> = ({ addToast, role, associationId }) => {
   const [quotas, setQuotas] = useState<Quota[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchQuotas = async () => {
     try {
-      const res = await http.get("/quotas");
+      const res = await http.get(`/quotas?association_id=${associationId}`);
       setQuotas(res.data.data || res.data);
     } catch (err: any) { addToast("error", "Erro ao carregar"); } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchQuotas(); }, []);
+  useEffect(() => { fetchQuotas(); }, [associationId]);
 
   const handleConfirm = async (quotaId: number) => {
     try {
@@ -460,7 +491,7 @@ const QuotasSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: stri
 
   return (
     <div className={styles.pageContainer}>
-      <h2>Quotizações</h2>
+      <h2>Quotizações da Associação</h2>
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead><tr><th>Jogador</th><th>Valor (MT)</th><th>Status</th><th>Vencimento</th>{role === "president" && <th>Ações</th>}</tr></thead>
@@ -470,7 +501,9 @@ const QuotasSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: stri
                 <td>{q.player?.name || `#${q.player_id}`}</td><td>{q.amount}</td>
                 <td><span className={`${styles.statusBadge} ${q.status === "paid" ? styles.validated : styles.pending}`}>{q.status === "paid" ? "Pago" : "Pendente"}</span></td>
                 <td>{q.due_date || "—"}</td>
-                {role === "president" && <td>{q.status === "pending" && <button className={styles.actionBtn} onClick={() => handleConfirm(q.id)}>Confirmar Pagamento</button>}</td>}
+                {role === "president" && (
+                  <td>{q.status === "pending" && <button className={styles.actionBtn} onClick={() => handleConfirm(q.id)}>Confirmar Pagamento</button>}</td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -480,7 +513,7 @@ const QuotasSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: stri
   );
 };
 
-/* ==================== TRANSFERÊNCIAS (ATUALIZADO) ==================== */
+/* ==================== TRANSFERÊNCIAS (ASSOCIAÇÃO FILTRADA, DOC OPCIONAL) ==================== */
 const TransfersSection: React.FC<{
   addToast: (type: "success" | "error" | "info", msg: string) => void;
   role: string;
@@ -494,7 +527,6 @@ const TransfersSection: React.FC<{
 
   const fetchTransfers = async () => {
     try {
-      // Endpoint hipotético: /associations/{id}/transfers (precisa ser implementado no backend)
       const res = await http.get(`/associations/${associationId}/transfers`);
       setTransfers(res.data.data || res.data);
     } catch (err: any) {
@@ -506,9 +538,11 @@ const TransfersSection: React.FC<{
 
   useEffect(() => { fetchTransfers(); }, [associationId]);
 
-  const handleOriginApprove = async (transferId: number, file: File) => {
+  const handleOriginApprove = async (transferId: number, file?: File) => {
     const formData = new FormData();
-    formData.append("document", file);
+    if (file) {
+      formData.append("document", file);
+    }
     try {
       await http.post(`/transfers/${transferId}/origin/approve`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -568,7 +602,7 @@ const TransfersSection: React.FC<{
 
   return (
     <div className={styles.pageContainer}>
-      <h2>Transferências</h2>
+      <h2>Transferências da Associação</h2>
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead>
@@ -666,22 +700,58 @@ interface SecretaryModalProps {
 }
 
 const SecretaryModal: React.FC<SecretaryModalProps> = ({ isOpen, secretary, associationId, onClose, onSuccess }) => {
-  const [userId, setUserId] = useState("");
+  const [users, setUsers] = useState<UserOption[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { if (secretary) setUserId(String(secretary.user_id)); else setUserId(""); }, [secretary]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchUsers = async () => {
+      setLoadingUsers(true);
+      try {
+        // Endpoint hipotético – ajuste conforme sua API real
+        const { data } = await http.get(`/users?not_in_association=${associationId}`);
+        setUsers(data.data || data);
+      } catch (err) {
+        console.error("Erro ao carregar utilizadores");
+      } finally {
+        setLoadingUsers(false);
+      }
+    };
+    fetchUsers();
+  }, [isOpen, associationId]);
+
+  useEffect(() => {
+    if (secretary) {
+      setSelectedUserId(String(secretary.user_id));
+    } else {
+      setSelectedUserId("");
+    }
+  }, [secretary]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedUserId) return;
     setLoading(true);
     try {
       if (secretary) {
-        await http.put(`${endpoints.associations.members(associationId)}/${secretary.id}`, { user_id: Number(userId), position: "secretary" });
+        await http.put(`${endpoints.associations.members(associationId)}/${secretary.id}`, {
+          user_id: Number(selectedUserId),
+          position: "secretary",
+        });
       } else {
-        await http.post(endpoints.associations.storeMember(associationId), { user_id: Number(userId), position: "secretary" });
+        await http.post(endpoints.associations.storeMember(associationId), {
+          user_id: Number(selectedUserId),
+          position: "secretary",
+        });
       }
       onSuccess();
-    } catch (err: any) { alert(err.response?.data?.message || "Erro"); } finally { setLoading(false); }
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Erro");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -689,12 +759,38 @@ const SecretaryModal: React.FC<SecretaryModalProps> = ({ isOpen, secretary, asso
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}><h3>{secretary ? "Editar Secretário" : "Novo Secretário"}</h3><button onClick={onClose} className={styles.modalClose}>×</button></div>
+        <div className={styles.modalHeader}>
+          <h3>{secretary ? "Editar Secretário" : "Novo Secretário"}</h3>
+          <button onClick={onClose} className={styles.modalClose}>×</button>
+        </div>
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
-            <div className={styles.formGroup}><label>ID do Utilizador</label><input type="number" value={userId} onChange={(e) => setUserId(e.target.value)} required /></div>
+            <div className={styles.formGroup}>
+              <label>Utilizador</label>
+              {loadingUsers ? (
+                <p>A carregar...</p>
+              ) : (
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  required
+                >
+                  <option value="">Selecione...</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
-          <div className={styles.modalActions}><button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button><button type="submit" className={styles.submitButton} disabled={loading}>{loading ? "Salvando..." : "Guardar"}</button></div>
+          <div className={styles.modalActions}>
+            <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
+            <button type="submit" className={styles.submitButton} disabled={loading || !selectedUserId}>
+              {loading ? "Salvando..." : "Guardar"}
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -804,20 +900,19 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ isOpen, player, associationId
   );
 };
 
-/* ==================== MODAL APROVAÇÃO DE ORIGEM (UPLOAD) ==================== */
+/* ==================== MODAL APROVAÇÃO DE ORIGEM (DOCUMENTO OPCIONAL) ==================== */
 const OriginApproveModal: React.FC<{
   transfer: Transfer;
   onClose: () => void;
-  onApprove: (transferId: number, file: File) => void;
+  onApprove: (transferId: number, file?: File) => void;
 }> = ({ transfer, onClose, onApprove }) => {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) return;
     setLoading(true);
-    await onApprove(transfer.id, file);
+    await onApprove(transfer.id, file || undefined);
     setLoading(false);
   };
 
@@ -825,18 +920,29 @@ const OriginApproveModal: React.FC<{
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h3>Aprovar Saída (Documento)</h3>
+          <h3>Aprovar Saída</h3>
           <button onClick={onClose} className={styles.modalClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
             <div className={styles.formGroup}>
-              <label>Documento obrigatório (PDF ou imagem, máx. 5MB)</label>
-              <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setFile(e.target.files?.[0] || null)} required />
+              <label>Documento (opcional – PDF ou imagem, máx. 5MB)</label>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+              />
             </div>
+            <p style={{ fontSize: "0.75rem", color: "var(--color-on-surface-variant)", marginTop: "-0.5rem" }}>
+              Pode aprovar sem anexar documento.
+            </p>
             <div className={styles.modalActions}>
-              <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
-              <button type="submit" className={styles.submitButton} disabled={!file || loading}>{loading ? "Enviando..." : "Aprovar"}</button>
+              <button type="button" onClick={onClose} className={styles.cancelButton}>
+                Cancelar
+              </button>
+              <button type="submit" className={styles.submitButton} disabled={loading}>
+                {loading ? "Enviando..." : "Aprovar"}
+              </button>
             </div>
           </div>
         </form>
@@ -876,11 +982,21 @@ const RejectModal: React.FC<{
           <div className={styles.modalBody}>
             <div className={styles.formGroup}>
               <label>Motivo (mín. 5 caracteres)</label>
-              <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} minLength={5} required />
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={3}
+                minLength={5}
+                required
+              />
             </div>
             <div className={styles.modalActions}>
-              <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
-              <button type="submit" className={styles.submitButton} disabled={loading}>{loading ? "Enviando..." : "Confirmar"}</button>
+              <button type="button" onClick={onClose} className={styles.cancelButton}>
+                Cancelar
+              </button>
+              <button type="submit" className={styles.submitButton} disabled={loading}>
+                {loading ? "Enviando..." : "Confirmar"}
+              </button>
             </div>
           </div>
         </form>

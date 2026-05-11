@@ -134,6 +134,11 @@ public function store(Request $request, Association $association)
     ], 403);
 }
 
+//========================================
+//Configuracao ou update de user para ser: membro de associcao ou fmxstaff
+//
+//==========================================
+
 public function update(Request $request, User $user)
 {
     Log::info('UPDATE USER REQUEST', [
@@ -148,6 +153,7 @@ public function update(Request $request, User $user)
         'password' => 'nullable|min:6',
         'status'   => 'sometimes|boolean',
         'position' => 'nullable|string',
+        'association_id' => 'nullable|exists:associations,id',
     ]);
 
     $oldEmail = $user->email;
@@ -197,23 +203,36 @@ public function update(Request $request, User $user)
     /**
      * ASSOCIATION MEMBER
      */
-    if (
+   if (
         $user->hasRole('association') &&
         isset($data['position'])
     ) {
-
-        $associationMember = \App\Models\AssociationMember::where('user_id', $user->id)->first();
-
-        if ($associationMember) {
-            $associationMember->update([
-                'position' => $data['position'],
-                'active'   => true,
-            ]);
-        }
+        \App\Models\AssociationMember::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'association_id' => $data['association_id'] ?? null,
+                'position'       => $data['position'],
+                'active'         => true,
+            ]
+        );
     }
 
+    //    // 🔥 SEM ISTO O FRONTENDE MORRE
+    // return response()->json([
+    //     'message' => 'User atualizado com sucesso',
+    //     'user' => $updatedUser
+    // ]);
+}
+
+
+
+
+
+// GET /users/{user}
+public function show(User $user)
+{
     return response()->json(
-        $updatedUser->load('roles')
+        $this->service->getById($user)
     );
 }
 
@@ -221,27 +240,15 @@ public function update(Request $request, User $user)
 
 
 
-    // GET /users/{user}
-    public function show(User $user)
-    {
-        return response()->json(
-            $this->service->getById($user)
-        );
-    }
+// DELETE /users/{user}
+public function destroy(User $user)
+{
+    $this->service->delete($user);
 
-
-
-
-
-    // DELETE /users/{user}
-    public function destroy(User $user)
-    {
-        $this->service->delete($user);
-
-        return response()->json([
-            'message' => 'Usuário removido'
-        ]);
-    }
+    return response()->json([
+        'message' => 'Usuário removido'
+    ]);
+}
 
 
 
