@@ -138,13 +138,85 @@ class TransferService
     | LISTAGEM
     |--------------------------------------------------------------------------
     */
-    public function getPlayerTransfers(int $playerId)
-    {
-        return Transfer::with(['player', 'fromAssociation', 'toAssociation', 'requester', 'approver'])
-            ->where('player_id', $playerId)
-            ->latest()
-            ->get();
-    }
+    // public function getPlayerTransfers(int $playerId)
+    // {
+    //     return Transfer::with(['player', 'fromAssociation', 'toAssociation', 'requester', 'approver'])
+    //         ->where('player_id', $playerId)
+    //         ->latest()
+    //         ->get();
+    // }
+
+    public function getPlayerTransfers(int $playerId, int $associationId)
+{
+    return Transfer::with([
+            'player',
+            'fromAssociation',
+            'toAssociation',
+            'requester',
+            'approver'
+        ])
+        ->where('player_id', $playerId)
+        ->get()
+        ->map(function ($transfer) use ($associationId) {
+
+            $actions = [];
+
+            /*
+            |--------------------------------------------------------------------------
+            | ASSOCIAÇÃO DE ORIGEM
+            |--------------------------------------------------------------------------
+            */
+            if (
+                $transfer->from_association_id == $associationId &&
+                $transfer->status === 'pending_origin'
+            ) {
+
+                $actions = [
+                    'approve_origin',
+                    'reject_origin'
+                ];
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | ASSOCIAÇÃO DE DESTINO
+            |--------------------------------------------------------------------------
+            */
+            if (
+                $transfer->to_association_id == $associationId &&
+                $transfer->status === 'pending_destination'
+            ) {
+
+                $actions = [
+                    'approve_destination',
+                    'reject_destination'
+                ];
+            }
+
+            return [
+                'id' => $transfer->id,
+                'status' => $transfer->status,
+
+                'player' => $transfer->player,
+                'from_association' => $transfer->fromAssociation,
+                'to_association' => $transfer->toAssociation,
+
+                'requested_by' => $transfer->requester,
+                'approved_by' => $transfer->approver,
+
+                // 🔥 FRONTEND USA ISSO DIRETAMENTE
+                'actions' => $actions,
+
+                // 🔥 CONTEXTO VISUAL
+                'is_origin' =>
+                    $transfer->from_association_id == $associationId,
+
+                'is_destination' =>
+                    $transfer->to_association_id == $associationId,
+            ];
+        })
+        ->values();
+}
 
     /*
     |--------------------------------------------------------------------------

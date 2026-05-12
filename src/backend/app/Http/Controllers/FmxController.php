@@ -5,11 +5,15 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Services\FmxService;
 use Illuminate\Validation\ValidationException;
+use App\Models\AssociationMember;
+use App\Models\Player;
 
 class FmxController extends Controller
 {
     protected FmxService $service;
 
+
+    
     public function __construct(FmxService $service)
     {
         $this->service = $service;
@@ -87,6 +91,26 @@ class FmxController extends Controller
         return response()->json($staff, 201);
     }
 
+    //Update staff
+    
+
+
+    public function updateStaff(Request $request, int $id)
+    {
+        $data = $request->validate([
+            'position' => ['sometimes', 'string'],
+            'active'   => ['sometimes', 'boolean'],
+        ]);
+
+        $staff = $this->service->updateStaff($id, $data);
+
+        return response()->json([
+            'message' => 'Staff atualizado com sucesso',
+            'data' => $staff
+        ]);
+    }
+
+
     /**
      * Listar todos os membros do staff da FMX
      */
@@ -98,6 +122,9 @@ class FmxController extends Controller
         $staff = $this->service->listStaff($position);
         return response()->json($staff);
     }
+
+
+
 
     // ==================== PRESIDENTE DA ASSOCIAÇÃO ====================
 

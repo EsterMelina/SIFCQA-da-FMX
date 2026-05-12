@@ -68,6 +68,9 @@ const AdminDashboard: React.FC = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [errorUsers, setErrorUsers] = useState<string | null>(null);
 
+  // Chave para forçar refresh da secção do presidente
+  const [presidentRefreshKey, setPresidentRefreshKey] = useState(0);
+
   // Função partilhada para buscar utilizadores
   const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
@@ -113,7 +116,7 @@ const AdminDashboard: React.FC = () => {
 
   // ==================== HANDLERS MENU ====================
   const handleMainClick = (key: MainMenu) => {
-    if (key === "sistema") return; // desabilitado
+    if (key === "sistema") return;
     setActiveMain(key);
     setIsSidebarOpen(false);
   };
@@ -129,6 +132,7 @@ const AdminDashboard: React.FC = () => {
         return (
           <PresidenteSection
             addToast={addToast}
+            refreshKey={presidentRefreshKey}
             onOpenCreate={() => {
               setPresidentEditMode("create");
               setCurrentPresident(null);
@@ -251,7 +255,7 @@ const AdminDashboard: React.FC = () => {
         </main>
       </div>
 
-      {/* Modal de utilizador – refresh automático após salvar */}
+      {/* Modal de utilizador */}
       {showUserModal && (
         <UserModal
           isOpen={showUserModal}
@@ -260,10 +264,11 @@ const AdminDashboard: React.FC = () => {
           onSuccess={() => {
             setShowUserModal(false);
             addToast("success", "Utilizador guardado!");
-            fetchUsers(); // ← recarrega a lista
+            fetchUsers();
           }}
         />
       )}
+      {/* Modal de presidente */}
       {showPresidentModal && (
         <PresidentModal
           isOpen={showPresidentModal}
@@ -276,6 +281,7 @@ const AdminDashboard: React.FC = () => {
               "success",
               presidentEditMode === "create" ? "Presidente criado" : "Presidente actualizado"
             );
+            setPresidentRefreshKey((prev) => prev + 1); // dispara atualização
           }}
         />
       )}
@@ -477,15 +483,17 @@ const FmxSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: string)
 
 const PresidenteSection: React.FC<{
   addToast: (type: ToastMessage["type"], msg: string) => void;
+  refreshKey: number;
   onOpenCreate: () => void;
   onOpenEdit: (president: PresidentData) => void;
-}> = ({ addToast, onOpenCreate, onOpenEdit }) => {
+}> = ({ addToast, refreshKey, onOpenCreate, onOpenEdit }) => {
   const [president, setPresident] = useState<PresidentData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchPresident = async () => {
+    setLoading(true);
     try {
-      const res = await http.get("/admin/fmx/staff?position=President");
+      const res = await http.get("/admin/fmx/staff?position=Presidente");
       const list = res.data.data || res.data;
       setPresident(list.length > 0 ? list[0] : null);
     } catch {
@@ -493,7 +501,9 @@ const PresidenteSection: React.FC<{
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchPresident(); }, []);
+  useEffect(() => {
+    fetchPresident();
+  }, [refreshKey]); // <-- recarrega quando a chave muda
 
   const handleSuspend = async () => {
     if (!president) return;
@@ -523,14 +533,20 @@ const PresidenteSection: React.FC<{
             </span>
           </div>
           <div className={styles.cardActions}>
-            <button className={styles.outlineButton} onClick={() => onOpenEdit(president)}>Alterar Presidente</button>
-            <button className={styles.dangerButton} onClick={handleSuspend}>Suspender Presidente</button>
+            <button className={styles.outlineButton} onClick={() => onOpenEdit(president)}>
+              Alterar Presidente
+            </button>
+            <button className={styles.dangerButton} onClick={handleSuspend}>
+              Suspender Presidente
+            </button>
           </div>
         </div>
       ) : (
         <div className={styles.emptyState}>
           <p>Nenhum presidente atribuído.</p>
-          <button className={styles.addButton} onClick={onOpenCreate}>Criar Presidente</button>
+          <button className={styles.addButton} onClick={onOpenCreate}>
+            Criar Presidente
+          </button>
         </div>
       )}
     </div>
@@ -570,8 +586,8 @@ const UtilizadoresSection: React.FC<{
   const handleToggleStatus = async (user: User) => {
     const newStatus = user.status === "active" ? "inactive" : "active";
     try {
-      await http.patch(`${endpoints.users.base}/${user.id}/status`, { status: newStatus }); //rever endpoint
-      addToast("success", `Status alterado`);
+      await http.patch(`${endpoints.users.base}/${user.id}/status`, { status: newStatus });
+      addToast("success", "Status alterado");
       setUsers((prev) =>
         prev.map((u) => (u.id === user.id ? { ...u, status: newStatus } : u))
       );
@@ -787,20 +803,16 @@ const UserModal: React.FC<{
 }> = ({ isOpen, user, onClose, onSuccess }) => {
   const isEdit = !!user;
 
-  // Campos base
   const [form, setForm] = useState({ name: "", email: "", role: "association" });
-  // Campos adicionais (apenas edição)
   const [associationId, setAssociationId] = useState<number | "">("");
   const [position, setPosition] = useState<string>("Secretário");
   const [associations, setAssociations] = useState<Association[]>([]);
   const [loadingAssoc, setLoadingAssoc] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Resetar formulário ao abrir/fechar
   useEffect(() => {
     if (isOpen) {
       if (user) {
-        // Modo edição: pré‑preencher nome, email e role
         const currentRole = user.roles?.[0]?.name || "association";
         setForm({
           name: user.name,
@@ -808,11 +820,9 @@ const UserModal: React.FC<{
           role: currentRole,
         });
         fetchAssociations();
-        // Inicializar campos extra vazios (seriam preenchidos com dados existentes se disponíveis)
         setAssociationId("");
         setPosition("Secretário");
       } else {
-        // Modo criação
         setForm({ name: "", email: "", role: "association" });
         setAssociationId("");
         setPosition("Secretário");
@@ -823,10 +833,10 @@ const UserModal: React.FC<{
   const fetchAssociations = async () => {
     setLoadingAssoc(true);
     try {
-      const res = await http.get("/admin/associations"); // Ajuste a rota conforme necessário
+      const res = await http.get("/admin/associations");
       setAssociations(res.data.data || res.data);
     } catch {
-      // Se falhar, deixamos lista vazia
+      // silencioso
     } finally {
       setLoadingAssoc(false);
     }
@@ -843,17 +853,14 @@ const UserModal: React.FC<{
       };
 
       if (isEdit) {
-        // Adiciona campos conforme a função escolhida
         if (form.role === "association") {
           if (associationId) payload.association_id = Number(associationId);
-          payload.position = position; // Presidente ou Secretário
+          payload.position = position;
         } else if (form.role === "fmx") {
-          payload.cargo = "Secretário"; // fixo
+          payload.cargo = "Secretário";
         }
-
         await http.put(`${endpoints.users.base}/${user!.id}`, payload);
       } else {
-        // Criação: apenas nome, email e role
         await http.post(endpoints.users.base, payload);
       }
       onSuccess();
@@ -875,7 +882,6 @@ const UserModal: React.FC<{
         </div>
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
-            {/* Nome */}
             <div className={styles.formGroup}>
               <label>Nome</label>
               <input
@@ -884,7 +890,6 @@ const UserModal: React.FC<{
                 required
               />
             </div>
-            {/* Email */}
             <div className={styles.formGroup}>
               <label>Email</label>
               <input
@@ -894,17 +899,16 @@ const UserModal: React.FC<{
                 required
               />
             </div>
-            {/* Função */}
             <div className={styles.formGroup}>
               <label>Função</label>
               <select
                 value={form.role}
                 onChange={(e) => {
                   setForm({ ...form, role: e.target.value });
-                  if (!isEdit) return;
-                  // Resetar campos extra ao mudar de função
-                  setAssociationId("");
-                  setPosition("Secretário");
+                  if (isEdit) {
+                    setAssociationId("");
+                    setPosition("Secretário");
+                  }
                 }}
                 required
               >
@@ -913,7 +917,6 @@ const UserModal: React.FC<{
               </select>
             </div>
 
-            {/* Campos extras apenas no modo edição */}
             {isEdit && form.role === "association" && (
               <>
                 <div className={styles.formGroup}>
@@ -933,7 +936,7 @@ const UserModal: React.FC<{
                   )}
                 </div>
                 <div className={styles.formGroup}>
-                  <label>position</label>
+                  <label>Position</label>
                   <select
                     value={position}
                     onChange={(e) => setPosition(e.target.value)}
@@ -1008,9 +1011,9 @@ const PresidentModal: React.FC<{
     try {
       const payload = { ...form, user_id: Number(form.user_id) };
       if (mode === "create") {
-        await http.post("/admin/fmx/staff", payload);
+        await http.post("/fmx/staff", payload);
       } else {
-        await http.put(`/admin/fmx/staff/${currentPresident?.id}`, payload);
+        await http.put(`/fmx/staff/${currentPresident?.id}`, payload);
       }
       onSuccess();
     } catch (err: any) {

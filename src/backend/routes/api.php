@@ -114,6 +114,10 @@ Route::middleware(['auth:sanctum', 'role:fmx|admin'])->prefix('fmx')->group(func
     Route::post('staff', [FmxController::class, 'createStaff']);
     Route::get('staff', [FmxController::class, 'indexStaff']);
 
+    Route::put('staff/{id}', [FmxController::class, 'updateStaff']);
+    Route::patch('staff/{id}/status', [FmxController::class, 'toggleStaffStatus']);
+    Route::delete('staff/{id}', [FmxController::class, 'deleteStaff']);
+        
     // UTILIZADORES (para escolher presidente)
     Route::get('users', [UserController::class, 'indexForFmx']);  // NOVO
 

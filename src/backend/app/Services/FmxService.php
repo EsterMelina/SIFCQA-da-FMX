@@ -8,8 +8,11 @@ use App\Models\AssociationMember;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use App\Models\User;
+use App\Services\AuthService;   
 class FmxService
 {
+      protected AuthService $authService;
     // --------------------- FMX (federação) ---------------------
 
     /**
@@ -67,22 +70,76 @@ class FmxService
       /**
      * Criar ou atualizar membro do staff da FMX
      */
-    public function createStaff(array $data): FmxStaff
-    {
-        // Obtém a FMX principal
-        $fmx = Fmx::firstOrFail();
+    // public function createStaff(array $data): FmxStaff
+    // {
+    //     // Obtém a FMX principal
+    //     $fmx = Fmx::firstOrFail();
 
-        // Cria ou atualiza o cargo do utilizador
-        return FmxStaff::updateOrCreate(
-            [
-                'user_id' => $data['user_id'],
-                'fmx_id'  => $fmx->id,
-            ],
-            [
-                'position' => $data['position'],
-            ]
-        );
+    //     // Cria ou atualiza o cargo do utilizador
+    //     return FmxStaff::updateOrCreate(
+    //         [
+    //             'user_id' => $data['user_id'],
+    //             'fmx_id'  => $fmx->id,
+    //         ],
+    //         [
+    //             'position' => $data['position'],
+    //         ]
+    //     );
+    // }
+
+public function createStaff(array $data): FmxStaff
+{
+    $fmxId = Fmx::value('id');
+
+    $staff = FmxStaff::updateOrCreate(
+        [
+            'user_id' => $data['user_id'],
+            'fmx_id'  => $fmxId,
+        ],
+        [
+            'position' => $data['position'],
+            'active'   => $data['active'] ?? true,
+        ]
+    );
+
+    $user = User::find($data['user_id']);
+
+    if ($user && empty($user->password)) {
+        $this->authService->sendInvite($user);
     }
+
+    return $staff;
+}
+
+
+// updatestaff
+public function updateStaff(int $id, array $data): FmxStaff
+{
+    $fmxId = Fmx::value('id');
+
+    $staff = FmxStaff::where('id', $id)
+        ->where('fmx_id', $fmxId)
+        ->firstOrFail();
+
+    // 🔥 se posição estiver a ser alterada
+    if (isset($data['position'])) {
+
+        // remove essa posição de qualquer outro staff
+        FmxStaff::where('fmx_id', $fmxId)
+            ->where('position', $data['position'])
+            ->where('id', '!=', $id)
+            ->update([
+                'position' => 'member'
+            ]);
+    }
+
+    $staff->update([
+        'position' => $data['position'] ?? $staff->position,
+        'active'   => $data['active'] ?? $staff->active,
+    ]);
+
+    return $staff;
+}
 
     /**
      * Listar staff da FMX, opcionalmente filtrado por posição

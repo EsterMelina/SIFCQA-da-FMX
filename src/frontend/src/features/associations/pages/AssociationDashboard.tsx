@@ -8,6 +8,21 @@ import styles from "./AssociationDashboard.module.css";
 /* ==================== TIPOS ==================== */
 type TabType = "dashboard" | "secretaries" | "players" | "quotas" | "transfers" | "reports";
 
+interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  type?: string | null;
+  roles?: string[];
+  association_id?: number | null;
+  association_member?: {
+    id: number;
+    position: string;
+    active: boolean;
+    association_id?: number;
+  } | null;
+}
+
 interface AssociationMember {
   id: number;
   user_id: number;
@@ -48,15 +63,18 @@ interface Transfer {
   player_id: number;
   from_association_id: number;
   to_association_id: number;
-  status: "pending_origin" | "pending_destination" | "approved" | "rejected" | "cancelled";
+  status: string;
   reason?: string;
   origin_document?: string;
   dest_document?: string;
   rejection_reason?: string;
   created_at: string;
-  player?: { name: string };
-  from_association?: { id: number; name: string };
-  to_association?: { id: number; name: string };
+  player?: { user?: { name: string }; name?: string };
+  from_association?: { id: number; name: string } | null;
+  to_association?: { id: number; name: string } | null;
+  is_origin?: boolean;
+  is_destination?: boolean;
+  actions?: string[];
 }
 
 interface DashboardStats {
@@ -72,15 +90,6 @@ interface ToastMessage {
   message: string;
 }
 
-// Representa o utilizador autenticado conforme a resposta JSON fornecida
-interface AssociationUser {
-  id: number;
-  name: string;
-  email: string;
-  roles?: string[] | { name: string }[];
-  association_id?: number;
-}
-
 interface UserOption {
   id: number;
   name: string;
@@ -88,19 +97,47 @@ interface UserOption {
 }
 
 /* ==================== HELPERS ==================== */
-const getUserRole = (user: AssociationUser | null): "president" | "secretary" => {
-  if (!user || !user.roles) return "secretary";
-  const roles = user.roles.map((r: any) => (typeof r === "string" ? r : r.name));
-  // Se contiver "president" ou "association_president" retorna presidente, senão secretário
-  if (roles.includes("association_president") || roles.includes("president")) return "president";
+const getUserRole = (user: AuthUser | null): "president" | "secretary" => {
+  if (!user) return "secretary";
+
+  const pos = user.association_member?.position?.toLowerCase();
+  if (pos === "presidente" || pos === "president") return "president";
+  if (pos === "secretário" || pos === "secretary") return "secretary";
+
+  if (user.roles?.includes("association_president") || user.roles?.includes("president")) {
+    return "president";
+  }
   return "secretary";
+};
+
+const normalizeStatus = (
+  status: string,
+  isOrigin?: boolean,
+  isDestination?: boolean
+): string => {
+  const validStatuses = [
+    "pending_origin",
+    "pending_destination",
+    "completed",
+    "rejected_origin",
+    "rejected_destination",
+    "cancelled",
+  ];
+  if (validStatuses.includes(status)) return status;
+
+  if (status === "approved") return "completed";
+  if (status === "rejected") {
+    if (isOrigin) return "rejected_origin";
+    if (isDestination) return "rejected_destination";
+    return "rejected_origin";
+  }
+  return status;
 };
 
 /* ==================== COMPONENTE PRINCIPAL ==================== */
 const AssociationDashboard: React.FC = () => {
   const { user, logout } = useAuth();
-  // Cast direto para AssociationUser – a propriedade association_id virá do user
-  const authUser = user as AssociationUser | null;
+  const authUser = user as AuthUser | null;
   const associationId = authUser?.association_id ?? null;
 
   const [theme, setTheme] = useState<"light" | "dark">(() =>
@@ -118,7 +155,6 @@ const AssociationDashboard: React.FC = () => {
     pendingQuotas: 0,
     pendingTransfers: 0,
   });
-
 
   const [showSecretaryModal, setShowSecretaryModal] = useState(false);
   const [editingSecretary, setEditingSecretary] = useState<AssociationMember | null>(null);
@@ -153,15 +189,20 @@ const AssociationDashboard: React.FC = () => {
         ]);
         const players = playersRes.data.data || playersRes.data;
         const quotas = quotasRes.data.data || quotasRes.data;
-        const transfers = transfersRes.data.data || transfersRes.data;
+        const transfersData = transfersRes.data;
+        const allTransfers = [
+          ...(transfersData.outgoing || []),
+          ...(transfersData.incoming || []),
+        ];
 
         setStats({
           totalPlayers: players.length,
           activePlayers: players.filter((p: Player) => p.active).length,
           pendingQuotas: quotas.filter((q: Quota) => q.status === "pending").length,
-          pendingTransfers: transfers.filter((t: Transfer) =>
-            t.status === "pending_origin" || t.status === "pending_destination"
-          ).length,
+          pendingTransfers: allTransfers.filter((t: Transfer) => {
+            const norm = normalizeStatus(t.status, t.is_origin, t.is_destination);
+            return norm === "pending_origin" || norm === "pending_destination";
+          }).length,
         });
       } catch (err) {
         console.error("Erro ao carregar dashboard:", err);
@@ -181,11 +222,7 @@ const AssociationDashboard: React.FC = () => {
 
   const visibleMenu = menuItems.filter((item) => item.roles.includes(role));
 
-  // Debugging: log do utilizador autenticado, role e associationId
-  //
-  // Este log é crucial para verificar se o user está a ser corretamente identificado e se a association_id está presente.
-console.log("Userteste:", authUser, "Role:", role, "Association ID:", associationId);
-
+  console.log("Userteste:", authUser, "Role:", role, "Association ID:", associationId);
 
   const renderContent = () => {
     if (!associationId) {
@@ -219,7 +256,7 @@ console.log("Userteste:", authUser, "Role:", role, "Association ID:", associatio
         />
       );
       case "quotas": return <QuotasSection addToast={addToast} role={role} associationId={associationId} />;
-      case "transfers": return <TransfersSection addToast={addToast} role={role} associationId={associationId} />;
+      case "transfers": return <TransfersSection addToast={addToast} associationId={associationId} />;
       case "reports": return <ReportsSection role={role} />;
       default: return null;
     }
@@ -513,14 +550,14 @@ const QuotasSection: React.FC<{
   );
 };
 
-/* ==================== TRANSFERÊNCIAS (ASSOCIAÇÃO FILTRADA, DOC OPCIONAL) ==================== */
+/* ==================== TRANSFERÊNCIAS ==================== */
 const TransfersSection: React.FC<{
   addToast: (type: "success" | "error" | "info", msg: string) => void;
-  role: string;
   associationId: number;
 }> = ({ addToast, associationId }) => {
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"pending" | "history">("pending");
 
   const [showOriginApprove, setShowOriginApprove] = useState<Transfer | null>(null);
   const [showReject, setShowReject] = useState<{ transfer: Transfer; type: "origin" | "destination" } | null>(null);
@@ -528,7 +565,16 @@ const TransfersSection: React.FC<{
   const fetchTransfers = async () => {
     try {
       const res = await http.get(`/associations/${associationId}/transfers`);
-      setTransfers(res.data.data || res.data);
+      const data = res.data;
+      const outgoing = (data.outgoing || []).map((t: Transfer) => ({
+        ...t,
+        is_origin: true,
+      }));
+      const incoming = (data.incoming || []).map((t: Transfer) => ({
+        ...t,
+        is_destination: true,
+      }));
+      setTransfers([...outgoing, ...incoming]);
     } catch (err: any) {
       addToast("error", "Erro ao carregar transferências");
     } finally {
@@ -540,9 +586,7 @@ const TransfersSection: React.FC<{
 
   const handleOriginApprove = async (transferId: number, file?: File) => {
     const formData = new FormData();
-    if (file) {
-      formData.append("document", file);
-    }
+    if (file) formData.append("document", file);
     try {
       await http.post(`/transfers/${transferId}/origin/approve`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -581,21 +625,42 @@ const TransfersSection: React.FC<{
     }
   };
 
-  const getStatusLabel = (status: Transfer["status"]) => {
-    const map: Record<Transfer["status"], string> = {
+  const getStatusLabel = (status: string) => {
+    const map: Record<string, string> = {
       pending_origin: "Aguard. Origem",
       pending_destination: "Aguard. Destino",
-      approved: "Aprovada",
-      rejected: "Rejeitada",
+      completed: "Concluída",
+      rejected_origin: "Rejeitada (Origem)",
+      rejected_destination: "Rejeitada (Destino)",
       cancelled: "Cancelada",
+      pending: "Pendente",
+      approved: "Concluída",
+      rejected: "Rejeitada",
     };
     return map[status] || status;
   };
 
-  const getStatusClass = (status: Transfer["status"]) => {
-    if (status === "approved") return styles.validated;
-    if (status === "rejected" || status === "cancelled") return styles.rejected;
+  const getStatusClass = (status: string) => {
+    if (status === "completed" || status === "approved") return styles.validated;
+    if (status.startsWith("rejected") || status === "cancelled") return styles.rejected;
     return styles.pending;
+  };
+
+  const pendingTransfers = transfers.filter((t) => {
+    const actions = t.actions || [];
+    return actions.length > 0;
+  });
+
+  const historyTransfers = transfers.filter((t) => {
+    const actions = t.actions || [];
+    return actions.length === 0;
+  });
+
+  const formatDate = (date?: string) => {
+    if (!date) return "—";
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString();
   };
 
   if (loading) return <div className={styles.loading}>Carregando...</div>;
@@ -603,65 +668,116 @@ const TransfersSection: React.FC<{
   return (
     <div className={styles.pageContainer}>
       <h2>Transferências da Associação</h2>
-      <div className={styles.tableWrapper}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Jogador</th>
-              <th>Origem</th>
-              <th>Destino</th>
-              <th>Status</th>
-              <th>Data</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transfers.map((t) => {
-              const isOrigin = t.from_association_id === associationId;
-              const isDestination = t.to_association_id === associationId;
-              const showOriginActions = isOrigin && t.status === "pending_origin";
-              const showDestActions = isDestination && t.status === "pending_destination";
 
-              return (
-                <tr key={t.id}>
-                  <td>{t.player?.name || `#${t.player_id}`}</td>
-                  <td>{t.from_association?.name || "—"}</td>
-                  <td>{t.to_association?.name || "—"}</td>
-                  <td>
-                    <span className={`${styles.statusBadge} ${getStatusClass(t.status)}`}>
-                      {getStatusLabel(t.status)}
-                    </span>
-                  </td>
-                  <td>{new Date(t.created_at).toLocaleDateString()}</td>
-                  <td>
-                    {showOriginActions && (
-                      <>
-                        <button className={styles.actionBtn} onClick={() => setShowOriginApprove(t)}>
+      <div className={styles.transferTabs}>
+        <button
+          className={`${styles.transferTab} ${tab === "pending" ? styles.activeTab : ""}`}
+          onClick={() => setTab("pending")}
+        >
+          Por Aprovar
+        </button>
+        <button
+          className={`${styles.transferTab} ${tab === "history" ? styles.activeTab : ""}`}
+          onClick={() => setTab("history")}
+        >
+          Histórico
+        </button>
+      </div>
+
+      {tab === "pending" && (
+        <>
+          {pendingTransfers.length === 0 ? (
+            <div className={styles.emptyState}>
+              <span className="material-symbols-outlined">check_circle</span>
+              <p>Nenhuma transferência pendente de aprovação.</p>
+            </div>
+          ) : (
+            <div className={styles.pendingActionsList}>
+              {pendingTransfers.map((t) => {
+                const actions = t.actions || [];
+                const normalizedStatus = normalizeStatus(t.status, t.is_origin, t.is_destination);
+                const playerName = t.player?.user?.name || t.player?.name || `#${t.player_id}`;
+                const originName = t.from_association?.name || (t.is_origin ? "A minha Associação" : "—");
+                const destName = t.to_association?.name || "—";
+
+                return (
+                  <div key={t.id} className={styles.transferActionCard}>
+                    <div className={styles.transferCardInfo}>
+                      <strong>{playerName}</strong>
+                      <div className={styles.direction}>
+                        <span>{originName}</span>
+                        <span className="material-symbols-outlined arrow">arrow_forward</span>
+                        <span>{destName}</span>
+                      </div>
+                      <span className={styles.statusBadge}>{getStatusLabel(normalizedStatus)}</span>
+                    </div>
+                    <div className={styles.transferCardActions}>
+                      {actions.includes("approve_origin") && (
+                        <button className={styles.approveButton} onClick={() => setShowOriginApprove(t)}>
                           Aprovar Saída
                         </button>
-                        <button className={styles.actionBtn} onClick={() => setShowReject({ transfer: t, type: "origin" })}>
+                      )}
+                      {actions.includes("reject_origin") && (
+                        <button className={styles.rejectButton} onClick={() => setShowReject({ transfer: t, type: "origin" })}>
                           Rejeitar Saída
                         </button>
-                      </>
-                    )}
-                    {showDestActions && (
-                      <>
-                        <button className={styles.actionBtn} onClick={() => handleDestinationApprove(t.id)}>
+                      )}
+                      {actions.includes("approve_destination") && (
+                        <button className={styles.approveButton} onClick={() => handleDestinationApprove(t.id)}>
                           Aprovar Entrada
                         </button>
-                        <button className={styles.actionBtn} onClick={() => setShowReject({ transfer: t, type: "destination" })}>
+                      )}
+                      {actions.includes("reject_destination") && (
+                        <button className={styles.rejectButton} onClick={() => setShowReject({ transfer: t, type: "destination" })}>
                           Rejeitar Entrada
                         </button>
-                      </>
-                    )}
-                    {!showOriginActions && !showDestActions && "—"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === "history" && (
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Jogador</th>
+                <th>Origem</th>
+                <th>Destino</th>
+                <th>Status</th>
+                <th>Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              {historyTransfers.map((t) => {
+                const normalizedStatus = normalizeStatus(t.status, t.is_origin, t.is_destination);
+                const playerName = t.player?.user?.name || t.player?.name || `#${t.player_id}`;
+                const originName = t.from_association?.name || (t.is_origin ? "A minha Associação" : "—");
+                const destName = t.to_association?.name || "—";
+
+                return (
+                  <tr key={t.id}>
+                    <td>{playerName}</td>
+                    <td>{originName}</td>
+                    <td>{destName}</td>
+                    <td>
+                      <span className={`${styles.statusBadge} ${getStatusClass(normalizedStatus)}`}>
+                        {getStatusLabel(normalizedStatus)}
+                      </span>
+                    </td>
+                    <td>{formatDate(t.created_at)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {showOriginApprove && (
         <OriginApproveModal
@@ -710,7 +826,6 @@ const SecretaryModal: React.FC<SecretaryModalProps> = ({ isOpen, secretary, asso
     const fetchUsers = async () => {
       setLoadingUsers(true);
       try {
-        // Endpoint hipotético – ajuste conforme sua API real
         const { data } = await http.get(`/users?not_in_association=${associationId}`);
         setUsers(data.data || data);
       } catch (err) {

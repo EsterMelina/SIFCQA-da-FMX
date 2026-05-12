@@ -130,17 +130,111 @@ class TransferController extends Controller
     | Histórico de transferências de um jogador
     |--------------------------------------------------------------------------
     */
-    public function playerTransfers(int $playerId)
-    {
-        return response()->json($this->service->getPlayerTransfers($playerId));
+//     public function associationTransfers(int $associationId)
+// {
+//     return Transfer::with(['player', 'fromAssociation', 'toAssociation'])
+//         ->where(function ($query) use ($associationId) {
+
+//             // 📤 ORIGEM → vê tudo que sai daqui
+//             $query->where('from_association_id', $associationId);
+
+//             // 📥 DESTINO → só vê se já passou origem
+//             $query->orWhere(function ($q) use ($associationId) {
+//                 $q->where('to_association_id', $associationId)
+//                   ->where('status', 'pending_destination');
+//             });
+//         })
+//         ->latest()
+//         ->get();
+// }
+    // public function playerTransfers(int $playerId)
+    // {
+    //     return response()->json($this->service->getPlayerTransfers($playerId));
+    // }
+
+public function playerTransfers(int $playerId)
+{
+    $user = auth()->user();
+
+    if (!$user->player) {
+        abort(403, 'Usuário não é jogador.');
     }
 
-    public function associationTransfers(int $associationId)
-    {
-        return Transfer::with(['player', 'fromAssociation', 'toAssociation'])
-            ->where('from_association_id', $associationId)
-            ->orWhere('to_association_id', $associationId)
-            ->latest()
-            ->get();
+    $associationId = $user->player->association_id;
+
+    return response()->json(
+        $this->service->getPlayerTransfers(
+            $playerId,
+            $associationId
+        )
+    );
+}
+
+public function associationTransfers(int $associationId)
+{
+    $relations = [
+        'player.user',
+        'fromAssociation',
+        'toAssociation',
+        'requester',
+        'approver',
+    ];
+
+    $outgoing = Transfer::with($relations)
+        ->where('from_association_id', $associationId)
+        ->latest()
+        ->get()
+        ->map(fn ($t) => $this->buildTransfer($t, $associationId));
+
+    $incoming = Transfer::with($relations)
+        ->where('to_association_id', $associationId)
+        ->latest()
+        ->get()
+        ->map(fn ($t) => $this->buildTransfer($t, $associationId));
+
+    return response()->json([
+        'outgoing' => $outgoing->values(),
+        'incoming' => $incoming->values(),
+    ]);
+}
+
+
+
+private function buildTransfer($transfer, $associationId)
+{
+    $isOrigin = $transfer->from_association_id === $associationId;
+    $isDestination = $transfer->to_association_id === $associationId;
+
+    $actions = [];
+
+    if ($isOrigin && $transfer->status === 'pending_origin') {
+        $actions = ['approve_origin', 'reject_origin'];
     }
+
+    if ($isDestination && $transfer->status === 'pending_destination') {
+        $actions = ['approve_destination', 'reject_destination'];
+    }
+
+    return [
+        'id' => $transfer->id,
+        'status' => $transfer->status,
+
+        // 🔥 SEM AMBIGUIDADE (já resolvido corretamente)
+        'player' => $transfer->player?->user,
+
+        // 🔥 datas consistentes (NUNCA usar só "date")
+        'created_at' => $transfer->created_at,
+        'updated_at' => $transfer->updated_at,
+
+        'from_association' => $transfer->fromAssociation,
+        'to_association' => $transfer->toAssociation,
+
+        'actions' => $actions,
+
+        // contexto explícito (muito importante para frontend)
+        'is_origin' => $isOrigin,
+        'is_destination' => $isDestination,
+    ];
+}
+
 }
