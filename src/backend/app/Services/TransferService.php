@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Transfer;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 
 class TransferService
 {
@@ -85,21 +86,49 @@ class TransferService
     |      Requer que o pedido já traga foto (origin_document preenchido)
     |--------------------------------------------------------------------------
     */
-    public function approveByDestination(Transfer $transfer, int $approverId): Transfer
-    {
-        $this->assertStatus($transfer, 'pending_destination', 'Transferência não está aguardando aprovação da associação de destino.');
+   public function approveByDestination(Transfer $transfer, int $approverId): Transfer
+{
+    $this->assertStatus(
+        $transfer,
+        'pending_destination',
+        'Transferência não está aguardando aprovação da associação de destino.'
+    );
 
-        if (empty($transfer->origin_document)) {
-            abort(422, 'Não é possível aceitar uma transferência sem documento da associação de origem.');
-        }
+    // Proteção: jogador deve existir
+    $player = $transfer->player()->first();
 
+    if (!$player) {
+        abort(404, 'Jogador associado à transferência não encontrado.');
+    }
+
+    // Proteção opcional:
+    // garante que a associação destino exista
+    if (!$transfer->to_association_id) {
+        abort(422, 'Associação de destino inválida.');
+    }
+
+    DB::transaction(function () use ($transfer, $player, $approverId) {
+
+        // Atualiza associação do jogador
+        $player->update([
+            'association_id' => $transfer->to_association_id,
+        ]);
+
+        // Atualiza transferência
         $transfer->update([
             'status'      => 'approved',
             'approved_by' => $approverId,
         ]);
+    });
 
-        return $transfer->fresh();
-    }
+    return $transfer->fresh([
+        'player.user',
+        'fromAssociation',
+        'toAssociation',
+        'requester',
+        'approver',
+    ]);
+}
 
 
     /*
