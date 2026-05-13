@@ -141,6 +141,9 @@ Route::middleware(['auth:sanctum', 'role:association|admin'])->prefix('associati
     Route::get('{association}/players', [PlayerController::class, 'index']);
     Route::post('{association}/players', [UserController::class, 'store']);
 
+    //me
+     Route::get('/me', [AssociationController::class, 'me']);
+
 });
 
 

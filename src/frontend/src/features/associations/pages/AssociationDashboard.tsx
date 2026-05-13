@@ -96,6 +96,30 @@ interface UserOption {
   email: string;
 }
 
+interface UserProfile {
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    status: boolean;
+    avatar: string;
+  };
+  association_member: {
+    id: number;
+    position: string;
+    active: boolean;
+  } | null;
+  association: {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+    status: boolean;
+  } | null;
+  roles: string[];
+}
+
 /* ==================== HELPERS ==================== */
 const getUserRole = (user: AuthUser | null): "president" | "secretary" => {
   if (!user) return "secretary";
@@ -164,6 +188,10 @@ const AssociationDashboard: React.FC = () => {
   const [secretariesRefreshKey, setSecretariesRefreshKey] = useState(0);
   const [playersRefreshKey, setPlayersRefreshKey] = useState(0);
 
+  // Novo estado para o perfil do utilizador e controlo do dropdown
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+
   const addToast = useCallback((type: ToastMessage["type"], message: string) => {
     const id = Date.now().toString();
     setToasts((prev) => [...prev, { id, type, message }]);
@@ -176,6 +204,20 @@ const AssociationDashboard: React.FC = () => {
   }, [theme]);
 
   const toggleTheme = () => setTheme((prev) => (prev === "light" ? "dark" : "light"));
+
+  // Carregar perfil do utilizador (avatar, dados da associação, etc.)
+  useEffect(() => {
+    if (!associationId) return;
+    const fetchProfile = async () => {
+      try {
+        const res = await http.get("/associations/me");
+        setUserProfile(res.data);
+      } catch (err) {
+        console.error("Erro ao carregar perfil:", err);
+      }
+    };
+    fetchProfile();
+  }, [associationId]);
 
   // Dashboard stats – apenas se associationId válido
   useEffect(() => {
@@ -221,8 +263,6 @@ const AssociationDashboard: React.FC = () => {
   ];
 
   const visibleMenu = menuItems.filter((item) => item.roles.includes(role));
-
-  console.log("Userteste:", authUser, "Role:", role, "Association ID:", associationId);
 
   const renderContent = () => {
     if (!associationId) {
@@ -310,7 +350,56 @@ const AssociationDashboard: React.FC = () => {
               <button className={styles.themeToggle} onClick={toggleTheme}>
                 <span className="material-symbols-outlined">{theme === "light" ? "dark_mode" : "light_mode"}</span>
               </button>
-              <div className={styles.avatar}><img src="https://via.placeholder.com/40" alt="User" /></div>
+              <div
+                className={styles.avatarWrapper}
+                onClick={() => setShowProfileDropdown((prev) => !prev)}
+                ref={(node) => {
+                  if (!node) return;
+                  const handler = (e: MouseEvent) => {
+                    if (node && !node.contains(e.target as Node)) {
+                      setShowProfileDropdown(false);
+                    }
+                  };
+                  document.addEventListener("mousedown", handler);
+                  return () => document.removeEventListener("mousedown", handler);
+                }}
+              >
+                <div className={styles.avatar}>
+                  <img
+                    src={userProfile?.user?.avatar || "https://via.placeholder.com/40"}
+                    alt="User"
+                  />
+                </div>
+                {showProfileDropdown && userProfile && (
+                  <div className={styles.profileDropdown}>
+                    <div className={styles.profileHeader}>
+                      <img
+                        src={userProfile.user.avatar}
+                        alt={userProfile.user.name}
+                        className={styles.profileAvatar}
+                      />
+                      <div>
+                        <strong>{userProfile.user.name}</strong>
+                        <span>{userProfile.user.email}</span>
+                      </div>
+                    </div>
+                    <div className={styles.profileDetails}>
+                      {userProfile.association && (
+                        <p>
+                          <span className="material-symbols-outlined">location_city</span>
+                          {userProfile.association.name}
+                        </p>
+                      )}
+                      {userProfile.association_member && (
+                        <p>
+                          <span className="material-symbols-outlined">badge</span>
+                          {userProfile.association_member.position}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </header>
           <div className={styles.content}>{renderContent()}</div>
