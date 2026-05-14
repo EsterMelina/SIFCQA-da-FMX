@@ -8,6 +8,45 @@ import { useAuth } from "@/app/providers/AuthProvider";
 
 type TabType = "profile" | "quotas" | "history" | "notifications" | "transfer";
 
+// ---- Tipos actualizados para Quotas e Pagamentos ----
+interface QuotaInstallment {
+  number: number;
+  label: string;
+  amount: number;
+  status: "not_submitted" | "pending" | "confirmed" | "rejected";
+  payment?: any; // pode ser null
+}
+
+interface PlayerQuota {
+  id: number;
+  title: string;
+  total_amount: number;
+  status: string;
+  due_date?: string;
+  installments?: {
+    total: number;
+    amount_each: number;
+    next_number?: number;
+    can_pay: boolean;
+    detail: QuotaInstallment[];
+  };
+  player?: { name: string };
+  association?: { id: number; name: string };
+}
+
+interface PlayerPayment {
+  id: number;
+  quota_id: number;
+  installment_number: number;
+  label?: string;
+  amount: number;
+  method: string;
+  status: string;
+  reference?: string;
+  created_at?: string;
+  quota_title?: string;
+}
+
 interface PaymentRecord {
   id: string;
   reference: string;
@@ -65,23 +104,6 @@ const PlayerDashboard: React.FC = () => {
     playerId: "",
     fromAssociationId: null as number | null,
   });
-
-  const [pendingQuota, setPendingQuota] = useState({
-    month: "Junho 2024",
-    dueIn: "5 dias",
-    amount: "500,00 MT",
-  });
-
-  const [paymentHistory, setPaymentHistory] = useState<PaymentRecord[]>([
-    { id: "1", reference: "FMX-PAY-9812", description: "Quota Mensal - Maio 2024", amount: "500,00 MT", status: "confirmed" },
-    { id: "2", reference: "FMX-PAY-7721", description: "Renovação de Licença 2024", amount: "2.500,00 MT", status: "confirmed" },
-    { id: "3", reference: "FMX-PAY-4409", description: "Taxa de Torneio Nacional", amount: "1.200,00 MT", status: "confirmed" },
-  ]);
-
-  const [notifications, setNotifications] = useState<Notification[]>([
-    { id: 1, title: "Convocatória para Treinos Provinciais", message: "A Federação Moçambicana convoca todos os atletas da categoria Sénior para a sessão de treinos no dia 12 de Junho.", time: "Há 2 horas", icon: "calendar_month", iconColor: "primary", highlight: true },
-    { id: 2, title: "Novo Regulamento de Antidoping", message: "Aceda à área de documentos para ler a nova diretiva institucional sobre controlo de substâncias.", time: "Há 1 dia", icon: "campaign", iconColor: "tertiary" },
-  ]);
 
   const [stats] = useState({
     yearsAffiliated: 14,
@@ -157,7 +179,6 @@ const PlayerDashboard: React.FC = () => {
   // Carrega histórico de transferências
   useEffect(() => {
     if (!playerData.playerId) return;
-
     const fetchTransfers = async () => {
       try {
         const { data } = await http.get(`/players/${playerData.playerId}/transfers`);
@@ -170,7 +191,6 @@ const PlayerDashboard: React.FC = () => {
         console.error("Erro ao carregar transferências", err);
       }
     };
-
     fetchTransfers();
   }, [playerData.playerId]);
 
@@ -178,22 +198,18 @@ const PlayerDashboard: React.FC = () => {
     await logout();
   };
 
-  const handleMakePayment = () => setShowPaymentModal(true);
   const handleViewDigitalCard = () => console.log("Ver Cartão Digital");
 
   const handleTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!profileLoaded || playerData.fromAssociationId === null) {
       alert("Ainda estamos a carregar os seus dados. Aguarde um instante.");
       return;
     }
-
     if (!transferForm.targetAssociation) {
       alert("Selecione a associação de destino.");
       return;
     }
-
     if (!transferForm.reason || transferForm.reason.trim().length < 10) {
       alert("O motivo deve ter pelo menos 10 caracteres.");
       return;
@@ -204,7 +220,6 @@ const PlayerDashboard: React.FC = () => {
     formData.append("from_association_id", String(playerData.fromAssociationId));
     formData.append("to_association_id", transferForm.targetAssociation);
     formData.append("reason", transferForm.reason);
-
     if (transferForm.originDocument) {
       formData.append("origin_document", transferForm.originDocument);
     }
@@ -218,13 +233,7 @@ const PlayerDashboard: React.FC = () => {
       });
       alert("Solicitação de transferência enviada com sucesso!");
       setShowTransferModal(false);
-      setTransferForm({
-        targetAssociation: "",
-        reason: "",
-        originDocument: null,
-        destDocument: null,
-      });
-      // Recarrega transferências
+      setTransferForm({ targetAssociation: "", reason: "", originDocument: null, destDocument: null });
       const { data } = await http.get(`/players/${playerData.playerId}/transfers`);
       setTransfers(data);
       const active = data.find(
@@ -254,13 +263,13 @@ const PlayerDashboard: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case "profile":
-        return <ProfileContent player={playerData} stats={stats} pendingQuota={pendingQuota} paymentHistory={paymentHistory} notifications={notifications} onMakePayment={handleMakePayment} onViewCard={handleViewDigitalCard} />;
+        return <ProfileContent player={playerData} stats={stats} />;
       case "quotas":
-        return <QuotasContent pendingQuota={pendingQuota} paymentHistory={paymentHistory} onMakePayment={handleMakePayment} />;
+        return <QuotasContent />;
       case "history":
-        return <HistoryContent paymentHistory={paymentHistory} />;
+        return <HistoryContent />;
       case "notifications":
-        return <NotificationsContent notifications={notifications} />;
+        return <NotificationsContent />;
       case "transfer":
         return (
           <TransferContent
@@ -279,8 +288,6 @@ const PlayerDashboard: React.FC = () => {
     <div className={styles.container}>
       <div className={styles.layout}>
         <div className={`${styles.overlay} ${isSidebarOpen ? styles.overlayVisible : ""}`} onClick={closeSidebar} />
-
-        {/* Sidebar */}
         <aside className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ""}`}>
           <div className={styles.sidebarHeader}>
             <div className={styles.brand}>
@@ -293,7 +300,6 @@ const PlayerDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-
           <nav className={styles.nav}>
             <button onClick={() => { setActiveTab("profile"); closeSidebar(); }} className={`${styles.navLink} ${activeTab === "profile" ? styles.active : ""}`}>
               <span className="material-symbols-outlined">person</span>
@@ -316,11 +322,10 @@ const PlayerDashboard: React.FC = () => {
               <span>Transferência</span>
             </button>
           </nav>
-
           <div className={styles.sidebarFooter}>
-            <button className={styles.primaryButton} style={{ width: '100%' }} onClick={() => { setShowPaymentModal(true); closeSidebar(); }}>
+            <button className={styles.primaryButton} style={{ width: '100%' }} onClick={() => { setActiveTab("quotas"); closeSidebar(); }}>
               <span className="material-symbols-outlined">payments</span>
-              Efetuar Pagamento
+              Ver Quotas
             </button>
             <div className={styles.footerLinks}>
               <button className={styles.footerLink}><span className="material-symbols-outlined">settings</span>Definições</button>
@@ -329,7 +334,6 @@ const PlayerDashboard: React.FC = () => {
           </div>
         </aside>
 
-        {/* Main */}
         <main className={styles.main}>
           <header className={styles.topbar}>
             <div className={styles.topbarLeft}>
@@ -353,14 +357,12 @@ const PlayerDashboard: React.FC = () => {
               </div>
             </div>
           </header>
-
           <div className={styles.content}>{renderContent()}</div>
         </main>
       </div>
 
       {/* Modais */}
-      <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} />
-      <NotificationsModal isOpen={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} notifications={notifications} />
+      <NotificationsModal isOpen={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} />
       <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} player={playerData} onLogout={handleLogout} />
       <TransferModal
         isOpen={showTransferModal}
@@ -375,9 +377,364 @@ const PlayerDashboard: React.FC = () => {
   );
 };
 
-// ===== CONTEÚDOS DAS ABAS =====
+// ==================== NOVOS COMPONENTES ====================
 
-const ProfileContent: React.FC<{ player: any; stats: any; pendingQuota: any; paymentHistory: PaymentRecord[]; notifications: Notification[]; onMakePayment: () => void; onViewCard: () => void }> = ({ player, stats, pendingQuota, paymentHistory, notifications, onMakePayment, onViewCard }) => (
+// ---- QuotasContent ----
+const QuotasContent: React.FC = () => {
+  const [quotas, setQuotas] = useState<PlayerQuota[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchQuotas = async () => {
+    try {
+      setLoading(true);
+      const { data } = await http.get("/player/quotas");
+      setQuotas(data.data || data);
+      setError(null);
+    } catch (err: any) {
+      setError("Erro ao carregar quotas.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchQuotas();
+  }, []);
+
+  const [selectedQuota, setSelectedQuota] = useState<PlayerQuota | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [payInstallment, setPayInstallment] = useState<QuotaInstallment | null>(null);
+
+  const handleViewDetails = async (quotaId: number) => {
+    try {
+      const { data } = await http.get(`/player/quotas/${quotaId}`);
+      const quotaDetail = data.data || data;
+      setSelectedQuota(quotaDetail);
+      setShowDetailModal(true);
+    } catch (err) {
+      alert("Erro ao carregar detalhes da quota.");
+    }
+  };
+
+  const handlePayClick = (installment: QuotaInstallment) => {
+    setPayInstallment(installment);
+    setShowPayModal(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPayModal(false);
+    setShowDetailModal(false);
+    fetchQuotas(); // actualiza lista
+  };
+
+  if (loading) return <div className={styles.loading}>Carregando quotas...</div>;
+  if (error) return <div className={styles.error}>{error}</div>;
+
+  return (
+    <div className={styles.pageContainer}>
+      <h2>Minhas Quotas</h2>
+      {quotas.length === 0 ? (
+        <p className={styles.infoText}>Nenhuma quota encontrada.</p>
+      ) : (
+        <div className={styles.quotaCards}>
+          {quotas.map((q) => (
+            <div key={q.id} className={styles.quotaCard}>
+              <div className={styles.quotaCardInfo}>
+                <h3>{q.title}</h3>
+                <p>Valor total: <strong>{q.total_amount} MT</strong></p>
+                <p>Estado: <span className={`${styles.statusBadge} ${q.status === 'paid' ? styles.validated : styles.pending}`}>{q.status}</span></p>
+                {q.due_date && <p>Vence: {q.due_date}</p>}
+                {q.installments && (
+                  <p>Prestações: {q.installments.total}x de {q.installments.amount_each} MT</p>
+                )}
+              </div>
+              <button className={styles.secondaryButton} onClick={() => handleViewDetails(q.id)}>
+                Ver detalhes
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal de detalhe da quota */}
+      {selectedQuota && showDetailModal && (
+        <QuotaDetailModal
+          quota={selectedQuota}
+          onClose={() => setShowDetailModal(false)}
+          onPayInstallment={handlePayClick}
+        />
+      )}
+
+      {/* Modal de pagamento */}
+      {showPayModal && payInstallment && selectedQuota && (
+        <PayInstallmentModal
+          quotaId={selectedQuota.id}
+          installment={payInstallment}
+          onClose={() => setShowPayModal(false)}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
+    </div>
+  );
+};
+
+// ---- QuotaDetailModal ----
+const QuotaDetailModal: React.FC<{
+  quota: PlayerQuota;
+  onClose: () => void;
+  onPayInstallment: (inst: QuotaInstallment) => void;
+}> = ({ quota, onClose, onPayInstallment }) => {
+  const isPaid = quota.status === 'paid';
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3>Detalhes da Quota</h3>
+          <button onClick={onClose} className={styles.modalClose}>&times;</button>
+        </div>
+        <div className={styles.modalBody}>
+          <h4>{quota.title}</h4>
+          <p>Total: <strong>{quota.total_amount} MT</strong></p>
+          <p>Estado: {quota.status}</p>
+          {quota.installments && (
+            <div className={styles.installmentList}>
+              <h4>Prestações</h4>
+              {quota.installments.detail.map((inst) => {
+                const canPay = inst.number === quota.installments?.next_number && quota.installments.can_pay;
+                return (
+                  <div key={inst.number} className={styles.installmentItem}>
+                    <div>
+                      <span>{inst.label}</span>
+                      <span> – {inst.amount} MT</span>
+                    </div>
+                    <div>
+                      <span className={`${styles.statusBadge} ${
+                        inst.status === 'confirmed' ? styles.validated :
+                        inst.status === 'pending' ? styles.pending :
+                        inst.status === 'rejected' ? styles.rejected :
+                        styles.inactive
+                      }`}>
+                        {inst.status}
+                      </span>
+                      {canPay && (
+                        <button
+                          className={styles.payButton}
+                          onClick={() => onPayInstallment(inst)}
+                        >
+                          Pagar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p className={styles.infoText}>
+            {quota.installments?.can_pay ? 'Pode pagar a próxima prestação.' : 'Nenhuma prestação disponível para pagamento.'}
+          </p>
+          <div className={styles.modalActions}>
+            <button onClick={onClose} className={styles.cancelButton}>Fechar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ---- PayInstallmentModal ----
+const PayInstallmentModal: React.FC<{
+  quotaId: number;
+  installment: QuotaInstallment;
+  onClose: () => void;
+  onSuccess: () => void;
+}> = ({ quotaId, installment, onClose, onSuccess }) => {
+  const [method, setMethod] = useState("mpesa");
+  const [reference, setReference] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!method) {
+      setError("Selecione o método de pagamento.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      await http.post(`/player/quotas/${quotaId}/pay`, {
+        amount: installment.amount,
+        method,
+        reference: reference || undefined,
+      });
+      onSuccess();
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Erro ao processar pagamento.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3>Pagar {installment.label}</h3>
+          <button onClick={onClose} className={styles.modalClose}>&times;</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className={styles.modalBody}>
+            <div className={styles.formGroup}>
+              <label>Valor (fixo)</label>
+              <input type="text" value={`${installment.amount} MT`} disabled className={styles.readonly} />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Método de pagamento *</label>
+              <select value={method} onChange={(e) => setMethod(e.target.value)} required>
+                <option value="mpesa">M-Pesa</option>
+                <option value="transfer">Transferência Bancária</option>
+                <option value="cash">Dinheiro</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Referência (opcional)</label>
+              <input
+                type="text"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="Ex: TXN-ABC123"
+              />
+            </div>
+            {error && <p className={styles.fieldError}>{error}</p>}
+            <div className={styles.modalActions}>
+              <button type="button" onClick={onClose} className={styles.cancelButton} disabled={loading}>
+                Cancelar
+              </button>
+              <button type="submit" className={styles.submitButton} disabled={loading}>
+                {loading ? "Enviando..." : "Confirmar Pagamento"}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ---- HistoryContent (integrado com API) ----
+const HistoryContent: React.FC = () => {
+  const [payments, setPayments] = useState<PlayerPayment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+      const { data } = await http.get("/player/payments");
+      setPayments(data.data || data);
+      setError(null);
+    } catch (err: any) {
+      setError("Erro ao carregar histórico de pagamentos.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPayments();
+  }, []);
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'confirmed': return 'Confirmado';
+      case 'pending': return 'Pendente';
+      case 'rejected': return 'Rejeitado';
+      default: return status;
+    }
+  };
+
+  const getStatusClass = (status: string) => {
+    if (status === 'confirmed') return styles.validated;
+    if (status === 'pending') return styles.pending;
+    return styles.rejected;
+  };
+
+  if (loading) return <div className={styles.loading}>Carregando histórico...</div>;
+  if (error) return <div className={styles.error}>{error}</div>;
+
+  return (
+    <div className={styles.pageContainer}>
+      <h2>Histórico de Pagamentos</h2>
+      {payments.length === 0 ? (
+        <p className={styles.infoText}>Nenhum pagamento registado.</p>
+      ) : (
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Quota</th>
+                <th>Prestação</th>
+                <th>Valor</th>
+                <th>Método</th>
+                <th>Estado</th>
+                <th>Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.quota_title || `#${p.quota_id}`}</td>
+                  <td>{p.label || `Prestação ${p.installment_number}`}</td>
+                  <td>{p.amount} MT</td>
+                  <td>{p.method}</td>
+                  <td>
+                    <span className={`${styles.statusBadge} ${getStatusClass(p.status)}`}>
+                      {getStatusLabel(p.status)}
+                    </span>
+                  </td>
+                  <td>{p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ---- NotificationsContent (com dados mock) ----
+const NotificationsContent: React.FC = () => {
+  const notifications: Notification[] = [
+    { id: 1, title: "Convocatória para Treinos Provinciais", message: "A Federação Moçambicana convoca todos os atletas da categoria Sénior para a sessão de treinos no dia 12 de Junho.", time: "Há 2 horas", icon: "calendar_month", iconColor: "primary", highlight: true },
+    { id: 2, title: "Novo Regulamento de Antidoping", message: "Aceda à área de documentos para ler a nova diretiva institucional sobre controlo de substâncias.", time: "Há 1 dia", icon: "campaign", iconColor: "tertiary" },
+  ];
+  return (
+    <div className={styles.pageContainer}>
+      <h2>Notificações</h2>
+      <div className={styles.notificationListFull}>
+        {notifications.map(n => (
+          <div key={n.id} className={styles.notificationItem}>
+            <div className={`${styles.notificationIcon} ${styles[n.iconColor]}`}>
+              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>{n.icon}</span>
+            </div>
+            <div>
+              <h5>{n.title}</h5>
+              <p>{n.message}</p>
+              <span>{n.time}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ---- ProfileContent ----
+const ProfileContent: React.FC<{ player: any; stats: any }> = ({ player, stats }) => (
   <div className={styles.profileGrid}>
     <div className={styles.profileCard}>
       <div className={styles.profileImageWrapper}>
@@ -404,55 +761,7 @@ const ProfileContent: React.FC<{ player: any; stats: any; pendingQuota: any; pay
         <h4>{player.licenseStatus}</h4>
         <p>Válida até {player.licenseValidUntil}</p>
       </div>
-      <button onClick={onViewCard}>Ver Cartão Digital</button>
-    </div>
-    <div className={styles.quotaSidebar}>
-      <div className={styles.pendingQuota}>
-        <h4><span className={styles.dot}></span>Quotas Pendentes</h4>
-        <div className={styles.quotaItem}>
-          <div><p>{pendingQuota.month}</p><p>Vence em {pendingQuota.dueIn}</p></div>
-          <p className={styles.quotaAmount}>{pendingQuota.amount}</p>
-        </div>
-        <div className={styles.quotaItemPaid}>
-          <div><p>Maio 2024</p><p>Pago</p></div>
-          <span className="material-symbols-outlined">check_circle</span>
-        </div>
-        <button className={styles.primaryButton} onClick={onMakePayment}>Regularizar Situação</button>
-      </div>
-      <div className={styles.federationMessage}>
-        <h4>Mensagem da Federação</h4>
-        <p>"Informamos que as inscrições para o Campeonato Nacional de Inverno estão abertas até ao dia 15 de Junho."</p>
-      </div>
-    </div>
-    <div className={styles.paymentHistory}>
-      <div className={styles.sectionHeader}>
-        <h4>Últimos Pagamentos</h4>
-        <button>Ver Histórico Completo</button>
-      </div>
-      <table className={styles.table}>
-        <thead><tr><th>Referência</th><th>Descrição</th><th>Valor</th><th>Estado</th></tr></thead>
-        <tbody>
-          {paymentHistory.slice(0, 3).map(p => (
-            <tr key={p.id}>
-              <td>{p.reference}</td>
-              <td>{p.description}</td>
-              <td>{p.amount}</td>
-              <td><span className={`${styles.statusBadge} ${styles.validated}`}>Confirmado</span></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-    <div className={styles.notificationsSection}>
-      <h4>Notificações Recentes</h4>
-      <div className={styles.notificationList}>
-        {notifications.slice(0, 2).map(n => (
-          <div key={n.id} className={styles.notificationItem}>
-            <div className={`${styles.notificationIcon} ${styles[n.iconColor]}`}><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>{n.icon}</span></div>
-            <div><h5>{n.title}</h5><p>{n.message}</p><span>{n.time}</span></div>
-          </div>
-        ))}
-      </div>
+      <button onClick={() => console.log("Ver Cartão Digital")}>Ver Cartão Digital</button>
     </div>
     <div className={styles.statsCard}>
       <h4>Estatísticas Institucionais</h4>
@@ -463,62 +772,7 @@ const ProfileContent: React.FC<{ player: any; stats: any; pendingQuota: any; pay
   </div>
 );
 
-const QuotasContent: React.FC<{ pendingQuota: any; paymentHistory: PaymentRecord[]; onMakePayment: () => void }> = ({ pendingQuota, paymentHistory, onMakePayment }) => (
-  // ... código idêntico ao fornecido anteriormente ...
-  <div className={styles.pageContainer}>
-    <h2>Minhas Quotas</h2>
-    <div className={styles.pendingHighlight}>
-      <p>Quota pendente: {pendingQuota.month} - {pendingQuota.amount}</p>
-      <button className={styles.primaryButton} onClick={onMakePayment}>Pagar Agora</button>
-    </div>
-    <div className={styles.tableWrapper}>
-      <table className={styles.table}>
-        <thead><tr><th>Mês</th><th>Valor</th><th>Status</th></tr></thead>
-        <tbody>
-          <tr><td>Junho 2024</td><td>500,00 MT</td><td><span className={`${styles.statusBadge} ${styles.pending}`}>Pendente</span></td></tr>
-          <tr><td>Maio 2024</td><td>500,00 MT</td><td><span className={`${styles.statusBadge} ${styles.validated}`}>Pago</span></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-);
-
-const HistoryContent: React.FC<{ paymentHistory: PaymentRecord[] }> = ({ paymentHistory }) => (
-  // ... código idêntico ...
-  <div className={styles.pageContainer}>
-    <h2>Histórico de Pagamentos</h2>
-    <div className={styles.tableWrapper}>
-      <table className={styles.table}>
-        <thead><tr><th>Referência</th><th>Descrição</th><th>Valor</th><th>Estado</th></tr></thead>
-        <tbody>
-          {paymentHistory.map(p => (
-            <tr key={p.id}>
-              <td>{p.reference}</td><td>{p.description}</td><td>{p.amount}</td>
-              <td><span className={`${styles.statusBadge} ${styles.validated}`}>Confirmado</span></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-);
-
-const NotificationsContent: React.FC<{ notifications: Notification[] }> = ({ notifications }) => (
-  // ... código idêntico ...
-  <div className={styles.pageContainer}>
-    <h2>Notificações</h2>
-    <div className={styles.notificationListFull}>
-      {notifications.map(n => (
-        <div key={n.id} className={styles.notificationItem}>
-          <div className={`${styles.notificationIcon} ${styles[n.iconColor]}`}><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>{n.icon}</span></div>
-          <div><h5>{n.title}</h5><p>{n.message}</p><span>{n.time}</span></div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-// ===== TRANSFER CONTENT ATUALIZADO =====
+// ---- TransferContent (inalterado, já integrado) ----
 const TransferContent: React.FC<{
   onOpenModal: () => void;
   activeTransfer: Transfer | null;
@@ -535,28 +789,21 @@ const TransferContent: React.FC<{
       default: return status;
     }
   };
-
   const getStatusClass = (status: string) => {
     if (status === "approved") return styles.validated;
     if (status === "rejected" || status === "cancelled") return styles.rejected;
     return styles.pending;
   };
-
   return (
     <div className={styles.pageContainer}>
       <h2>Transferências</h2>
-
-      {/* Solicitação ativa */}
       {activeTransfer ? (
         <div className={styles.activeTransferCard}>
           <div className={styles.activeTransferHeader}>
             <span className={`${styles.statusBadge} ${getStatusClass(activeTransfer.status)}`}>
               {getStatusLabel(activeTransfer.status)}
             </span>
-            <button
-              className={styles.dangerButton}
-              onClick={() => onCancelTransfer(activeTransfer.id)}
-            >
+            <button className={styles.dangerButton} onClick={() => onCancelTransfer(activeTransfer.id)}>
               Cancelar Solicitação
             </button>
           </div>
@@ -574,9 +821,7 @@ const TransferContent: React.FC<{
               <span>{new Date(activeTransfer.created_at).toLocaleDateString()}</span>
             </div>
           </div>
-          <p className={styles.infoText}>
-            Você já possui uma solicitação em andamento. Aguarde a conclusão antes de abrir uma nova.
-          </p>
+          <p className={styles.infoText}>Você já possui uma solicitação em andamento. Aguarde a conclusão antes de abrir uma nova.</p>
         </div>
       ) : (
         <div className={styles.transferInfo}>
@@ -592,8 +837,6 @@ const TransferContent: React.FC<{
           </button>
         </div>
       )}
-
-      {/* Histórico completo */}
       <div>
         <h3 style={{ marginBottom: "1rem", fontSize: "1.25rem", fontWeight: 700 }}>Histórico de Transferências</h3>
         {transfers.length === 0 ? (
@@ -602,21 +845,13 @@ const TransferContent: React.FC<{
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
               <thead>
-                <tr>
-                  <th>Destino</th>
-                  <th>Status</th>
-                  <th>Data</th>
-                </tr>
+                <tr><th>Destino</th><th>Status</th><th>Data</th></tr>
               </thead>
               <tbody>
                 {transfers.map((t) => (
                   <tr key={t.id}>
                     <td>{t.to_association?.name || "N/A"}</td>
-                    <td>
-                      <span className={`${styles.statusBadge} ${getStatusClass(t.status)}`}>
-                        {getStatusLabel(t.status)}
-                      </span>
-                    </td>
+                    <td><span className={`${styles.statusBadge} ${getStatusClass(t.status)}`}>{getStatusLabel(t.status)}</span></td>
                     <td>{new Date(t.created_at).toLocaleDateString()}</td>
                   </tr>
                 ))}
@@ -629,54 +864,18 @@ const TransferContent: React.FC<{
   );
 };
 
-// ===== MODAIS =====
-
-const PaymentModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
-  return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h3>Efetuar Pagamento</h3>
-          <button onClick={onClose} className={styles.modalClose}><span className="material-symbols-outlined">close</span></button>
-        </div>
-        <div className={styles.modalBody}>
-          <div className={styles.formGroup}>
-            <label>Quota</label>
-            <select><option>Junho 2024 - 500,00 MT</option></select>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Método</label>
-            <select><option>M-Pesa</option><option>Transferência</option></select>
-          </div>
-          <div className={styles.modalActions}>
-            <button className={styles.cancelButton} onClick={onClose}>Cancelar</button>
-            <button className={styles.submitButton} onClick={() => { console.log("Pagar"); onClose(); }}>Confirmar</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const NotificationsModal: React.FC<{ isOpen: boolean; onClose: () => void; notifications: Notification[] }> = ({ isOpen, onClose, notifications }) => {
+// ---- Modais que permanecem ----
+const NotificationsModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={`${styles.modal} ${styles.notificationsModal}`} onClick={e => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h3>Notificações</h3>
-          <button onClick={onClose} className={styles.modalClose}><span className="material-symbols-outlined">close</span></button>
+          <button onClick={onClose} className={styles.modalClose}>&times;</button>
         </div>
         <div className={styles.modalBody}>
-          {notifications.map(n => (
-            <div key={n.id} className={styles.notificationItem}>
-              <div className={`${styles.notificationIcon} ${styles[n.iconColor]}`}>
-                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>{n.icon}</span>
-              </div>
-              <div><h5>{n.title}</h5><p>{n.message}</p><span>{n.time}</span></div>
-            </div>
-          ))}
+          <p>Funcionalidade em breve.</p>
         </div>
       </div>
     </div>
@@ -717,7 +916,6 @@ const TransferModal: React.FC<{
 
   useEffect(() => {
     if (!isOpen) return;
-
     const fetchAssociations = async () => {
       setLoadingAssociations(true);
       try {
@@ -725,12 +923,10 @@ const TransferModal: React.FC<{
         setAssociations(data);
       } catch (err) {
         console.error("Erro ao carregar associações", err);
-        alert("Não foi possível carregar a lista de associações.");
       } finally {
         setLoadingAssociations(false);
       }
     };
-
     fetchAssociations();
   }, [isOpen]);
 
@@ -741,15 +937,10 @@ const TransferModal: React.FC<{
       <div className={`${styles.modal} ${styles.transferModal}`} onClick={e => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h3>Nova Solicitação de Transferência</h3>
-          <button onClick={onClose} className={styles.modalClose}>
-            <span className="material-symbols-outlined">close</span>
-          </button>
+          <button onClick={onClose} className={styles.modalClose}>&times;</button>
         </div>
-
         {!profileLoaded ? (
-          <div className={styles.modalBody}>
-            <p>A carregar o seu perfil…</p>
-          </div>
+          <div className={styles.modalBody}><p>A carregar o seu perfil…</p></div>
         ) : (
           <form onSubmit={onSubmit}>
             <div className={styles.modalBody}>
@@ -758,58 +949,29 @@ const TransferModal: React.FC<{
                 {loadingAssociations ? (
                   <p>A carregar lista de associações…</p>
                 ) : (
-                  <select
-                    value={form.targetAssociation}
-                    onChange={(e) => setForm({ ...form, targetAssociation: e.target.value })}
-                    required
-                  >
+                  <select value={form.targetAssociation} onChange={(e) => setForm({ ...form, targetAssociation: e.target.value })} required>
                     <option value="">Selecione...</option>
                     {associations.map((assoc) => (
-                      <option key={assoc.id} value={assoc.id}>
-                        {assoc.name}
-                      </option>
+                      <option key={assoc.id} value={assoc.id}>{assoc.name}</option>
                     ))}
                   </select>
                 )}
               </div>
-
               <div className={styles.formGroup}>
                 <label>Motivo da Transferência</label>
-                <textarea
-                  value={form.reason}
-                  onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                  placeholder="Explique o motivo do pedido (mín. 10 caracteres)"
-                  rows={3}
-                  minLength={10}
-                  required
-                />
+                <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Explique o motivo do pedido (mín. 10 caracteres)" rows={3} minLength={10} required />
               </div>
-
               <div className={styles.formGroup}>
                 <label>Carta de Saída (opcional)</label>
-                <input
-                  type="file"
-                  accept=".pdf,image/*"
-                  onChange={(e) => setForm({ ...form, originDocument: e.target.files?.[0] || null })}
-                />
+                <input type="file" accept=".pdf,image/*" onChange={(e) => setForm({ ...form, originDocument: e.target.files?.[0] || null })} />
               </div>
-
               <div className={styles.formGroup}>
                 <label>Carta de Aceitação (opcional)</label>
-                <input
-                  type="file"
-                  accept=".pdf,image/*"
-                  onChange={(e) => setForm({ ...form, destDocument: e.target.files?.[0] || null })}
-                />
+                <input type="file" accept=".pdf,image/*" onChange={(e) => setForm({ ...form, destDocument: e.target.files?.[0] || null })} />
               </div>
-
               <div className={styles.modalActions}>
-                <button type="button" className={styles.cancelButton} onClick={onClose}>
-                  Cancelar
-                </button>
-                <button type="submit" className={styles.submitButton}>
-                  Enviar Solicitação
-                </button>
+                <button type="button" className={styles.cancelButton} onClick={onClose}>Cancelar</button>
+                <button type="submit" className={styles.submitButton}>Enviar Solicitação</button>
               </div>
             </div>
           </form>

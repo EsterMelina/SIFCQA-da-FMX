@@ -52,10 +52,31 @@ interface Player {
 interface Quota {
   id: number;
   player_id: number;
-  amount: number;
-  status: "paid" | "pending";
+  title?: string;
+  total_amount: number;
+  amount?: number; // mantido para compatibilidade, mas o novo modelo usa total_amount
+  status: "pending" | "paid" | "rejected" | "expired";
   due_date?: string;
   player?: { name: string };
+  year?: number;
+  installment?: number;
+  total_installments?: number;
+  installments?: {
+    total: number;
+    amount_each: number;
+  };
+}
+
+interface PendingPayment {
+  id: number;
+  quota_id: number;
+  player_name: string;
+  quota_title?: string;
+  installment_number: number;
+  amount: number;
+  method: string;
+  reference?: string;
+  status: string;
 }
 
 interface Transfer {
@@ -124,7 +145,7 @@ interface UserProfile {
 const getUserRole = (user: AuthUser | null): "president" | "secretary" => {
   if (!user) return "secretary";
 
-  const pos = user.association_member?.position?.toLowerCase();
+  const pos = user?.association_member?.position?.toLowerCase();
   if (pos === "presidente" || pos === "president") return "president";
   if (pos === "secretário" || pos === "secretary") return "secretary";
 
@@ -188,7 +209,6 @@ const AssociationDashboard: React.FC = () => {
   const [secretariesRefreshKey, setSecretariesRefreshKey] = useState(0);
   const [playersRefreshKey, setPlayersRefreshKey] = useState(0);
 
-  // Novo estado para o perfil do utilizador e controlo do dropdown
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
@@ -205,7 +225,6 @@ const AssociationDashboard: React.FC = () => {
 
   const toggleTheme = () => setTheme((prev) => (prev === "light" ? "dark" : "light"));
 
-  // Carregar perfil do utilizador (avatar, dados da associação, etc.)
   useEffect(() => {
     if (!associationId) return;
     const fetchProfile = async () => {
@@ -219,14 +238,13 @@ const AssociationDashboard: React.FC = () => {
     fetchProfile();
   }, [associationId]);
 
-  // Dashboard stats – apenas se associationId válido
   useEffect(() => {
     if (activeTab !== "dashboard" || !associationId) return;
     const fetchStats = async () => {
       try {
         const [playersRes, quotasRes, transfersRes] = await Promise.all([
           http.get(endpoints.associations.associationPlayers(associationId)),
-          http.get(`/quotas?association_id=${associationId}`),
+          http.get(`/association/quotas`), // sem query param, backend usa user logado
           http.get(`/associations/${associationId}/transfers`),
         ]);
         const players = playersRes.data.data || playersRes.data;
@@ -302,6 +320,10 @@ const AssociationDashboard: React.FC = () => {
     }
   };
 
+  const avatarSrc = userProfile?.user?.name
+    ? `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.user.name)}&background=e60023&color=fff&size=256`
+    : "https://via.placeholder.com/40";
+
   return (
     <div className={styles.container}>
       <div className={styles.layout}>
@@ -365,16 +387,13 @@ const AssociationDashboard: React.FC = () => {
                 }}
               >
                 <div className={styles.avatar}>
-                  <img
-                    src={userProfile?.user?.avatar || "https://via.placeholder.com/40"}
-                    alt="User"
-                  />
+                  <img src={avatarSrc} alt="User" />
                 </div>
                 {showProfileDropdown && userProfile && (
                   <div className={styles.profileDropdown}>
                     <div className={styles.profileHeader}>
                       <img
-                        src={userProfile.user.avatar}
+                        src={avatarSrc}
                         alt={userProfile.user.name}
                         className={styles.profileAvatar}
                       />
@@ -587,53 +606,361 @@ const PlayersSection: React.FC<{
   );
 };
 
-/* ==================== QUOTAS (ASSOCIAÇÃO FILTRADA) ==================== */
+/* ==================== QUOTAS + PAGAMENTOS (MELHORADA) ==================== */
 const QuotasSection: React.FC<{
   addToast: (type: ToastMessage["type"], msg: string) => void;
   role: string;
   associationId: number;
 }> = ({ addToast, role, associationId }) => {
   const [quotas, setQuotas] = useState<Quota[]>([]);
+  const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const fetchQuotas = async () => {
+  // Buscar quotas e pagamentos pendentes
+  const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await http.get(`/quotas?association_id=${associationId}`);
-      setQuotas(res.data.data || res.data);
-    } catch (err: any) { addToast("error", "Erro ao carregar"); } finally { setLoading(false); }
+      const [quotasRes, paymentsRes] = await Promise.all([
+        http.get(`/association/quotas`), // sem query param
+        http.get(`/association/payments`)
+      ]);
+      setQuotas(quotasRes.data.data || quotasRes.data);
+      const payments = paymentsRes.data.data || paymentsRes.data;
+      // Ordenar pagamentos por ID decrescente (mais recentes primeiro)
+      payments.sort((a: PendingPayment, b: PendingPayment) => b.id - a.id);
+      setPendingPayments(payments);
+    } catch (err: any) {
+      addToast("error", "Erro ao carregar dados");
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Confirmar pagamento
+  const handleConfirm = async (paymentId: number) => {
+    try {
+      await http.post(`/association/payments/${paymentId}/confirm`);
+      addToast("success", "Pagamento confirmado!");
+      fetchData();
+    } catch (err: any) {
+      addToast("error", err.response?.data?.message || "Erro ao confirmar");
+    }
   };
 
-  useEffect(() => { fetchQuotas(); }, [associationId]);
-
-  const handleConfirm = async (quotaId: number) => {
+  // Rejeitar pagamento
+  const handleReject = async (paymentId: number) => {
+    const reason = prompt("Motivo da rejeição (opcional):");
     try {
-      await http.post(`/payments/${quotaId}/confirm`);
-      addToast("success", "Pagamento confirmado!");
-      fetchQuotas();
-    } catch (err: any) { addToast("error", err.response?.data?.message || "Erro"); }
+      await http.post(`/association/payments/${paymentId}/reject`, { reason });
+      addToast("success", "Pagamento rejeitado.");
+      fetchData();
+    } catch (err: any) {
+      addToast("error", err.response?.data?.message || "Erro ao rejeitar");
+    }
+  };
+
+  const filteredQuotas = statusFilter === "all"
+    ? quotas
+    : quotas.filter(q => q.status === statusFilter);
+
+  const statusBadgeClass = (status: string) => {
+    switch (status) {
+      case "paid": return styles.statusPaid;
+      case "pending": return styles.statusPending;
+      case "rejected": return styles.statusRejected;
+      case "expired": return styles.statusExpired;
+      default: return "";
+    }
+  };
+
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case "paid": return "Pago";
+      case "pending": return "Pendente";
+      case "rejected": return "Rejeitado";
+      case "expired": return "Expirado";
+      default: return status;
+    }
   };
 
   if (loading) return <div className={styles.loading}>Carregando...</div>;
 
   return (
     <div className={styles.pageContainer}>
-      <h2>Quotizações da Associação</h2>
+      <div className={styles.pageHeader}>
+        <h2>Quotizações da Associação</h2>
+        <div className={styles.headerActions}>
+          <div className={styles.filterGroup}>
+            <label>Filtrar:</label>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="all">Todos</option>
+              <option value="pending">Pendente</option>
+              <option value="paid">Pago</option>
+              <option value="rejected">Rejeitado</option>
+              <option value="expired">Expirado</option>
+            </select>
+          </div>
+          <button className={styles.primaryButton} onClick={() => setShowCreateModal(true)}>
+            <span className="material-symbols-outlined">add</span> Nova Quota
+          </button>
+        </div>
+      </div>
+
+      {/* Lista de quotas */}
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
-          <thead><tr><th>Jogador</th><th>Valor (MT)</th><th>Status</th><th>Vencimento</th>{role === "president" && <th>Ações</th>}</tr></thead>
+          <thead>
+            <tr>
+              <th>Jogador</th>
+              <th>Título</th>
+              <th>Valor total</th>
+              <th>Prestações</th>
+              <th>Estado</th>
+              <th>Vencimento</th>
+            </tr>
+          </thead>
           <tbody>
-            {quotas.map((q) => (
+            {filteredQuotas.map((q) => (
               <tr key={q.id}>
-                <td>{q.player?.name || `#${q.player_id}`}</td><td>{q.amount}</td>
-                <td><span className={`${styles.statusBadge} ${q.status === "paid" ? styles.validated : styles.pending}`}>{q.status === "paid" ? "Pago" : "Pendente"}</span></td>
+                <td>{q.player?.name || `#${q.player_id}`}</td>
+                <td>{q.title || "—"}</td>
+                <td>{q.total_amount} MT</td>
+                <td>
+                  {q.installments?.total
+                    ? `${q.installments.total}x de ${q.installments.amount_each} MT`
+                    : "—"}
+                </td>
+                <td>
+                  <span className={`${styles.statusBadge} ${statusBadgeClass(q.status)}`}>
+                    {statusLabel(q.status)}
+                  </span>
+                </td>
                 <td>{q.due_date || "—"}</td>
-                {role === "president" && (
-                  <td>{q.status === "pending" && <button className={styles.actionBtn} onClick={() => handleConfirm(q.id)}>Confirmar Pagamento</button>}</td>
-                )}
               </tr>
             ))}
+            {filteredQuotas.length === 0 && (
+              <tr>
+                <td colSpan={6} style={{ textAlign: "center", padding: "2rem" }}>
+                  Nenhuma quota encontrada.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagamentos pendentes */}
+      {pendingPayments.length > 0 && (
+        <div className={styles.pageContainer} style={{ marginTop: "2rem" }}>
+          <h3 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "1rem" }}>
+            Pagamentos por confirmar
+          </h3>
+          <div className={styles.pendingPaymentsList}>
+            {pendingPayments.map((payment) => (
+              <div key={payment.id} className={styles.paymentCard}>
+                <div className={styles.paymentInfo}>
+                  <strong>{payment.player_name}</strong>
+                  <span>Quota: {payment.quota_title || `#${payment.quota_id}`}</span>
+                  <span>Prestação {payment.installment_number} – {payment.amount} MT</span>
+                  <span className={styles.paymentMethod}>
+                    {payment.method} {payment.reference ? `(ref: ${payment.reference})` : ""}
+                  </span>
+                </div>
+                <div className={styles.paymentActions}>
+                  <button
+                    className={styles.approveButton}
+                    onClick={() => handleConfirm(payment.id)}
+                  >
+                    Confirmar
+                  </button>
+                  <button
+                    className={styles.rejectButton}
+                    onClick={() => handleReject(payment.id)}
+                  >
+                    Rejeitar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showCreateModal && (
+        <CreateQuotaModal
+          associationId={associationId}
+          addToast={addToast}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            setShowCreateModal(false);
+            addToast("success", "Quota criada com sucesso!");
+            fetchData();
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+/* ==================== MODAL CRIAÇÃO DE QUOTA (MELHORADA) ==================== */
+const CreateQuotaModal: React.FC<{
+  associationId: number;
+  addToast: (type: ToastMessage["type"], msg: string) => void;
+  onClose: () => void;
+  onSuccess: () => void;
+}> = ({ associationId, addToast, onClose, onSuccess }) => {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [loadingPlayers, setLoadingPlayers] = useState(false);
+  const [form, setForm] = useState({
+    player_id: "",
+    title: "",
+    total_amount: "",
+    due_date: new Date().toISOString().split("T")[0],
+  });
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const fetchPlayers = async () => {
+      setLoadingPlayers(true);
+      try {
+        const res = await http.get(endpoints.associations.associationPlayers(associationId));
+        setPlayers(res.data.data || res.data);
+      } catch (err) {
+        addToast("error", "Erro ao carregar jogadores");
+      } finally {
+        setLoadingPlayers(false);
+      }
+    };
+    fetchPlayers();
+  }, [associationId, addToast]);
+
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    if (!form.player_id) newErrors.player_id = "Seleccione um jogador.";
+    if (!form.title.trim()) newErrors.title = "O título é obrigatório.";
+    if (!form.total_amount || isNaN(Number(form.total_amount)) || Number(form.total_amount) <= 0) {
+      newErrors.total_amount = "Valor deve ser superior a 0.";
+    }
+    if (!form.due_date) newErrors.due_date = "Data obrigatória.";
+    else if (new Date(form.due_date) < new Date(new Date().setHours(0,0,0,0))) {
+      newErrors.due_date = "Data deve ser futura.";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      // Envio sem association_id, backend usa user logado
+      await http.post("/association/quotas", {
+        player_id: Number(form.player_id),
+        title: form.title.trim(),
+        total_amount: Number(form.total_amount),
+        due_date: form.due_date,
+      });
+      onSuccess();
+    } catch (err: any) {
+      addToast("error", err.response?.data?.message || "Erro ao criar quota");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3>Nova Quota</h3>
+          <button onClick={onClose} className={styles.modalClose} disabled={loading}>×</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className={styles.modalBody}>
+            <div className={styles.formGroup}>
+              <label>Jogador *</label>
+              {loadingPlayers ? (
+                <p>A carregar...</p>
+              ) : (
+                <select
+                  value={form.player_id}
+                  onChange={(e) => {
+                    setForm({ ...form, player_id: e.target.value });
+                    if (errors.player_id) setErrors({ ...errors, player_id: "" });
+                  }}
+                  required
+                >
+                  <option value="">Selecione...</option>
+                  {players.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.user?.name || `#${p.id}`}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {errors.player_id && <span className={styles.fieldError}>{errors.player_id}</span>}
+            </div>
+            <div className={styles.formGroup}>
+              <label>Título *</label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => {
+                  setForm({ ...form, title: e.target.value });
+                  if (errors.title) setErrors({ ...errors, title: "" });
+                }}
+                placeholder="ex: Quota Anual 2026"
+                required
+              />
+              {errors.title && <span className={styles.fieldError}>{errors.title}</span>}
+            </div>
+            <div className={styles.formGroup}>
+              <label>Valor Total (MT) *</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={form.total_amount}
+                onChange={(e) => {
+                  setForm({ ...form, total_amount: e.target.value });
+                  if (errors.total_amount) setErrors({ ...errors, total_amount: "" });
+                }}
+                required
+              />
+              {errors.total_amount && <span className={styles.fieldError}>{errors.total_amount}</span>}
+            </div>
+            <div className={styles.formGroup}>
+              <label>Data de Vencimento *</label>
+              <input
+                type="date"
+                value={form.due_date}
+                onChange={(e) => {
+                  setForm({ ...form, due_date: e.target.value });
+                  if (errors.due_date) setErrors({ ...errors, due_date: "" });
+                }}
+                required
+              />
+              {errors.due_date && <span className={styles.fieldError}>{errors.due_date}</span>}
+            </div>
+            <p style={{ fontSize: "0.75rem", color: "var(--color-on-surface-variant)", marginTop: "-0.5rem" }}>
+              Serão criadas automaticamente 2 prestações de igual valor.
+            </p>
+          </div>
+          <div className={styles.modalActions}>
+            <button type="button" onClick={onClose} className={styles.cancelButton} disabled={loading}>
+              Cancelar
+            </button>
+            <button type="submit" className={styles.submitButton} disabled={loading}>
+              {loading ? "Criando..." : "Criar Quota"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

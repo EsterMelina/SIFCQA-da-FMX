@@ -263,18 +263,76 @@ Route::middleware(['auth:sanctum'])->group(function () {
 | QUOTAS
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
-     // Quotas da associação (filtrar por association_id)
-    Route::get('/quotas', [QuotaController::class, 'index']); // aceitar ?association_id=
-    Route::get('quotas', [QuotaController::class, 'index']);
-    Route::get('players/{player}/quotas', [QuotaController::class, 'playerQuotas']);
+
+ 
+/*
+|--------------------------------------------------------------------------
+| Quota System — API Routes
+|--------------------------------------------------------------------------
+|
+| Adicionar dentro do grupo auth:sanctum existente no teu api.php.
+|
+| Exemplo de integração:
+|
+|   Route::middleware(['auth:sanctum'])->group(function () {
+|       require base_path('routes/quota.php');
+|   });
+|
+*/
+
+// ═══════════════════════════════════════════════════════
+//  ASSOCIAÇÃO — Gestão de quotas e aprovação de pagamentos
+// ═══════════════════════════════════════════════════════
+Route::middleware(['auth:sanctum'])->prefix('association')->name('association.')->group(function () {
+
+    // Quotas
+    Route::post('quotas', [QuotaController::class, 'store'])->name('quotas.store');
+    Route::get('quotas', [QuotaController::class, 'associationIndex'])->name('quotas.index');
+    Route::get('quotas/{quota}', [QuotaController::class, 'associationShow'])->name('quotas.show');
+
+    // Aprovação de pagamentos
+    Route::get('payments', [QuotaController::class, 'pendingPayments'])->name('payments.pending');
+    Route::post('payments/{payment}/confirm', [QuotaController::class, 'confirm'])->name('payments.confirm');
+    Route::post('payments/{payment}/reject', [QuotaController::class, 'reject'])->name('payments.reject');
 });
 
-Route::middleware(['auth:sanctum'])->group(function () {
+Route::middleware(['auth:sanctum', 'role:player'])
+    ->prefix('player')
+    ->name('player.')
+    ->group(function () {
 
-    Route::post('quotas', [QuotaController::class, 'store'])
-        ->middleware('permission:define_quota');
+        // Lista quotas com detalhe de prestações
+        Route::get('quotas', [QuotaController::class, 'playerIndex'])
+            ->name('quotas.index');
+
+        // Detalhe de uma quota específica
+        Route::get('quotas/{quota}', [QuotaController::class, 'playerShow'])
+            ->name('quotas.show');
+
+        // Submeter pagamento de uma prestação
+        Route::post('quotas/{quota}/pay', [QuotaController::class, 'pay'])
+            ->name('quotas.pay');
+
+        // Histórico de pagamentos
+        Route::get('payments', [QuotaController::class, 'playerPayments'])
+            ->name('payments.index');
+        
 });
+
+
+
+// Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
+//      // Quotas da associação (filtrar por association_id)
+//     Route::get('/quotas', [QuotaController::class, 'index']); // aceitar ?association_id=
+//     Route::get('quotas', [QuotaController::class, 'index']);
+//     Route::get('players/{player}/quotas', [QuotaController::class, 'playerQuotas']);
+// });
+
+// Route::middleware(['auth:sanctum'])->group(function () {
+
+//     Route::post('quotas', [QuotaController::class, 'store'])
+//         ->middleware('permission:define_quota');
+// });
 
 
 /*

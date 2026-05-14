@@ -1509,3 +1509,182 @@
 .profileDetails .material-symbols-outlined {
   font-size: 18px;
 }
+/* ==================== QUOTAS ==================== */
+.headerActions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filterGroup label {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.filterGroup select {
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-outline-variant);
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+}
+
+/* Estados das quotas */
+.statusBadge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.statusPending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.dark .statusPending {
+  background-color: #3e3520;
+  color: #ffc107;
+}
+
+.statusPaid {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.dark .statusPaid {
+  background-color: #1e3a2a;
+  color: #81c784;
+}
+
+.statusRejected {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.dark .statusRejected {
+  background-color: #4a2529;
+  color: #ef9a9a;
+}
+
+.statusExpired {
+  background-color: #e2e3e5;
+  color: #383d41;
+}
+
+.dark .statusExpired {
+  background-color: #2b2d2f;
+  color: #b0b3b5;
+}
+
+/* ==================== PAGAMENTOS PENDENTES ==================== */
+.pendingPaymentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.paymentCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  transition: box-shadow 0.2s;
+}
+
+.paymentCard:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.paymentInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 180px;
+}
+
+.paymentInfo strong {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-on-surface);
+}
+
+.paymentInfo span {
+  font-size: 0.8125rem;
+  color: var(--color-on-surface-variant);
+}
+
+.paymentMethod {
+  font-style: italic;
+}
+
+.paymentActions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+/* Botões de confirmar/rejeitar (se não existirem ainda) */
+.approveButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.75rem;
+  background: var(--color-tertiary);
+  color: white;
+  border: none;
+  border-radius: 2rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,153,36,0.2);
+  transition: background 0.2s, transform 0.1s;
+}
+
+.approveButton:hover {
+  background: #007a2e;
+  transform: translateY(-1px);
+}
+
+.rejectButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.75rem;
+  background: transparent;
+  border: 2px solid var(--color-error);
+  color: var(--color-error);
+  border-radius: 2rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.rejectButton:hover {
+  background: var(--color-error);
+  color: white;
+}
+.fieldError {
+  color: var(--color-error);
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
