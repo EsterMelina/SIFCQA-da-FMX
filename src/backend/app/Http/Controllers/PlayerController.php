@@ -8,6 +8,9 @@ use Illuminate\Http\Request;
 use App\Models\Association;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\Facade\Pdf as PDF2;
+
 class PlayerController extends Controller
 {
     protected PlayerService $service;
@@ -16,6 +19,122 @@ class PlayerController extends Controller
     {
         $this->service = $service;
     }
+
+
+//     public function indexByAssociation($associationId)
+// {
+//     $players = Player::with(['user', 'association'])
+//         ->where('association_id', $associationId)
+//         ->get()
+//         ->map(function ($player) {
+
+//             $joinedAt = $player->created_at;
+
+//             return [
+//                 'player_id' => $player->id,
+
+//                 // USER
+//                 'user_id' => $player->user->id,
+//                 'name' => $player->user->name,
+//                 'email' => $player->user->email,
+
+//                 // PLAYER INFO
+//                 'association_id' => $player->association_id,
+//                 'association_name' => $player->association->name ?? null,
+//                 'position' => $player->position,
+//                 'active' => $player->active,
+
+//                 // TEMPO NO CLUBE
+//                 'joined_at' => $joinedAt,
+//                 'years_in_association' => $joinedAt->diffInYears(now()),
+//                 'months_in_association' => $joinedAt->diffInMonths(now()),
+//                 'days_in_association' => $joinedAt->diffInDays(now()),
+//             ];
+//         });
+
+//     return response()->json([
+//         'association_id' => $associationId,
+//         'total_players' => $players->count(),
+//         'players' => $players,
+//     ]);
+// }
+public function nationalReport()
+{
+    try {
+
+        $now = now();
+
+        $players = Player::with(['user', 'association'])->get()->map(function ($player) use ($now) {
+
+            return [
+                'player_id' => $player->id ?? '-',
+                'name' => $player->user?->name ?? '-',
+                'email' => $player->user?->email ?? '-',
+                'association_name' => $player->association?->name ?? '-',
+                'position' => $player->position ?? '-',
+                'active' => $player->active ? 'Sim' : 'Não',
+                'joined_at' => optional($player->created_at)->format('Y-m-d') ?? '-',
+                'years_in_association' => $player->created_at?->diffInYears($now) ?? 0,
+            ];
+        });
+
+        $logoPath = public_path('images/logo.png');
+
+        $logo = file_exists($logoPath)
+            ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+            : null;
+
+        $pdf = Pdf::loadView('reports.players-national', [
+            'players' => $players,
+            'logo' => $logo,
+            'generated_at' => $now->format('Y-m-d H:i:s'),
+            'total' => $players->count(),
+        ]);
+
+        return $pdf->download('relatorio-nacional-jogadores.pdf');
+
+    } catch (\Throwable $e) {
+        Log::error('PDF ERROR', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+        return response()->json([
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->line ?? null,
+        ], 500);
+    }
+}
+
+public function indexNacional()
+{
+
+    $players = Player::with(['user', 'association'])
+        ->get()
+        ->map(function ($player) {
+
+            $joinedAt = $player->created_at;
+
+            return [
+                'player_id' => $player->id,
+                'user_id' => $player->user->id,
+                'name' => $player->user->name,
+                'email' => $player->user->email,
+                'association_name' => $player->association->name ?? null,
+                'position' => $player->position,
+                'active' => $player->active,
+                'joined_at' => $joinedAt->format('Y-m-d'),
+                'years_in_association' => $joinedAt->diffInYears(now()),
+            ];
+        });
+
+    return response()->json([
+        'total_players' => $players->count(),
+        'players' => $players,
+    ]);
+}
 
     public function myProfile()
 {

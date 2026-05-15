@@ -85,6 +85,7 @@ class FmxController extends Controller
         $data = $request->validate([
             'user_id'  => 'required|exists:users,id',
             'position' => 'required|string|max:100',
+            'active'   => ['sometimes', 'boolean'],
         ]);
 
         $staff = $this->service->createStaff($data);
@@ -98,7 +99,8 @@ class FmxController extends Controller
     public function updateStaff(Request $request, int $id)
     {
         $data = $request->validate([
-            'position' => ['sometimes', 'string'],
+            'user_id'  => 'required|exists:users,id',
+            'position' => 'required|string|max:100',
             'active'   => ['sometimes', 'boolean'],
         ]);
 

@@ -200,51 +200,147 @@ const PlayerDashboard: React.FC = () => {
 
   const handleViewDigitalCard = () => console.log("Ver Cartão Digital");
 
+  // const handleTransferSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   if (!profileLoaded || playerData.fromAssociationId === null) {
+  //     alert("Ainda estamos a carregar os seus dados. Aguarde um instante.");
+  //     return;
+  //   }
+  //   if (!transferForm.targetAssociation) {
+  //     alert("Selecione a associação de destino.");
+  //     return;
+  //   }
+  //   if (!transferForm.reason || transferForm.reason.trim().length < 10) {
+  //     alert("O motivo deve ter pelo menos 10 caracteres.");
+  //     return;
+  //   }
+
+  //   const formData = new FormData();
+  //   formData.append("player_id", playerData.playerId);
+  //   formData.append("from_association_id", String(playerData.fromAssociationId));
+  //   formData.append("to_association_id", transferForm.targetAssociation);
+  //   formData.append("reason", transferForm.reason);
+  //   if (transferForm.originDocument) {
+  //     formData.append("origin_document", transferForm.originDocument);
+  //   }
+  //   if (transferForm.destDocument) {
+  //     formData.append("dest_document", transferForm.destDocument);
+  //   }
+
+  //   try {
+  //     await http.post(endpoints.players.transferRequest, formData, {
+  //       headers: { "Content-Type": "multipart/form-data" },
+  //     });
+  //     alert("Solicitação de transferência enviada com sucesso!");
+  //     setShowTransferModal(false);
+  //     setTransferForm({ targetAssociation: "", reason: "", originDocument: null, destDocument: null });
+  //     const { data } = await http.get(`/players/${playerData.playerId}/transfers`);
+  //     setTransfers(data);
+  //     const active = data.find(
+  //       (t: Transfer) => t.status === "pending_origin" || t.status === "pending_destination"
+  //     );
+  //     setActiveTransfer(active || null);
+  //   } catch (error) {
+  //     console.error("Erro ao enviar transferência:", error);
+  //     alert("Erro ao enviar solicitação.");
+  //   }
+  // };
+
   const handleTransferSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!profileLoaded || playerData.fromAssociationId === null) {
-      alert("Ainda estamos a carregar os seus dados. Aguarde um instante.");
-      return;
-    }
-    if (!transferForm.targetAssociation) {
-      alert("Selecione a associação de destino.");
-      return;
-    }
-    if (!transferForm.reason || transferForm.reason.trim().length < 10) {
-      alert("O motivo deve ter pelo menos 10 caracteres.");
-      return;
-    }
+  e.preventDefault();
 
-    const formData = new FormData();
-    formData.append("player_id", playerData.playerId);
-    formData.append("from_association_id", String(playerData.fromAssociationId));
-    formData.append("to_association_id", transferForm.targetAssociation);
-    formData.append("reason", transferForm.reason);
-    if (transferForm.originDocument) {
-      formData.append("origin_document", transferForm.originDocument);
-    }
-    if (transferForm.destDocument) {
-      formData.append("dest_document", transferForm.destDocument);
-    }
+  if (!profileLoaded || playerData.fromAssociationId === null) {
+    alert("Ainda estamos a carregar os seus dados. Aguarde um instante.");
+    return;
+  }
 
-    try {
-      await http.post(endpoints.players.transferRequest, formData, {
+  if (!transferForm.targetAssociation) {
+    alert("Selecione a associação de destino.");
+    return;
+  }
+
+  if (!transferForm.reason || transferForm.reason.trim().length < 10) {
+    alert("O motivo deve ter pelo menos 10 caracteres.");
+    return;
+  }
+
+  const formData = new FormData();
+
+  formData.append("player_id", playerData.playerId);
+  formData.append("from_association_id", String(playerData.fromAssociationId));
+  formData.append("to_association_id", transferForm.targetAssociation);
+  formData.append("reason", transferForm.reason);
+
+  if (transferForm.originDocument) {
+    formData.append("origin_document", transferForm.originDocument);
+  }
+
+  if (transferForm.destDocument) {
+    formData.append("dest_document", transferForm.destDocument);
+  }
+
+  // 🔥 DEBUG - O QUE ESTÁ A SER ENVIADO
+  console.log("🚀 TRANSFER REQUEST START");
+  console.log("player_id:", playerData.playerId);
+  console.log("from_association_id:", playerData.fromAssociationId);
+  console.log("to_association_id:", transferForm.targetAssociation);
+  console.log("reason:", transferForm.reason);
+  console.log("originDocument:", transferForm.originDocument);
+  console.log("destDocument:", transferForm.destDocument);
+
+  // FormData não mostra bem no console, então iteramos:
+  console.log("📦 FORM DATA ENVIADO:");
+  for (const pair of formData.entries()) {
+    console.log(pair[0], pair[1]);
+  }
+
+  try {
+    const response = await http.post(
+      endpoints.players.transferRequest,
+      formData,
+      {
         headers: { "Content-Type": "multipart/form-data" },
-      });
-      alert("Solicitação de transferência enviada com sucesso!");
-      setShowTransferModal(false);
-      setTransferForm({ targetAssociation: "", reason: "", originDocument: null, destDocument: null });
-      const { data } = await http.get(`/players/${playerData.playerId}/transfers`);
-      setTransfers(data);
-      const active = data.find(
-        (t: Transfer) => t.status === "pending_origin" || t.status === "pending_destination"
-      );
-      setActiveTransfer(active || null);
-    } catch (error) {
-      console.error("Erro ao enviar transferência:", error);
-      alert("Erro ao enviar solicitação.");
-    }
-  };
+      }
+    );
+
+    // 🔥 DEBUG - RESPOSTA
+    console.log("✅ TRANSFER RESPONSE:", response);
+    console.log("✅ TRANSFER RESPONSE DATA:", response.data);
+
+    alert("Solicitação de transferência enviada com sucesso!");
+
+    setShowTransferModal(false);
+    setTransferForm({
+      targetAssociation: "",
+      reason: "",
+      originDocument: null,
+      destDocument: null,
+    });
+
+    const { data } = await http.get(
+      `/players/${playerData.playerId}/transfers`
+    );
+
+    console.log("📥 TRANSFERS LIST:", data);
+
+    setTransfers(data);
+
+    const active = data.find(
+      (t: Transfer) =>
+        t.status === "pending_origin" || t.status === "pending_destination"
+    );
+
+    setActiveTransfer(active || null);
+  } catch (error: any) {
+    // 🔥 DEBUG - ERRO COMPLETO
+    console.log("❌ TRANSFER ERROR:", error);
+    console.log("❌ RESPONSE ERROR:", error.response);
+    console.log("❌ ERROR DATA:", error.response?.data);
+    console.log("❌ STATUS:", error.response?.status);
+
+    alert("Erro ao enviar solicitação.");
+  }
+};
 
   const handleCancelTransfer = async (transferId: number) => {
     if (!confirm("Tem certeza que deseja cancelar esta solicitação?")) return;

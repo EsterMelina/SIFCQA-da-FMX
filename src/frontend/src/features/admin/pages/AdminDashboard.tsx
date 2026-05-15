@@ -493,7 +493,7 @@ const PresidenteSection: React.FC<{
   const fetchPresident = async () => {
     setLoading(true);
     try {
-      const res = await http.get("/admin/fmx/staff?position=Presidente");
+      const res = await http.get("/fmx/staff?position=Presidente");
       const list = res.data.data || res.data;
       setPresident(list.length > 0 ? list[0] : null);
     } catch {
@@ -509,7 +509,7 @@ const PresidenteSection: React.FC<{
     if (!president) return;
     if (!confirm("Tem certeza que deseja suspender o presidente?")) return;
     try {
-      await http.patch(`/admin/fmx/staff/${president.id}/status`, { active: false });
+      await http.patch(`/fmx/staff/${president.id}/status`, { active: false });
       addToast("success", "Presidente suspenso");
       fetchPresident();
     } catch (err: any) { addToast("error", err.response?.data?.message || "Erro"); }
@@ -983,16 +983,10 @@ const PresidentModal: React.FC<{
   const [loading, setLoading] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await http.get(endpoints.users.base);
-        setAvailableUsers(res.data.data || res.data);
-      } catch {}
-    };
-    if (isOpen) fetchUsers();
-  }, [isOpen]);
+  // ID estável para evitar reset desnecessário do formulário
+  const presidentId = currentPresident?.id;
 
+  // Preenche o formulário apenas quando o ID do presidente realmente muda
   useEffect(() => {
     if (mode === "edit" && currentPresident) {
       setForm({
@@ -1003,18 +997,59 @@ const PresidentModal: React.FC<{
     } else {
       setForm({ user_id: "", position: "Presidente", active: true });
     }
-  }, [mode, currentPresident]);
+  }, [mode, presidentId]); // ✅ dependência apenas do ID
+
+  // Carrega utilizadores e filtra os que já são presidentes ativos
+  useEffect(() => {
+    const fetchData = async () => {
+    
+      try {
+        const [usersRes, presidentsRes] = await Promise.all([
+          http.get(endpoints.users.base),
+          http.get("/fmx/staff?position=Presidente"),
+        ]);
+
+        const allUsers: User[] = usersRes.data.data || usersRes.data;
+        const presidents: PresidentData[] = presidentsRes.data.data || presidentsRes.data;
+
+        // IDs dos utilizadores que já são presidentes ativos
+        const presidentUserIds = presidents
+          .filter((p) => p.active)
+          .map((p) => p.user_id);
+
+        // Exclui presidentes ativos, exceto o próprio (se estiver em edição)
+        const filtered = allUsers.filter(
+          (u) =>
+            !presidentUserIds.includes(u.id) ||
+            (mode === "edit" && currentPresident && u.id === currentPresident.user_id)
+        );
+
+        setAvailableUsers(filtered);
+      } catch {
+        // fallback: exibe todos os utilizadores se a filtragem falhar
+        try {
+          const res = await http.get(endpoints.users.base);
+          setAvailableUsers(res.data.data || res.data);
+        } catch {}
+      }
+    };
+
+    if (isOpen) fetchData();
+  }, [isOpen, mode, presidentId]); // recarrega se o presidente editado mudar
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
+      let response;
       const payload = { ...form, user_id: Number(form.user_id) };
+console.log("PAYLOAD ENVIADO:", payload);
       if (mode === "create") {
-        await http.post("/fmx/staff", payload);
+        response = await http.post("/fmx/staff", payload); // ✅ endpoint corrigido
       } else {
-        await http.put(`/fmx/staff/${currentPresident?.id}`, payload);
+         response = await http.put(`/fmx/staff/${currentPresident?.id}`, payload); // ✅ endpoint corrigido
       }
+      console.log("RESPOSTA RECEBIDA:", response.data);
       onSuccess();
     } catch (err: any) {
       alert(err.response?.data?.message || "Erro");
@@ -1024,6 +1059,7 @@ const PresidentModal: React.FC<{
   };
 
   if (!isOpen) return null;
+
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -1035,10 +1071,16 @@ const PresidentModal: React.FC<{
           <div className={styles.modalBody}>
             <div className={styles.formGroup}>
               <label>Utilizador</label>
-              <select value={form.user_id} onChange={(e) => setForm({ ...form, user_id: e.target.value })} required>
+              <select
+                value={form.user_id}
+                onChange={(e) => setForm({ ...form, user_id: e.target.value })}
+                required
+              >
                 <option value="">Selecione um utilizador</option>
                 {availableUsers.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.email})
+                  </option>
                 ))}
               </select>
             </div>
@@ -1048,12 +1090,19 @@ const PresidentModal: React.FC<{
             </div>
             <div className={styles.formGroup}>
               <label>
-                <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} /> Ativo
+                <input
+                  type="checkbox"
+                  checked={form.active}
+                  onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                />{" "}
+                Ativo
               </label>
             </div>
           </div>
           <div className={styles.modalActions}>
-            <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
+            <button type="button" onClick={onClose} className={styles.cancelButton}>
+              Cancelar
+            </button>
             <button type="submit" className={styles.submitButton} disabled={loading}>
               {loading ? "Salvando..." : "Guardar"}
             </button>

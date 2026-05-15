@@ -590,3 +590,156 @@
   font-size: 0.75rem;
   color: var(--color-on-surface-variant);
 }
+/* Botão de PDF – semelhante ao primaryButton mas com cor específica */
+.pdfButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background-color: #2c3e50; /* tom escuro */
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.pdfButton:hover {
+  background-color: #1a252f;
+}
+
+/* Ajuste para a tabela ficar com scroll horizontal em ecrãs pequenos */
+.tableWrapper {
+  overflow-x: auto;
+}
+.pdfButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background-color: #2c3e50;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.pdfButton:hover {
+  background-color: #1a252f;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+/* Área de filtros */
+.filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+/* Campo de pesquisa */
+.searchInput {
+  flex: 1 1 250px;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--color-outline, #ccc);
+  border-radius: 8px;
+  background-color: var(--color-surface, #fff);
+  font-size: 0.9rem;
+  color: var(--color-on-surface, #333);
+  transition: border-color 0.2s;
+}
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-primary, #0d6efd);
+}
+
+/* Select de filtro (activo/inactivo) */
+.filterSelect {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--color-outline, #ccc);
+  border-radius: 8px;
+  background-color: var(--color-surface, #fff);
+  font-size: 0.9rem;
+  color: var(--color-on-surface, #333);
+  min-width: 160px;
+}
+
+/* Botão de PDF (já existia, mas garante que está) */
+.pdfButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background-color: #2c3e50;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.pdfButton:hover {
+  background-color: #1a252f;
+}
+
+/* Tabela com scroll horizontal */
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.searchInput {
+  flex: 1 1 250px;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--color-outline, #ccc);
+  border-radius: 8px;
+  background-color: var(--color-surface, #fff);
+  font-size: 0.9rem;
+  color: var(--color-on-surface, #333);
+  transition: border-color 0.2s;
+}
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-primary, #0d6efd);
+}
+
+.filterSelect {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--color-outline, #ccc);
+  border-radius: 8px;
+  background-color: var(--color-surface, #fff);
+  font-size: 0.9rem;
+  color: var(--color-on-surface, #333);
+  min-width: 160px;
+}
+
+.pdfButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background-color: #2c3e50;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.pdfButton:hover {
+  background-color: #1a252f;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}

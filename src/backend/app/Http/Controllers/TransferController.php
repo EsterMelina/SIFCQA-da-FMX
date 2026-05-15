@@ -20,11 +20,29 @@ class TransferController extends Controller
     public function store(Request $request)
     {
 
-    logger()->info('USER AUTH CHECK', [
-    'user' => auth()->user(),
-    'roles' => auth()->user()?->roles,
-]);
+     Log::info('🔥 TRANSFER DEBUG FULL', [
+        'method' => $request->method(),
+        'url' => $request->fullUrl(),
 
+        // 👇 dados normais
+        'input' => $request->all(),
+
+        // 👇 raw body (muito importante para FormData / JSON)
+        'content' => $request->getContent(),
+
+        // 👇 headers úteis
+        'headers' => $request->headers->all(),
+
+        // 👇 auth user REAL (aqui descobres o problema de role)
+        'auth_user' => auth()->user(),
+
+        // 👇 roles reais do Spatie
+        'roles' => auth()->user()?->getRoleNames(),
+
+        // 👇 IP
+        'ip' => $request->ip(),
+    ]);
+    
     Log::info('REQUEST transferencia', [
     'method' => request()->method(),
     'url' => request()->fullUrl(),
@@ -154,6 +172,7 @@ class TransferController extends Controller
 
 public function playerTransfers(int $playerId)
 {
+
     $user = auth()->user();
 
     if (!$user->player) {
@@ -172,6 +191,7 @@ public function playerTransfers(int $playerId)
 
 public function associationTransfers(int $associationId)
 {
+
     $relations = [
         'player.user',
         'fromAssociation',

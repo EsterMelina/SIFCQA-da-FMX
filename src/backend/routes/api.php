@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 use App\Http\Controllers\{
     AuthController,
@@ -122,7 +123,9 @@ Route::middleware(['auth:sanctum', 'role:fmx|admin'])->prefix('fmx')->group(func
     Route::get('users', [UserController::class, 'indexForFmx']);  // NOVO
 
     // JOGADORES (base de dados nacional)
-    Route::get('players', [PlayerController::class, 'index']);    // NOVO (reutiliza o PlayerController)
+    Route::get('players', [PlayerController::class, 'indexNacional']);    // NOVO (reutiliza o PlayerController)
+
+    Route::get('reports/players/national/pdf', [PlayerController::class, 'nationalReport']);  // NOVO
 });
 
 /*
@@ -180,19 +183,6 @@ Route::middleware(['auth:sanctum', 'role:fmx|admin'])
 });
 
 
-
-/*
-|--------------------------------------------------------------------------
-| PLAYERS MANAGMENT
-|--------------------------------------------------------------------------
-*/
-// Route::middleware(['auth:sanctum'])->prefix('players')->group(function () {
-
-//     Route::post('transfer-request', [PlayerController::class, 'requestTransfer']);
-//     Route::get('me', [PlayerController::class, 'me']);
-
-// });
-
 /*
 |--------------------------------------------------------------------------
 | PLAYER SELF SERVICE
@@ -233,9 +223,9 @@ Route::middleware(['auth:sanctum', 'role:player'])->group(function () {
 //     return 'CHEGUEI NA ROTA';
 // })->middleware('auth:sanctum');
 
-Route::middleware(['auth:sanctum'])->group(function () {
+Route::middleware(['auth:sanctum','role:player|association'])->group(function () {
 
- // Jogadores da associação
+    // Jogadores da associação
     Route::get('/associations/{id}/players', [PlayerController::class, 'associationPlayers']);
     
     
@@ -255,7 +245,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     //LISTAR  // Transferências da associação (você já tem o método no controller)
      Route::get('/associations/{id}/transfers', [TransferController::class, 'associationTransfers']);
 });
-
 
 
 /*
@@ -283,7 +272,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 // ═══════════════════════════════════════════════════════
 //  ASSOCIAÇÃO — Gestão de quotas e aprovação de pagamentos
 // ═══════════════════════════════════════════════════════
-Route::middleware(['auth:sanctum'])->prefix('association')->name('association.')->group(function () {
+Route::middleware(['auth:sanctum', 'role:association'])->prefix('association')->name('association.')->group(function () {
 
     // Quotas
     Route::post('quotas', [QuotaController::class, 'store'])->name('quotas.store');
@@ -296,6 +285,10 @@ Route::middleware(['auth:sanctum'])->prefix('association')->name('association.')
     Route::post('payments/{payment}/reject', [QuotaController::class, 'reject'])->name('payments.reject');
 });
 
+
+// ═══════════════════════════════════════════════════════
+//  PLAYER — Gestão de quotas e request de pagamentos
+// ═══════════════════════════════════════════════════════
 Route::middleware(['auth:sanctum', 'role:player'])
     ->prefix('player')
     ->name('player.')
@@ -319,64 +312,6 @@ Route::middleware(['auth:sanctum', 'role:player'])
         
 });
 
-
-
-// Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
-//      // Quotas da associação (filtrar por association_id)
-//     Route::get('/quotas', [QuotaController::class, 'index']); // aceitar ?association_id=
-//     Route::get('quotas', [QuotaController::class, 'index']);
-//     Route::get('players/{player}/quotas', [QuotaController::class, 'playerQuotas']);
-// });
-
-// Route::middleware(['auth:sanctum'])->group(function () {
-
-//     Route::post('quotas', [QuotaController::class, 'store'])
-//         ->middleware('permission:define_quota');
-// });
-
-
-/*
-|--------------------------------------------------------------------------
-| PAYMENTS
-|--------------------------------------------------------------------------
-*/
-// Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
-
-//     Route::get('payments', [PaymentController::class, 'index']);
-// });
-
-// Route::middleware(['auth:sanctum'])->group(function () {
-
-//     Route::post('payments', [PaymentController::class, 'store'])
-//         ->middleware('permission:register_payment');
-
-//     Route::post('payments/{payment}/confirm', [PaymentController::class, 'confirm'])
-//         ->middleware('role:admin|fmx');
-// });
-
-
-
-
-
-/*
-|--------------------------------------------------------------------------
-| PLAYERS MANAGMENT
-|--------------------------------------------------------------------------
-*/
-
-// Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
-
-//     // READ
-//     Route::get('players', [PlayerController::class, 'index']);
-//     Route::get('players/{player}', [PlayerController::class, 'show']);
-//     Route::get('players/{player}/eligibility', [PlayerController::class, 'eligibility']);
-
-//     // WRITE (sem permissions)
-//     Route::post('players', [PlayerController::class, 'store']);
-//     Route::put('players/{player}', [PlayerController::class, 'update']);
-//     Route::patch('players/{player}/status', [PlayerController::class, 'toggleStatus']);
-// });
-
 //==================================================================================================
 //Depois verei permissoes
 //==================================================================================================//
@@ -398,39 +333,6 @@ Route::middleware(['auth:sanctum', 'role:player'])
 
 //     Route::patch('players/{player}/status', [PlayerController::class, 'toggleStatus'])
 //         ->middleware('permission:deactivate_player');
-// });
-
-
-/*
-|--------------------------------------------------------------------------
-| TRANSFERS
-|--------------------------------------------------------------------------
-*/
-// Route::middleware(['auth:sanctum', 'role:admin|fmx|association'])->group(function () {
-
-//     Route::get('transfers', [TransferController::class, 'index']);
-// });
-
-// Route::middleware(['auth:sanctum'])->group(function () {
-
-//     Route::post('transfers', [TransferController::class, 'store'])
-//         ->middleware('permission:create_transfer');
-
-//     Route::post('transfers/{transfer}/cancel', [TransferController::class, 'cancel'])
-//         ->middleware('permission:create_transfer');
-
-//     Route::get('players/{player}/transfers', [TransferController::class, 'playerTransfers']);
-// });
-
-// Route::middleware(['auth:sanctum'])->group(function () {
-
-//     Route::post('transfers', [TransferController::class, 'store'])
-//         ->middleware('role:association');
-
-//     Route::post('transfers/{transfer}/cancel', [TransferController::class, 'cancel'])
-//         ->middleware('role:association');
-
-//     Route::get('players/{player}/transfers', [TransferController::class, 'playerTransfers']);
 // });
 
 

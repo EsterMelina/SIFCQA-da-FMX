@@ -12,7 +12,11 @@ use App\Models\User;
 use App\Services\AuthService;   
 class FmxService
 {
-      protected AuthService $authService;
+    protected AuthService $authService;
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
     // --------------------- FMX (federação) ---------------------
 
     /**
@@ -121,10 +125,8 @@ public function updateStaff(int $id, array $data): FmxStaff
         ->where('fmx_id', $fmxId)
         ->firstOrFail();
 
-    // 🔥 se posição estiver a ser alterada
     if (isset($data['position'])) {
 
-        // remove essa posição de qualquer outro staff
         FmxStaff::where('fmx_id', $fmxId)
             ->where('position', $data['position'])
             ->where('id', '!=', $id)
@@ -134,9 +136,19 @@ public function updateStaff(int $id, array $data): FmxStaff
     }
 
     $staff->update([
+        
+        'user_id' => $data['user_id'],
+        'fmx_id'  => $fmxId,
         'position' => $data['position'] ?? $staff->position,
         'active'   => $data['active'] ?? $staff->active,
     ]);
+
+    // 🔥 NOVO
+    $user = $staff->user;
+
+    if ($user && empty($user->password)) {
+        $this->authService->sendInvite($user);
+    }
 
     return $staff;
 }

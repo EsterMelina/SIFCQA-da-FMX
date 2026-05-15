@@ -1,5 +1,5 @@
 // FmxDashboard.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
 import { useAuth } from "@/app/providers/AuthProvider";
@@ -27,11 +27,19 @@ interface Tournament {
   status: "open" | "ongoing" | "scheduled";
 }
 
-interface Player {
-  id: number;
-  user_id: number;
+interface PlayerData {
+  player_id: number;
+  name: string;
+  email: string;
+  association_name: string;
+  position: string;
   active: boolean;
-  user?: { name: string; email: string };
+  joined_at: string;
+  years_in_association: number;
+  months_in_association: number;
+  days_in_association: number;
+  fide_id?: string | null;
+  rating?: number | null;
 }
 
 interface UserCandidate {
@@ -51,7 +59,7 @@ const FmxDashboard: React.FC = () => {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [associations, setAssociations] = useState<Association[]>([]);
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [players, setPlayers] = useState<PlayerData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,18 +83,32 @@ const FmxDashboard: React.FC = () => {
 
   const toggleTheme = () => setTheme((prev) => (prev === "light" ? "dark" : "light"));
 
-  const fetchData = React.useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      // ============================
+      // ASSOCIAÇÕES
+      // ============================
       if (activeTab === "dashboard" || activeTab === "associations") {
         const res = await http.get("/fmx/associations");
-        setAssociations(res.data.data || res.data);
-      } else if (activeTab === "database") {
+        const data = res.data?.data || res.data || [];
+        setAssociations(Array.isArray(data) ? data : []);
+      }
+      // ============================
+      // JOGADORES (BASE DE DADOS)
+      // ============================
+      else if (activeTab === "database") {
         const res = await http.get("/fmx/players");
-        setPlayers(res.data.data || res.data);
+        // O backend devolve { total_players: N, players: [...] }
+        const playersData =
+          res.data?.players ||          // caso directo: { players: [...] }
+          res.data?.data?.players ||    // caso encapsulado: { data: { players: [...] } }
+          [];
+        setPlayers(Array.isArray(playersData) ? playersData : []);
       }
     } catch (err: any) {
+      console.error(err);
       setError(err.response?.data?.message || "Erro ao carregar dados");
     } finally {
       setLoading(false);
@@ -97,7 +119,7 @@ const FmxDashboard: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  const provinceStats = React.useMemo(() => {
+  const provinceStats = useMemo(() => {
     const map: Record<string, { count: number; active: number }> = {};
     associations.forEach((a) => {
       const match = a.name.match(/de\s+([^\(]+)/i) || a.name.match(/(\w+)$/);
@@ -482,43 +504,222 @@ const AssociationsContent: React.FC<{
   );
 };
 
-/* ==================== BASE DE DADOS (JOGADORES) ==================== */
+/* ==================== BASE DE DADOS (JOGADORES) – CORRIGIDA + SAFE ==================== */
 const DatabaseContent: React.FC<{
-  players: Player[];
+  players: PlayerData[];
   loading: boolean;
   error: string | null;
-}> = ({ players, loading, error }) => (
-  <div className={styles.pageContainer}>
-    <div className={styles.pageHeader}>
-      <h2>Base de Dados Nacional – Jogadores</h2>
-    </div>
-    {loading && <div className={styles.loading}>Carregando...</div>}
-    {error && <div className={styles.error}>{error}</div>}
-    <div className={styles.tableWrapper}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Email</th>
-            <th>Ativo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {players.map((p) => (
-            <tr key={p.id}>
-              <td>{p.user?.name || "N/A"}</td>
-              <td>{p.user?.email || "—"}</td>
-              <td>{p.active ? "Sim" : "Não"}</td>
+}> = ({ players, loading, error }) => {
+  const [search, setSearch] = useState("");
+  const [filterActive, setFilterActive] = useState<boolean | null>(null);
+
+  // Garante que é sempre um array
+  const safePlayers = Array.isArray(players) ? players : [];
+
+  const filtered = safePlayers.filter((p) => {
+    const term = search.toLowerCase();
+    const matchesSearch =
+      term === "" ||
+      (p.name || "").toLowerCase().includes(term) ||
+      (p.email || "").toLowerCase().includes(term) ||
+      (p.association_name || "").toLowerCase().includes(term);
+    const matchesActive = filterActive === null || p.active === filterActive;
+    return matchesSearch && matchesActive;
+  });
+
+  // Função auxiliar para evitar "null" ou "undefined" na UI
+  const safe = (value: any, fallback = "—") => value ?? fallback;
+
+  // const handleDownload = async () => {
+  //   try {
+  //     const res = await http.get("/reports/players/national/pdf", {
+  //       responseType: "blob",
+  //     });
+  //     const url = window.URL.createObjectURL(new Blob([res.data]));
+  //     const a = document.createElement("a");
+  //     a.href = url;
+  //     a.download = "base_dados_nacional_jogadores.pdf";
+  //     document.body.appendChild(a);
+  //     a.click();
+  //     a.remove();
+  //     window.URL.revokeObjectURL(url);
+  //   } catch (err) {
+  //     console.error("Erro ao descarregar o relatório", err);
+  //     alert("Não foi possível gerar o PDF. Tente novamente.");
+  //   }
+  // };
+
+  const handleDownload = async () => {
+
+  console.log("=== INÍCIO DOWNLOAD PDF ===");
+
+  try {
+
+    console.log("A enviar request para /fmx/reports/players/national/pdf");
+
+    const res = await http.get(
+      "/fmx/reports/players/national/pdf",
+      {
+        responseType: "blob",
+      }
+    );
+
+    // =========================================
+    // RESPONSE COMPLETA
+    // =========================================
+    console.log("RESPONSE COMPLETA:", res);
+
+    // =========================================
+    // STATUS
+    // =========================================
+    console.log("STATUS:", res.status);
+
+    // =========================================
+    // HEADERS
+    // =========================================
+    console.log("HEADERS:", res.headers);
+
+    // =========================================
+    // DATA / BLOB
+    // =========================================
+    console.log("DATA:", res.data);
+
+    console.log("TIPO DA DATA:", typeof res.data);
+
+    console.log("É BLOB?", res.data instanceof Blob);
+
+    console.log("TAMANHO BLOB:", res.data.size);
+
+    console.log("TIPO MIME:", res.data.type);
+
+    // =========================================
+    // URL GERADA
+    // =========================================
+    const url = window.URL.createObjectURL(
+      new Blob([res.data])
+    );
+
+    console.log("URL GERADA:", url);
+
+    // =========================================
+    // DOWNLOAD
+    // =========================================
+    const a = document.createElement("a");
+
+    a.href = url;
+
+    a.download = "base_dados_nacional_jogadores.pdf";
+
+    console.log("NOME DOWNLOAD:", a.download);
+
+    document.body.appendChild(a);
+
+    console.log("A iniciar clique automático...");
+
+    a.click();
+
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+
+    console.log("DOWNLOAD FINALIZADO");
+
+  } catch (err: any) {
+
+    console.log("=== ERRO DOWNLOAD PDF ===");
+
+    console.error(err);
+
+    console.log("ERR RESPONSE:", err.response);
+
+    console.log("ERR DATA:", err.response?.data);
+
+    console.log("ERR STATUS:", err.response?.status);
+
+    console.log("ERR HEADERS:", err.response?.headers);
+
+    alert("Não foi possível gerar o PDF. Tente novamente.");
+  }
+};
+
+  return (
+    <div className={styles.pageContainer}>
+      <div className={styles.pageHeader}>
+        <h2>Base de Dados Nacional – Jogadores</h2>
+        <button className={styles.pdfButton} onClick={handleDownload}>
+          <span className="material-symbols-outlined">picture_as_pdf</span> Download Relatório
+        </button>
+      </div>
+
+      <div className={styles.filters}>
+        <input
+          type="text"
+          className={styles.searchInput}
+          placeholder="Pesquisar nome, email ou associação..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          className={styles.filterSelect}
+          value={filterActive === null ? "all" : filterActive ? "active" : "inactive"}
+          onChange={(e) => {
+            const val = e.target.value;
+            setFilterActive(val === "all" ? null : val === "active");
+          }}
+        >
+          <option value="all">Todos os estados</option>
+          <option value="active">Ativos</option>
+          <option value="inactive">Inativos</option>
+        </select>
+      </div>
+
+      {loading && <div className={styles.loading}>Carregando...</div>}
+      {error && <div className={styles.error}>{error}</div>}
+
+      <div className={styles.tableWrapper}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome</th>
+              <th>Email</th>
+              <th>Associação</th>
+              <th>Posição</th>
+              <th>FIDE ID</th>
+              <th>Rating</th>
+              <th>Ativo</th>
+              <th>Ingresso</th>
+              <th>Anos</th>
+              <th>Meses</th>
+              <th>Dias</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {players.length === 0 && !loading && (
-        <div className={styles.empty}>Nenhum jogador encontrado.</div>
-      )}
+          </thead>
+          <tbody>
+            {filtered.map((p) => (
+              <tr key={p.player_id}>
+                <td>{safe(p.player_id)}</td>
+                <td>{safe(p.name)}</td>
+                <td>{safe(p.email)}</td>
+                <td>{safe(p.association_name)}</td>
+                <td>{safe(p.position)}</td>
+                <td>{safe(p.fide_id)}</td>
+                <td>{safe(p.rating)}</td>
+                <td>{p.active ? "Sim" : "Não"}</td>
+                <td>{safe(p.joined_at)}</td>
+                <td>{safe(p.years_in_association)}</td>
+                <td>{safe(p.months_in_association)}</td>
+                <td>{safe(p.days_in_association)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && !loading && (
+          <div className={styles.empty}>Nenhum jogador encontrado.</div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ==================== TORNEIOS ==================== */
 const TournamentsContent: React.FC<{ tournaments: Tournament[] }> = ({ tournaments }) => (

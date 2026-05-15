@@ -978,25 +978,68 @@ const TransfersSection: React.FC<{
   const [showOriginApprove, setShowOriginApprove] = useState<Transfer | null>(null);
   const [showReject, setShowReject] = useState<{ transfer: Transfer; type: "origin" | "destination" } | null>(null);
 
+  // const fetchTransfers = async () => {
+  //   try {
+  //     const res = await http.get(`/associations/${associationId}/transfers`);
+  //     const data = res.data;
+  //     const outgoing = (data.outgoing || []).map((t: Transfer) => ({
+  //       ...t,
+  //       is_origin: true,
+  //     }));
+  //     const incoming = (data.incoming || []).map((t: Transfer) => ({
+  //       ...t,
+  //       is_destination: true,
+  //     }));
+  //     setTransfers([...outgoing, ...incoming]);
+  //   } catch (err: any) {
+  //     addToast("error", "Erro ao carregar transferências");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
   const fetchTransfers = async () => {
-    try {
-      const res = await http.get(`/associations/${associationId}/transfers`);
-      const data = res.data;
-      const outgoing = (data.outgoing || []).map((t: Transfer) => ({
-        ...t,
-        is_origin: true,
-      }));
-      const incoming = (data.incoming || []).map((t: Transfer) => ({
-        ...t,
-        is_destination: true,
-      }));
-      setTransfers([...outgoing, ...incoming]);
-    } catch (err: any) {
-      addToast("error", "Erro ao carregar transferências");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    console.log("➡️ A CHAMAR API TRANSFERS");
+    console.log("ASSOCIATION ID:", associationId);
+
+    const url = `/associations/${associationId}/transfers`;
+    console.log("URL:", url);
+
+    const res = await http.get(url);
+
+    console.log("⬅️ RESPOSTA BRUTA:", res);
+    console.log("⬅️ DATA:", res.data);
+
+    const data = res.data;
+
+    const outgoing = (data.outgoing || []).map((t: Transfer) => ({
+      ...t,
+      is_origin: true,
+    }));
+
+    const incoming = (data.incoming || []).map((t: Transfer) => ({
+      ...t,
+      is_destination: true,
+    }));
+
+    const finalData = [...outgoing, ...incoming];
+
+    console.log("📦 TRANSFERS PROCESSADOS:", finalData);
+
+    setTransfers(finalData);
+  } catch (err: any) {
+    console.log("❌ ERRO COMPLETO:", err);
+    console.log("❌ ERRO RESPONSE:", err.response);
+    console.log("❌ ERRO DATA:", err.response?.data);
+
+    addToast("error", "Erro ao carregar transferências");
+  } finally {
+    setLoading(false);
+  }
+};
+
+  
 
   useEffect(() => { fetchTransfers(); }, [associationId]);
 
