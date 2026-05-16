@@ -11,7 +11,7 @@ type TabType = "dashboard" | "associations" | "database" | "reports" | "tourname
 interface Association {
   id: number;
   name: string;
-  email: string | null;
+  contact_email: string | null;
   phone: string | null;
   address: string | null;
   status: boolean;
@@ -427,27 +427,56 @@ const AssociationsContent: React.FC<{
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
-}> = ({ associations, onEdit, onCreate, onAssignPresident, loading, error, onRefresh }) => {
+}> = ({
+  associations,
+  onEdit,
+  onCreate,
+  onAssignPresident,
+  loading,
+  error,
+  onRefresh,
+}) => {
   const handleToggleStatus = async (assoc: Association) => {
-    if (!confirm(`Deseja ${assoc.status ? "suspender" : "reativar"} ${assoc.name}?`)) return;
+    console.log("🔎 Toggle status associação:", assoc);
+
+    if (!confirm(`Deseja ${assoc.status ? "suspender" : "reativar"} ${assoc.name}?`))
+      return;
+
     try {
-      await http.patch(`/fmx/associations/${assoc.id}/status`, {});
+      const res = await http.patch(
+        `/fmx/associations/${assoc.id}/status`,
+        {}
+      );
+
+      console.log("📡 Response toggle status:", res);
+      console.log("📦 Data:", res.data);
+
       onRefresh();
     } catch (err: any) {
+      console.error("❌ Erro toggle status:", err);
+      console.error("📄 Backend response:", err.response?.data);
+
       alert(err.response?.data?.message || "Erro");
     }
   };
+
+  console.log("📦 ASSOCIATIONS RECEBIDAS:", associations);
+  console.log("📏 TOTAL:", associations?.length);
 
   return (
     <div className={styles.pageContainer}>
       <div className={styles.pageHeader}>
         <h2>Gestão de Associações Provinciais</h2>
+
         <button className={styles.primaryButton} onClick={onCreate}>
-          <span className="material-symbols-outlined">add</span> Nova Associação
+          <span className="material-symbols-outlined">add</span>
+          Nova Associação
         </button>
       </div>
+
       {loading && <div className={styles.loading}>Carregando...</div>}
       {error && <div className={styles.error}>{error}</div>}
+
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead>
@@ -461,43 +490,66 @@ const AssociationsContent: React.FC<{
               <th>Ações</th>
             </tr>
           </thead>
+
           <tbody>
-            {associations.map((a) => (
-              <tr key={a.id}>
-                <td>{a.name}</td>
-                <td>{a.email || "—"}</td>
-                <td>{a.phone || "—"}</td>
-                <td>{a.address || "—"}</td>
-                <td>{a.president?.name || "—"}</td>
-                <td>
-                  <span className={`${styles.status} ${a.status ? styles.active : styles.inactive}`}>
-                    {a.status ? "Ativo" : "Inativo"}
-                  </span>
-                </td>
-                <td>
-                  <div className={styles.actionButtons}>
-                    <button onClick={() => onEdit(a)} title="Editar">
-                      <span className="material-symbols-outlined">edit</span>
-                    </button>
-                    <button onClick={() => onAssignPresident(a)} title="Atribuir Presidente">
-                      <span className="material-symbols-outlined">person_add</span>
-                    </button>
-                    <button
-                      onClick={() => handleToggleStatus(a)}
-                      title={a.status ? "Suspender" : "Reativar"}
+            {associations.map((a, index) => {
+              console.log(`🔎 ITEM [${index}]:`, a);
+
+              return (
+                <tr key={a.id}>
+                  <td>{a.name}</td>
+                  <td>{a.contact_email || "—"}</td>
+                  <td>{a.phone || "—"}</td>
+                  <td>{a.address || "—"}</td>
+                  <td>{a.president?.name || "—"}</td>
+
+                  <td>
+                    <span
+                      className={`${styles.status} ${
+                        a.status ? styles.active : styles.inactive
+                      }`}
                     >
-                      <span className="material-symbols-outlined">
-                        {a.status ? "block" : "check_circle"}
-                      </span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                      {a.status ? "Ativo" : "Inativo"}
+                    </span>
+                  </td>
+
+                  <td>
+                    <div className={styles.actionButtons}>
+                      <button onClick={() => onEdit(a)} title="Editar">
+                        <span className="material-symbols-outlined">
+                          edit
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={() => onAssignPresident(a)}
+                        title="Atribuir Presidente"
+                      >
+                        <span className="material-symbols-outlined">
+                          person_add
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={() => handleToggleStatus(a)}
+                        title={a.status ? "Suspender" : "Reativar"}
+                      >
+                        <span className="material-symbols-outlined">
+                          {a.status ? "block" : "check_circle"}
+                        </span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+
         {associations.length === 0 && !loading && (
-          <div className={styles.empty}>Nenhuma associação cadastrada.</div>
+          <div className={styles.empty}>
+            Nenhuma associação cadastrada.
+          </div>
         )}
       </div>
     </div>

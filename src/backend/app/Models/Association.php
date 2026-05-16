@@ -23,4 +23,5 @@ class Association extends Model
     {
         return $this->hasMany(Player::class);
     }
+
 }
