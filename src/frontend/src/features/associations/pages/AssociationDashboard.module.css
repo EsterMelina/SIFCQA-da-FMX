@@ -1688,3 +1688,272 @@
   font-size: 0.75rem;
   margin-top: 0.25rem;
 }
+
+/* ==================== NOVO DASHBOARD ==================== */
+
+/* Hero do Dashboard */
+.dashboardHero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-surface);
+  border-radius: 1.5rem;
+  padding: 2rem 2rem 1.5rem;
+  border: 1px solid var(--color-outline-variant);
+  margin-bottom: 1.5rem;
+}
+
+.heroText p {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-primary);
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.heroText h2 {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--color-on-surface);
+  margin-bottom: 0.75rem;
+}
+
+.roleBadge {
+  display: inline-block;
+  background: var(--color-primary);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.35rem 1rem;
+  border-radius: 2rem;
+}
+
+.heroIcon span {
+  font-size: 4rem;
+  color: var(--color-primary);
+  opacity: 0.8;
+}
+
+/* Stats com cores individuais */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.statCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: box-shadow 0.2s;
+}
+
+.statCard:hover {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.04);
+}
+
+.statIcon {
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: var(--color-surface-container);
+}
+
+.statIcon span {
+  font-size: 1.75rem;
+}
+
+.cardPlayers .statIcon { background: rgba(230,0,35,0.1); color: var(--color-primary); }
+.cardQuotas .statIcon { background: rgba(0,153,36,0.1); color: var(--color-tertiary); }
+.cardTransfers .statIcon { background: rgba(26,35,126,0.1); color: var(--color-secondary); }
+.cardTotal .statIcon { background: var(--color-surface-container-high); color: var(--color-on-surface-variant); }
+
+.statInfo p {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-on-surface-variant);
+  margin-bottom: 0.25rem;
+}
+
+.statInfo strong {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-on-surface);
+  line-height: 1;
+}
+
+.statInfo small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-on-surface-variant);
+  margin-top: 0.25rem;
+}
+
+/* Dashboard Grid (gráfico + resumo) */
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .dashboardGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chartCard,
+.summaryCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+}
+
+.chartCard h4,
+.summaryCard h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--color-on-surface);
+}
+
+/* Gráfico de barras simples */
+.barChart {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 120px;
+  gap: 0.5rem;
+}
+
+.barColumn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.barWrapper {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.bar {
+  width: 60%;
+  max-width: 30px;
+  background: var(--color-primary);
+  border-radius: 6px 6px 0 0;
+  transition: height 0.4s ease;
+}
+
+.barLabel {
+  margin-top: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-on-surface-variant);
+}
+
+/* Resumo rápido */
+.summaryList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.summaryList li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-on-surface);
+}
+
+.summaryList li .material-symbols-outlined {
+  font-size: 1.25rem;
+  color: var(--color-primary);
+}
+
+/* ==================== PAGAMENTOS PENDENTES (secção extra) ==================== */
+.pendingPaymentsSection {
+  margin-top: 2.5rem;
+}
+
+.pendingPaymentsSection h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--color-on-surface);
+}
+
+/* ==================== BADGES DE ESTADO (TRANSFERÊNCIAS) ==================== */
+.statusBadge {
+  display: inline-block;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.statusPaid,
+.statusSuccess {
+  background: rgba(0,153,36,0.12);
+  color: var(--color-tertiary);
+}
+
+.statusPending {
+  background: rgba(230,0,35,0.12);
+  color: var(--color-primary);
+}
+
+.statusRejected {
+  background: rgba(0,0,0,0.05);
+  color: var(--color-on-surface-variant);
+}
+
+.statusExpired {
+  background: var(--color-surface-container-highest);
+  color: var(--color-on-surface-variant);
+}
+
+/* Estado vazio (já existe, mas reforçamos) */
+.emptyState {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: var(--color-surface);
+  border: 1px dashed var(--color-outline-variant);
+  border-radius: 1rem;
+  margin-top: 2rem;
+}
+
+.emptyState span {
+  font-size: 2.5rem;
+  color: var(--color-on-surface-variant);
+  opacity: 0.5;
+}
+
+.emptyState p {
+  margin-top: 0.5rem;
+  color: var(--color-on-surface-variant);
+}

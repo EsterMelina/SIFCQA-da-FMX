@@ -164,7 +164,7 @@ const AdminDashboard: React.FC = () => {
           />
         );
       case "permissoes":
-        return <PermissoesSection addToast={addToast} />;
+        return <PermissoesSection addToast={addToast} users={users} fetchUsers={fetchUsers} />;
       case "auditoria":
         return <AuditoriaSection />;
       case "sistema":
@@ -584,7 +584,8 @@ const UtilizadoresSection: React.FC<{
   };
 
   const handleToggleStatus = async (user: User) => {
-    const newStatus = user.status === "active" ? "inactive" : "active";
+    const currentStatus = user.status ?? "inactive";
+    const newStatus = currentStatus === "active" ? "inactive" : "active";
     try {
       await http.patch(`${endpoints.users.base}/${user.id}/status`, { status: newStatus });
       addToast("success", "Status alterado");
@@ -629,29 +630,39 @@ const UtilizadoresSection: React.FC<{
             </tr>
           </thead>
           <tbody>
-            {filtered.map((u) => (
-              <tr key={u.id}>
-                <td>{u.name}</td>
-                <td>{u.email}</td>
-                <td>{getRoleNames(u)}</td>
-                <td>
-                  <span className={u.status === "active" ? styles.statusActive : styles.statusInactive}>
-                    {u.status === "active" ? "Ativo" : "Inativo"}
-                  </span>
-                </td>
-                <td>
-                  <button className={styles.actionBtn} onClick={() => onEditUser(u)}>
-                    Editar
-                  </button>
-                  <button className={styles.actionBtn} onClick={() => handleToggleStatus(u)}>
-                    {u.status === "active" ? "Desativar" : "Ativar"}
-                  </button>
-                  <button className={styles.actionBtn} onClick={() => handleDelete(u.id)}>
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {filtered.map((u) => {
+              const status = u.status ?? "inactive";
+              const isOnlyPlayer =
+                u.roles &&
+                u.roles.length === 1 &&
+                u.roles[0].name === "player";
+
+              return (
+                <tr key={u.id}>
+                  <td>{u.name}</td>
+                  <td>{u.email}</td>
+                  <td>{getRoleNames(u)}</td>
+                  <td>
+                    <span className={status === "active" ? styles.statusActive : styles.statusInactive}>
+                      {status === "active" ? "Ativo" : "Inativo"}
+                    </span>
+                  </td>
+                  <td>
+                    {!isOnlyPlayer && (
+                      <button className={styles.actionBtn} onClick={() => onEditUser(u)}>
+                        Editar
+                      </button>
+                    )}
+                    <button className={styles.actionBtn} onClick={() => handleToggleStatus(u)}>
+                      {status === "active" ? "Desativar" : "Ativar"}
+                    </button>
+                    <button className={styles.actionBtn} onClick={() => handleDelete(u.id)}>
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -659,86 +670,163 @@ const UtilizadoresSection: React.FC<{
   );
 };
 
-const PermissoesSection: React.FC<{ addToast: (type: ToastMessage["type"], msg: string) => void }> = ({ addToast }) => {
-  const roles = ["admin", "fmx", "association", "player"];
-  const [selectedRole, setSelectedRole] = useState("admin");
-  const [usersByRole, setUsersByRole] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
+const PermissoesSection: React.FC<{
+  addToast: (type: ToastMessage["type"], msg: string) => void;
+  users: User[];
+  fetchUsers: () => void;
+}> = ({ addToast, users, fetchUsers }) => {
+  const availableRoles = ["admin", "fmx", "association", "player"];
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>(""); // "admin" | "fmx" | "association" | "player"
+  const [savingUsers, setSavingUsers] = useState<Set<number>>(new Set());
 
-  const fetchUsersByRole = async (role: string) => {
-    setLoading(true);
-    try {
-      const res = await http.get(`${endpoints.users.base}?role=${role}`);
-      setUsersByRole(res.data.data || res.data);
-    } catch {
-      addToast("error", "Erro ao carregar utilizadores");
-    } finally {
-      setLoading(false);
-    }
+  // Filtragem combinada
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch =
+      !search ||
+      u.name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.email?.toLowerCase().includes(search.toLowerCase());
+    const matchesRole =
+      !roleFilter ||
+      (u.roles && u.roles.some((r) => r.name === roleFilter));
+    return matchesSearch && matchesRole;
+  });
+
+  // Sincroniza os roles selecionados para cada utilizador
+  const [userRolesMap, setUserRolesMap] = useState<Record<number, string[]>>({});
+
+  // Inicializa o mapa a partir dos users
+  useEffect(() => {
+    const map: Record<number, string[]> = {};
+    users.forEach((u) => {
+      map[u.id] = u.roles ? u.roles.map((r) => r.name) : [];
+    });
+    setUserRolesMap(map);
+  }, [users]);
+
+  const handleRoleToggle = (userId: number, role: string) => {
+    setUserRolesMap((prev) => {
+      const current = prev[userId] || [];
+      const exists = current.includes(role);
+      const updated = exists
+        ? current.filter((r) => r !== role)
+        : [...current, role];
+      return { ...prev, [userId]: updated };
+    });
   };
 
-  useEffect(() => {
-    fetchUsersByRole(selectedRole);
-  }, [selectedRole]);
-
-  const handleChange = async (userId: number, newRole: string) => {
+  const handleSaveRoles = async (userId: number) => {
+    const newRoles = userRolesMap[userId] || [];
+    setSavingUsers((prev) => new Set(prev).add(userId));
     try {
-      await http.patch(`${endpoints.users.base}/${userId}/role`, { role: newRole });
-      addToast("success", "Função alterada");
-      fetchUsersByRole(selectedRole);
+      await http.put(`${endpoints.users.base}/${userId}/roles`, { roles: newRoles });
+      addToast("success", "Permissões atualizadas");
+      // Atualiza a lista global de utilizadores
+      fetchUsers();
     } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro");
+      addToast("error", err.response?.data?.message || "Erro ao salvar permissões");
+      // Reverte para os roles originais
+      setUserRolesMap((prev) => {
+        const user = users.find((u) => u.id === userId);
+        const originalRoles = user?.roles?.map((r) => r.name) || [];
+        return { ...prev, [userId]: originalRoles };
+      });
+    } finally {
+      setSavingUsers((prev) => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
     }
   };
 
   return (
     <div className={styles.pageContainer}>
-      <h2>Permissões</h2>
-      <div className={styles.filters}>
-        <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)}>
-          {roles.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
+      <h2>Gestão de Permissões (Múltiplas Roles)</h2>
+      <div className={styles.filters} style={{ marginBottom: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+        <input
+          placeholder="Pesquisar utilizador..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+        >
+          <option value="">Todas as roles</option>
+          {availableRoles.map((r) => (
+            <option key={r} value={r}>{r}</option>
           ))}
         </select>
-        <button onClick={() => fetchUsersByRole(selectedRole)} className={styles.outlineButton}>
-          Actualizar
-        </button>
       </div>
-      {loading && <div className={styles.loading}>Carregando...</div>}
+
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Nome</th>
+              <th>Utilizador</th>
               <th>Email</th>
-              <th>Função Actual</th>
-              <th>Nova Função</th>
+              <th>Roles Atuais</th>
+              <th>Atribuir / Remover Roles</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
-            {usersByRole.map((u) => (
-              <tr key={u.id}>
-                <td>{u.name}</td>
-                <td>{u.email}</td>
-                <td>{u.roles?.[0]?.name ?? "—"}</td>
-                <td>
-                  <select
-                    value={u.roles?.[0]?.name || "player"}
-                    onChange={(e) => handleChange(u.id, e.target.value)}
-                  >
-                    {roles.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-              </tr>
-            ))}
+            {filteredUsers.map((u) => {
+              const currentRoles = userRolesMap[u.id] || [];
+              const isLoading = savingUsers.has(u.id);
+              return (
+                <tr key={u.id}>
+                  <td>{u.name}</td>
+                  <td>{u.email}</td>
+                  <td>
+                    {currentRoles.length > 0
+                      ? currentRoles.join(", ")
+                      : "—"}
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                      {availableRoles.map((role) => (
+                        <label
+                          key={role}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.25rem",
+                            cursor: "pointer",
+                            fontSize: "0.875rem",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={currentRoles.includes(role)}
+                            onChange={() => handleRoleToggle(u.id, role)}
+                            disabled={isLoading}
+                          />
+                          {role}
+                        </label>
+                      ))}
+                    </div>
+                  </td>
+                  <td>
+                    <button
+                      className={styles.submitButton}
+                      onClick={() => handleSaveRoles(u.id)}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Salvando..." : "Guardar"}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+        {filteredUsers.length === 0 && (
+          <p style={{ padding: "1rem", textAlign: "center", color: "var(--color-on-surface-variant)" }}>
+            Nenhum utilizador encontrado.
+          </p>
+        )}
       </div>
     </div>
   );
