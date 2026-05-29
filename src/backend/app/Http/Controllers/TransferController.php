@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use App\Services\TransferService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
-
+use Illuminate\Support\Facades\Storage;
 class TransferController extends Controller
 {
     public function __construct(protected TransferService $service) {}
@@ -79,15 +79,15 @@ class TransferController extends Controller
     //     );
     // }
 
-    public function approveByOrigin(Transfer $transfer)
-{
-    $transfer = $this->service->approveByOrigin(
-        $transfer,
-        auth()->id()
-    );
+//     public function approveByOrigin(Transfer $transfer)
+// {
+//     $transfer = $this->service->approveByOrigin(
+//         $transfer,
+//         auth()->id()
+//     );
 
-    return response()->json($transfer);
-}
+//     return response()->json($transfer);
+// }
 
     /*
     |--------------------------------------------------------------------------
@@ -105,18 +105,52 @@ class TransferController extends Controller
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | 3a. ASSOCIAÇÃO DESTINO — Aceitar entrada
-    |--------------------------------------------------------------------------
-    */
-    public function approveByDestination(Transfer $transfer)
+    // /*
+    // |--------------------------------------------------------------------------
+    // | 3a. ASSOCIAÇÃO DESTINO — Aceitar entrada
+    // |--------------------------------------------------------------------------
+    // */
+    // public function approveByDestination(Transfer $transfer)
+    // {
+    //     return response()->json(
+    //         $this->service->approveByDestination($transfer, auth()->id())
+    //     );
+    // }
+
+
+    // TransferController.php
+
+    //Aprovação pela origem
+    public function approveByOrigin(Request $request, Transfer $transfer)
     {
-        return response()->json(
-            $this->service->approveByDestination($transfer, auth()->id())
+        $request->validate([
+            'document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
+
+        $transfer = $this->service->approveByOrigin(
+            $transfer,
+            auth()->id(),
+            $request->file('document')
         );
+
+        return response()->json($transfer);
     }
 
+    //Aprovacao no destino    
+    public function approveByDestination(Request $request, Transfer $transfer)
+    {
+        $request->validate([
+            'document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
+
+        return response()->json(
+            $this->service->approveByDestination(
+                $transfer,
+                auth()->id(),
+                $request->file('document')
+            )
+        );
+    }
     /*
     |--------------------------------------------------------------------------
     | 3b. ASSOCIAÇÃO DESTINO — Rejeitar entrada
@@ -189,15 +223,26 @@ public function playerTransfers(int $playerId)
     );
 }
 
+
 public function associationTransfers(int $associationId)
 {
 
+    // $relations = [
+    //     'player.user',
+    //     'fromAssociation',
+    //     'toAssociation',
+    //     'requester',
+    //     'approver',
+    // ];
+
+    // associationTransfers()
     $relations = [
         'player.user',
         'fromAssociation',
         'toAssociation',
         'requester',
         'approver',
+        'documents',    // 🆕
     ];
 
     $outgoing = Transfer::with($relations)
@@ -235,25 +280,64 @@ private function buildTransfer($transfer, $associationId)
         $actions = ['approve_destination', 'reject_destination'];
     }
 
-    return [
-        'id' => $transfer->id,
-        'status' => $transfer->status,
+    // return [
+    //     'id' => $transfer->id,
+    //     'status' => $transfer->status,
 
-        // 🔥 SEM AMBIGUIDADE (já resolvido corretamente)
-        'player' => $transfer->player?->user,
+    //     // 🔥 SEM AMBIGUIDADE (já resolvido corretamente)
+    //     'player' => $transfer->player?->user,
 
-        // 🔥 datas consistentes (NUNCA usar só "date")
-        'created_at' => $transfer->created_at,
-        'updated_at' => $transfer->updated_at,
+    //     // 🔥 datas consistentes (NUNCA usar só "date")
+    //     'created_at' => $transfer->created_at,
+    //     'updated_at' => $transfer->updated_at,
 
+    //     'from_association' => $transfer->fromAssociation,
+    //     'to_association' => $transfer->toAssociation,
+
+    //     'actions' => $actions,
+
+    //     // contexto explícito (muito importante para frontend)
+    //     'is_origin' => $isOrigin,
+    //     'is_destination' => $isDestination,
+    // ];
+
+$doc = $transfer->documents->first();
+
+if ($doc) {
+    Log::info('TRANSFER DOCUMENT DEBUG', [
+        'transfer_id' => $transfer->id,
+        'path' => $doc->path,
+        'disk' => $doc->disk,
+        'url' => Storage::disk($doc->disk ?? 'public')->url($doc->path),
+        'exists' => Storage::disk($doc->disk)->exists($doc->path),
+    ]);
+}
+
+     return [
+        'id'             => $transfer->id,
+        'status'         => $transfer->status,
+        'player'         => $transfer->player?->user,
+        'created_at'     => $transfer->created_at,
+        'updated_at'     => $transfer->updated_at,
         'from_association' => $transfer->fromAssociation,
-        'to_association' => $transfer->toAssociation,
-
-        'actions' => $actions,
-
-        // contexto explícito (muito importante para frontend)
-        'is_origin' => $isOrigin,
+        'to_association'   => $transfer->toAssociation,
+        'actions'        => $actions,
+        'is_origin'      => $isOrigin,
         'is_destination' => $isDestination,
+
+        // 🆕 documentos com URL pública directa
+        'documents' => $transfer->documents->map(fn ($d) => [
+            'id' => $d->id,
+            'type' => $d->type,
+
+            'url' => ($d->path && $d->disk)
+                ? Storage::disk($d->disk)->url($d->path)
+                : null,
+
+            'original_name' => $d->original_name,
+            'mime_type' => $d->mime_type,
+            'uploaded_at' => $d->created_at,
+        ]),
     ];
 }
 

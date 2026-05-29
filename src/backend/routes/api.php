@@ -239,7 +239,7 @@ Route::middleware(['auth:sanctum','role:player|association'])->group(function ()
     Route::patch('/transfers/{transfer}/origin/reject', [TransferController::class, 'rejectByOrigin']);
 
     // DESTINATION ASSOCIATION
-    Route::patch('/transfers/{transfer}/destination/approve', [TransferController::class, 'approveByDestination']);
+    Route::post('/transfers/{transfer}/destination/approve', [TransferController::class, 'approveByDestination']);
     Route::patch('/transfers/{transfer}/destination/reject', [TransferController::class, 'rejectByDestination']);
 
     //LISTAR  // Transferências da associação (você já tem o método no controller)

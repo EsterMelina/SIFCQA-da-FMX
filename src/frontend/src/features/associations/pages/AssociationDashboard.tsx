@@ -79,6 +79,16 @@ interface PendingPayment {
   status: string;
 }
 
+// 🆕 Tipo para documento de transferência (recebido do backend)
+interface TransferDoc {
+  id: number;
+  type: "origin_approval" | "destination_approval";
+  url: string;
+  original_name: string | null;
+  mime_type: string;
+  uploaded_at: string;
+}
+
 interface Transfer {
   id: number;
   player_id: number;
@@ -96,6 +106,7 @@ interface Transfer {
   is_origin?: boolean;
   is_destination?: boolean;
   actions?: string[];
+  documents?: TransferDoc[]; // 🆕 documentos anexados
 }
 
 interface DashboardStats {
@@ -1049,7 +1060,7 @@ const CreateQuotaModal: React.FC<{
   );
 };
 
-/* ==================== TRANSFERÊNCIAS (inalterada) ==================== */
+/* ==================== TRANSFERÊNCIAS (ATUALIZADA COM DOCUMENTOS) ==================== */
 const TransfersSection: React.FC<{
   addToast: (type: "success" | "error" | "info", msg: string) => void;
   associationId: number;
@@ -1058,6 +1069,7 @@ const TransfersSection: React.FC<{
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"pending" | "history">("pending");
   const [showOriginApprove, setShowOriginApprove] = useState<Transfer | null>(null);
+  const [showDestinationApprove, setShowDestinationApprove] = useState<Transfer | null>(null); // 🆕 modal destino
   const [showReject, setShowReject] = useState<{ transfer: Transfer; type: "origin" | "destination" } | null>(null);
 
   const fetchTransfers = async () => {
@@ -1076,15 +1088,28 @@ const TransfersSection: React.FC<{
 
   useEffect(() => { fetchTransfers(); }, [associationId]);
 
+  // Aprovação de origem (com upload de documento)
   const handleOriginApprove = async (transferId: number, file?: File) => {
     const formData = new FormData();
     if (file) formData.append("document", file);
     try {
-      await http.post(`/transfers/${transferId}/origin/approve`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      await http.post(`/transfers/${transferId}/origin/approve`, formData);
       addToast("success", "Saída aprovada!");
       setShowOriginApprove(null);
+      fetchTransfers();
+    } catch (err: any) {
+      addToast("error", err.response?.data?.message || "Erro ao aprovar");
+    }
+  };
+
+  // 🆕 Aprovação de destino (com upload de documento)
+  const handleDestinationApprove = async (transferId: number, file?: File) => {
+    const formData = new FormData();
+    if (file) formData.append("document", file);
+    try {
+      await http.post(`/transfers/${transferId}/destination/approve`, formData);
+      addToast("success", "Entrada aprovada!");
+      setShowDestinationApprove(null);
       fetchTransfers();
     } catch (err: any) {
       addToast("error", err.response?.data?.message || "Erro ao aprovar");
@@ -1100,17 +1125,6 @@ const TransfersSection: React.FC<{
       fetchTransfers();
     } catch (err: any) {
       addToast("error", err.response?.data?.message || "Erro ao rejeitar");
-    }
-  };
-
-  const handleDestinationApprove = async (transferId: number) => {
-    if (!confirm("Confirmar receção deste jogador?")) return;
-    try {
-      await http.patch(`/transfers/${transferId}/destination/approve`);
-      addToast("success", "Entrada aprovada!");
-      fetchTransfers();
-    } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro ao aprovar");
     }
   };
 
@@ -1147,11 +1161,21 @@ const TransfersSection: React.FC<{
                       <span className="material-symbols-outlined arrow">arrow_forward</span>
                       <span>{t.to_association?.name || "Destino"}</span>
                     </div>
+                    {/* 🆕 mostrar documentos já anexados */}
+                    {t.documents && t.documents.length > 0 && (
+                      <div className={styles.documentsInline}>
+                        {t.documents.map(doc => (
+                          <a key={doc.id} href={doc.url} target="_blank" rel="noopener noreferrer" className={styles.docLink}>
+                            📎 {doc.original_name || doc.type}
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className={styles.transferCardActions}>
                     {actions.includes("approve_origin") && <button className={styles.approveButton} onClick={() => setShowOriginApprove(t)}>Aprovar Saída</button>}
                     {actions.includes("reject_origin") && <button className={styles.rejectButton} onClick={() => setShowReject({ transfer: t, type: "origin" })}>Rejeitar Saída</button>}
-                    {actions.includes("approve_destination") && <button className={styles.approveButton} onClick={() => handleDestinationApprove(t.id)}>Aprovar Entrada</button>}
+                    {actions.includes("approve_destination") && <button className={styles.approveButton} onClick={() => setShowDestinationApprove(t)}>Aprovar Entrada</button>}
                     {actions.includes("reject_destination") && <button className={styles.rejectButton} onClick={() => setShowReject({ transfer: t, type: "destination" })}>Rejeitar Entrada</button>}
                   </div>
                 </div>
@@ -1165,7 +1189,14 @@ const TransfersSection: React.FC<{
         <div className={styles.tableWrapper}>
           <table className={styles.table}>
             <thead>
-              <tr><th>Jogador</th><th>Origem</th><th>Destino</th><th>Estado</th><th>Data</th></tr>
+              <tr>
+                <th>Jogador</th>
+                <th>Origem</th>
+                <th>Destino</th>
+                <th>Estado</th>
+                <th>Data</th>
+                <th>Documentos</th>
+              </tr>
             </thead>
             <tbody>
               {historyTransfers.map(t => {
@@ -1177,6 +1208,15 @@ const TransfersSection: React.FC<{
                     <td>{t.to_association?.name || "—"}</td>
                     <td><span className={`${styles.statusBadge} ${normalized.startsWith("completed") ? styles.statusPaid : normalized.startsWith("rejected") ? styles.statusRejected : styles.statusPending}`}>{normalized.replace(/_/g, " ")}</span></td>
                     <td>{t.created_at ? new Date(t.created_at).toLocaleDateString() : "—"}</td>
+                    <td>
+                      {t.documents && t.documents.length > 0 ? (
+                        t.documents.map(doc => (
+                          <a key={doc.id} href={doc.url} target="_blank" rel="noopener noreferrer" className={styles.docLink}>
+                            {doc.original_name || doc.type}
+                          </a>
+                        ))
+                      ) : "—"}
+                    </td>
                   </tr>
                 );
               })}
@@ -1185,8 +1225,58 @@ const TransfersSection: React.FC<{
         </div>
       )}
 
-      {showOriginApprove && <OriginApproveModal transfer={showOriginApprove} onClose={() => setShowOriginApprove(null)} onApprove={handleOriginApprove} />}
+      {/* Modais de aprovação/rejeição */}
+      {showOriginApprove && <ApproveModal title="Aprovar Saída" transfer={showOriginApprove} onClose={() => setShowOriginApprove(null)} onApprove={handleOriginApprove} />}
+      {showDestinationApprove && <ApproveModal title="Aprovar Entrada" transfer={showDestinationApprove} onClose={() => setShowDestinationApprove(null)} onApprove={handleDestinationApprove} />}
       {showReject && <RejectModal title={showReject.type === "origin" ? "Rejeitar Saída" : "Rejeitar Entrada"} onClose={() => setShowReject(null)} onSubmit={reason => handleReject(showReject.transfer.id, showReject.type, reason)} />}
+    </div>
+  );
+};
+
+// 🆕 Modal genérico para aprovação com upload de documento
+const ApproveModal: React.FC<{
+  title: string;
+  transfer: Transfer;
+  onClose: () => void;
+  onApprove: (transferId: number, file?: File) => void;
+}> = ({ title, transfer, onClose, onApprove }) => {
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    await onApprove(transfer.id, file || undefined);
+    setLoading(false);
+  };
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3>{title}</h3>
+          <button onClick={onClose} className={styles.modalClose}>×</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className={styles.modalBody}>
+            <p>Jogador: <strong>{transfer.player?.user?.name || transfer.player?.name || `#${transfer.player_id}`}</strong></p>
+            <div className={styles.formGroup}>
+              <label>Documento comprovativo (PDF ou imagem)</label>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={e => setFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
+              <button type="submit" className={styles.submitButton} disabled={loading}>
+                {loading ? "Enviando..." : "Aprovar"}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
@@ -1202,7 +1292,7 @@ const ReportsSection: React.FC<{ role: string }> = () => (
   </div>
 );
 
-/* ==================== MODAIS ==================== */
+/* ==================== MODAIS ANTIGOS (SECRETÁRIO, JOGADOR) MANTIDOS ==================== */
 interface SecretaryModalProps {
   isOpen: boolean;
   secretary: AssociationMember | null;
@@ -1377,30 +1467,6 @@ const PlayerModal: React.FC<PlayerModalProps> = ({ isOpen, player, associationId
           <div className={styles.modalActions}>
             <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
             <button type="submit" className={styles.submitButton} disabled={loading}>{loading ? "Salvando..." : "Guardar"}</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-const OriginApproveModal: React.FC<{ transfer: Transfer; onClose: () => void; onApprove: (transferId: number, file?: File) => void }> = ({ transfer, onClose, onApprove }) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); setLoading(true); await onApprove(transfer.id, file || undefined); setLoading(false);
-  };
-  return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
-        <div className={styles.modalHeader}><h3>Aprovar Saída</h3><button onClick={onClose} className={styles.modalClose}>×</button></div>
-        <form onSubmit={handleSubmit}>
-          <div className={styles.modalBody}>
-            <div className={styles.formGroup}><label>Documento (opcional)</label><input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setFile(e.target.files?.[0] || null)} /></div>
-            <div className={styles.modalActions}>
-              <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
-              <button type="submit" className={styles.submitButton} disabled={loading}>{loading ? "Enviando..." : "Aprovar"}</button>
-            </div>
           </div>
         </form>
       </div>

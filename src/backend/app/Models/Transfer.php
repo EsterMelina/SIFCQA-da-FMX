@@ -73,4 +73,20 @@ class Transfer extends Model
     {
         return $this->belongsTo(User::class, 'approved_by');
     }
+
+    // app/Models/Transfer.php  — adicionar ao modelo existente
+public function documents()
+{
+    return $this->hasMany(TransferDocument::class);
+}
+
+public function originDocument()
+{
+    return $this->hasOne(TransferDocument::class)->where('type', 'origin_approval')->latest();
+}
+
+public function destDocument()
+{
+    return $this->hasOne(TransferDocument::class)->where('type', 'dest_approval')->latest();
+}
 }

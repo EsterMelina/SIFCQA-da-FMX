@@ -65,6 +65,16 @@ interface Notification {
   highlight?: boolean;
 }
 
+// 🆕 Tipo para documento de transferência
+interface TransferDoc {
+  id: number;
+  type: "origin_approval" | "destination_approval";
+  url: string;
+  original_name: string | null;
+  mime_type: string;
+  uploaded_at: string;
+}
+
 interface Transfer {
   id: number;
   player_id: number;
@@ -78,6 +88,7 @@ interface Transfer {
   created_at: string;
   to_association?: { id: number; name: string };
   from_association?: { id: number; name: string };
+  documents?: TransferDoc[]; // 🆕 documentos anexados
 }
 
 const PlayerDashboard: React.FC = () => {
@@ -117,11 +128,10 @@ const PlayerDashboard: React.FC = () => {
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
 
+  // ✅ State sem documentos
   const [transferForm, setTransferForm] = useState({
     targetAssociation: "",
     reason: "",
-    originDocument: null as File | null,
-    destDocument: null as File | null,
   });
 
   const [transfers, setTransfers] = useState<Transfer[]>([]);
@@ -198,149 +208,50 @@ const PlayerDashboard: React.FC = () => {
     await logout();
   };
 
-  const handleViewDigitalCard = () => console.log("Ver Cartão Digital");
-
-  // const handleTransferSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   if (!profileLoaded || playerData.fromAssociationId === null) {
-  //     alert("Ainda estamos a carregar os seus dados. Aguarde um instante.");
-  //     return;
-  //   }
-  //   if (!transferForm.targetAssociation) {
-  //     alert("Selecione a associação de destino.");
-  //     return;
-  //   }
-  //   if (!transferForm.reason || transferForm.reason.trim().length < 10) {
-  //     alert("O motivo deve ter pelo menos 10 caracteres.");
-  //     return;
-  //   }
-
-  //   const formData = new FormData();
-  //   formData.append("player_id", playerData.playerId);
-  //   formData.append("from_association_id", String(playerData.fromAssociationId));
-  //   formData.append("to_association_id", transferForm.targetAssociation);
-  //   formData.append("reason", transferForm.reason);
-  //   if (transferForm.originDocument) {
-  //     formData.append("origin_document", transferForm.originDocument);
-  //   }
-  //   if (transferForm.destDocument) {
-  //     formData.append("dest_document", transferForm.destDocument);
-  //   }
-
-  //   try {
-  //     await http.post(endpoints.players.transferRequest, formData, {
-  //       headers: { "Content-Type": "multipart/form-data" },
-  //     });
-  //     alert("Solicitação de transferência enviada com sucesso!");
-  //     setShowTransferModal(false);
-  //     setTransferForm({ targetAssociation: "", reason: "", originDocument: null, destDocument: null });
-  //     const { data } = await http.get(`/players/${playerData.playerId}/transfers`);
-  //     setTransfers(data);
-  //     const active = data.find(
-  //       (t: Transfer) => t.status === "pending_origin" || t.status === "pending_destination"
-  //     );
-  //     setActiveTransfer(active || null);
-  //   } catch (error) {
-  //     console.error("Erro ao enviar transferência:", error);
-  //     alert("Erro ao enviar solicitação.");
-  //   }
-  // };
-
+  // ✅ handleTransferSubmit — FormData sem ficheiros
   const handleTransferSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!profileLoaded || playerData.fromAssociationId === null) {
-    alert("Ainda estamos a carregar os seus dados. Aguarde um instante.");
-    return;
-  }
+    if (!profileLoaded || playerData.fromAssociationId === null) {
+      alert("Ainda estamos a carregar os seus dados. Aguarde um instante.");
+      return;
+    }
 
-  if (!transferForm.targetAssociation) {
-    alert("Selecione a associação de destino.");
-    return;
-  }
+    if (!transferForm.targetAssociation) {
+      alert("Selecione a associação de destino.");
+      return;
+    }
 
-  if (!transferForm.reason || transferForm.reason.trim().length < 10) {
-    alert("O motivo deve ter pelo menos 10 caracteres.");
-    return;
-  }
+    if (!transferForm.reason || transferForm.reason.trim().length < 10) {
+      alert("O motivo deve ter pelo menos 10 caracteres.");
+      return;
+    }
 
-  const formData = new FormData();
+    const formData = new FormData();
+    formData.append("player_id", playerData.playerId);
+    formData.append("from_association_id", String(playerData.fromAssociationId));
+    formData.append("to_association_id", transferForm.targetAssociation);
+    formData.append("reason", transferForm.reason);
+    // ❌ Sem ficheiros
 
-  formData.append("player_id", playerData.playerId);
-  formData.append("from_association_id", String(playerData.fromAssociationId));
-  formData.append("to_association_id", transferForm.targetAssociation);
-  formData.append("reason", transferForm.reason);
+    try {
+      await http.post(endpoints.players.transferRequest, formData);
+      alert("Solicitação de transferência enviada com sucesso!");
 
-  if (transferForm.originDocument) {
-    formData.append("origin_document", transferForm.originDocument);
-  }
+      setShowTransferModal(false);
+      setTransferForm({ targetAssociation: "", reason: "" });
 
-  if (transferForm.destDocument) {
-    formData.append("dest_document", transferForm.destDocument);
-  }
-
-  // 🔥 DEBUG - O QUE ESTÁ A SER ENVIADO
-  console.log("🚀 TRANSFER REQUEST START");
-  console.log("player_id:", playerData.playerId);
-  console.log("from_association_id:", playerData.fromAssociationId);
-  console.log("to_association_id:", transferForm.targetAssociation);
-  console.log("reason:", transferForm.reason);
-  console.log("originDocument:", transferForm.originDocument);
-  console.log("destDocument:", transferForm.destDocument);
-
-  // FormData não mostra bem no console, então iteramos:
-  console.log("📦 FORM DATA ENVIADO:");
-  for (const pair of formData.entries()) {
-    console.log(pair[0], pair[1]);
-  }
-
-  try {
-    const response = await http.post(
-      endpoints.players.transferRequest,
-      formData,
-      {
-        headers: { "Content-Type": "multipart/form-data" },
-      }
-    );
-
-    // 🔥 DEBUG - RESPOSTA
-    console.log("✅ TRANSFER RESPONSE:", response);
-    console.log("✅ TRANSFER RESPONSE DATA:", response.data);
-
-    alert("Solicitação de transferência enviada com sucesso!");
-
-    setShowTransferModal(false);
-    setTransferForm({
-      targetAssociation: "",
-      reason: "",
-      originDocument: null,
-      destDocument: null,
-    });
-
-    const { data } = await http.get(
-      `/players/${playerData.playerId}/transfers`
-    );
-
-    console.log("📥 TRANSFERS LIST:", data);
-
-    setTransfers(data);
-
-    const active = data.find(
-      (t: Transfer) =>
-        t.status === "pending_origin" || t.status === "pending_destination"
-    );
-
-    setActiveTransfer(active || null);
-  } catch (error: any) {
-    // 🔥 DEBUG - ERRO COMPLETO
-    console.log("❌ TRANSFER ERROR:", error);
-    console.log("❌ RESPONSE ERROR:", error.response);
-    console.log("❌ ERROR DATA:", error.response?.data);
-    console.log("❌ STATUS:", error.response?.status);
-
-    alert("Erro ao enviar solicitação.");
-  }
-};
+      const { data } = await http.get(`/players/${playerData.playerId}/transfers`);
+      setTransfers(data);
+      const active = data.find(
+        (t: Transfer) => t.status === "pending_origin" || t.status === "pending_destination"
+      );
+      setActiveTransfer(active || null);
+    } catch (error: any) {
+      console.error("Erro ao enviar transferência:", error);
+      alert("Erro ao enviar solicitação.");
+    }
+  };
 
   const handleCancelTransfer = async (transferId: number) => {
     if (!confirm("Tem certeza que deseja cancelar esta solicitação?")) return;
@@ -868,7 +779,7 @@ const ProfileContent: React.FC<{ player: any; stats: any }> = ({ player, stats }
   </div>
 );
 
-// ---- TransferContent (inalterado, já integrado) ----
+// ---- TransferContent (exibe documentos) ----
 const TransferContent: React.FC<{
   onOpenModal: () => void;
   activeTransfer: Transfer | null;
@@ -890,6 +801,7 @@ const TransferContent: React.FC<{
     if (status === "rejected" || status === "cancelled") return styles.rejected;
     return styles.pending;
   };
+
   return (
     <div className={styles.pageContainer}>
       <h2>Transferências</h2>
@@ -916,15 +828,21 @@ const TransferContent: React.FC<{
               <span>Data do pedido</span>
               <span>{new Date(activeTransfer.created_at).toLocaleDateString()}</span>
             </div>
+            {activeTransfer.documents && activeTransfer.documents.length > 0 && (
+              <div className={styles.transferDetail}>
+                <span>Documentos</span>
+                <TransferDocuments documents={activeTransfer.documents} />
+              </div>
+            )}
           </div>
           <p className={styles.infoText}>Você já possui uma solicitação em andamento. Aguarde a conclusão antes de abrir uma nova.</p>
         </div>
       ) : (
         <div className={styles.transferInfo}>
-          <p>Para solicitar uma transferência entre clubes/associações, você precisa anexar:</p>
+          <p>Para solicitar uma transferência entre clubes/associações, você precisa fornecer:</p>
           <ul>
-            <li><strong>Carta de Saída</strong> – documento do clube atual autorizando a transferência.</li>
-            <li><strong>Carta de Aceitação</strong> – documento do novo clube confirmando a recepção.</li>
+            <li><strong>Carta de Saída</strong> – documento do clube atual autorizando a transferência (será anexado pela associação de origem).</li>
+            <li><strong>Carta de Aceitação</strong> – documento do novo clube confirmando a recepção (será anexado pela associação de destino).</li>
           </ul>
           <p>O motivo deve descrever claramente a razão do pedido (mínimo 10 caracteres).</p>
           <button className={styles.primaryButton} onClick={onOpenModal}>
@@ -941,14 +859,30 @@ const TransferContent: React.FC<{
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
               <thead>
-                <tr><th>Destino</th><th>Status</th><th>Data</th></tr>
+                <tr>
+                  <th>Destino</th>
+                  <th>Status</th>
+                  <th>Data</th>
+                  <th>Documentos</th>
+                </tr>
               </thead>
               <tbody>
                 {transfers.map((t) => (
                   <tr key={t.id}>
                     <td>{t.to_association?.name || "N/A"}</td>
-                    <td><span className={`${styles.statusBadge} ${getStatusClass(t.status)}`}>{getStatusLabel(t.status)}</span></td>
+                    <td>
+                      <span className={`${styles.statusBadge} ${getStatusClass(t.status)}`}>
+                        {getStatusLabel(t.status)}
+                      </span>
+                    </td>
                     <td>{new Date(t.created_at).toLocaleDateString()}</td>
+                    <td>
+                      {t.documents && t.documents.length > 0 ? (
+                        <TransferDocuments documents={t.documents} />
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -957,6 +891,29 @@ const TransferContent: React.FC<{
         )}
       </div>
     </div>
+  );
+};
+
+// 🆕 Componente para exibir documentos
+const TransferDocuments: React.FC<{ documents: TransferDoc[] }> = ({ documents }) => {
+  return (
+    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+      {documents.map((doc) => (
+        <li key={doc.id} style={{ marginBottom: "0.25rem" }}>
+          <a
+            href={doc.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: "0.9rem" }}
+          >
+            📄 {doc.original_name || doc.type}
+          </a>
+          <span style={{ marginLeft: "0.5rem", color: "#666", fontSize: "0.8rem" }}>
+            — {doc.type === "origin_approval" ? "Doc. origem" : "Doc. destino"}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 };
 
@@ -998,6 +955,7 @@ const ProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; player: any
   );
 };
 
+// ✅ TransferModal sem campos de ficheiro
 const TransferModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -1055,16 +1013,16 @@ const TransferModal: React.FC<{
               </div>
               <div className={styles.formGroup}>
                 <label>Motivo da Transferência</label>
-                <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Explique o motivo do pedido (mín. 10 caracteres)" rows={3} minLength={10} required />
+                <textarea
+                  value={form.reason}
+                  onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                  placeholder="Explique o motivo do pedido (mín. 10 caracteres)"
+                  rows={3}
+                  minLength={10}
+                  required
+                />
               </div>
-              <div className={styles.formGroup}>
-                <label>Carta de Saída (opcional)</label>
-                <input type="file" accept=".pdf,image/*" onChange={(e) => setForm({ ...form, originDocument: e.target.files?.[0] || null })} />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Carta de Aceitação (opcional)</label>
-                <input type="file" accept=".pdf,image/*" onChange={(e) => setForm({ ...form, destDocument: e.target.files?.[0] || null })} />
-              </div>
+              {/* ❌ Sem campos de upload de ficheiro */}
               <div className={styles.modalActions}>
                 <button type="button" className={styles.cancelButton} onClick={onClose}>Cancelar</button>
                 <button type="submit" className={styles.submitButton}>Enviar Solicitação</button>
