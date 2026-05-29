@@ -283,6 +283,11 @@ Route::middleware(['auth:sanctum', 'role:association'])->prefix('association')->
     Route::get('payments', [QuotaController::class, 'pendingPayments'])->name('payments.pending');
     Route::post('payments/{payment}/confirm', [QuotaController::class, 'confirm'])->name('payments.confirm');
     Route::post('payments/{payment}/reject', [QuotaController::class, 'reject'])->name('payments.reject');
+
+    // Configuração global de quotas
+    Route::get ('quota-config',               [QuotaController::class, 'getConfig']);
+    Route::put ('quota-config',               [QuotaController::class, 'updateConfig']);
+    Route::post('quota-config/generate-now',  [QuotaController::class, 'generateNow']);
 });
 
 

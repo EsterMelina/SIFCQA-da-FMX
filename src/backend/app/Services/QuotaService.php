@@ -6,8 +6,11 @@ use App\Models\Quota;
 use App\Models\QuotaPayment;
 use App\Models\Player;
 use App\Models\User;
+
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Models\Association;
+use App\Models\AssociationQuotaConfig;
 
 class QuotaService
 {
@@ -312,4 +315,132 @@ public function createQuota(array $data, User $createdBy): Quota
             abort(403, 'Sem permissão para esta associação.');
         }
     }
+
+
+    // app/Services/QuotaService.php  — ADICIONAR estes métodos à classe existente
+
+/*
+|--------------------------------------------------------------------------
+| CONFIGURAÇÃO GLOBAL DA ASSOCIAÇÃO
+|--------------------------------------------------------------------------
+*/
+
+public function getOrCreateConfig(Association $association): AssociationQuotaConfig
+{
+    return AssociationQuotaConfig::firstOrCreate(
+        ['association_id' => $association->id],
+        [
+            'annual_amount'    => 0,
+            'installments'     => 2,
+            'title_template'   => 'Quota Anual {year}',
+            'auto_generate'    => false, // inactivo até a associação configurar
+            'issue_month'      => 1,
+            'issue_day'        => 1,
+            'due_month'        => 3,
+            'due_day'          => 31,
+        ]
+    );
+}
+
+public function updateConfig(Association $association, array $data): AssociationQuotaConfig
+{
+    $config = $this->getOrCreateConfig($association);
+
+    $config->update([
+        'annual_amount'  => $data['annual_amount'],
+        'title_template' => $data['title_template'] ?? $config->title_template,
+        'auto_generate'  => $data['auto_generate'] ?? $config->auto_generate,
+        'issue_month'    => $data['issue_month']    ?? $config->issue_month,
+        'issue_day'      => $data['issue_day']      ?? $config->issue_day,
+        'due_month'      => $data['due_month']      ?? $config->due_month,
+        'due_day'        => $data['due_day']         ?? $config->due_day,
+    ]);
+
+    return $config->fresh();
+}
+
+/*
+|--------------------------------------------------------------------------
+| GERAÇÃO AUTOMÁTICA — chamado pelo Artisan Command / scheduler
+|--------------------------------------------------------------------------
+*/
+
+/**
+ * Gera quotas para todos os jogadores activos de uma associação.
+ * Idempotente: não duplica se já existir quota para o mesmo título/jogador/ano.
+ */
+public function generateAnnualQuotas(Association $association, int $year): array
+{
+    $config = $this->getOrCreateConfig($association);
+
+    if (! $config->auto_generate || $config->annual_amount <= 0) {
+        return ['skipped' => true, 'reason' => 'auto_generate desactivado ou valor zero'];
+    }
+
+    $title   = $config->resolveTitle($year);
+    $dueDate = $config->resolveDueDate($year);
+
+    $players = $association->players()->where('active', true)->get();
+
+    $created  = 0;
+    $skipped  = 0;
+
+    foreach ($players as $player) {
+        $exists = Quota::where('association_id', $association->id)
+            ->where('player_id', $player->id)
+            ->where('title', $title)
+            ->exists();
+
+        if ($exists) { $skipped++; continue; }
+
+        Quota::create([
+            'association_id'     => $association->id,
+            'player_id'          => $player->id,
+            'created_by'         => null, // gerado pelo sistema
+            'title'              => $title,
+            'total_amount'       => $config->annual_amount,
+            'installment_amount' => round($config->annual_amount / 2, 2),
+            'paid_amount'        => 0,
+            'status'             => 'pending',
+            'due_date'           => $dueDate,
+        ]);
+
+        $created++;
+    }
+
+    return ['created' => $created, 'skipped' => $skipped, 'total_players' => $players->count()];
+}
+
+/**
+ * Quando um novo jogador é adicionado a uma associação com auto_generate activo,
+ * gera a quota do ano corrente se ainda não existir.
+ */
+public function generateForNewPlayer(Player $player, Association $association): ?Quota
+{
+    $config = $this->getOrCreateConfig($association);
+
+    if (! $config->auto_generate || $config->annual_amount <= 0) {
+        return null;
+    }
+
+    $year    = now()->year;
+    $title   = $config->resolveTitle($year);
+    $dueDate = $config->resolveDueDate($year);
+
+    return Quota::firstOrCreate(
+        [
+            'association_id' => $association->id,
+            'player_id'      => $player->id,
+            'title'          => $title,
+        ],
+        [
+            'created_by'         => null,
+            'total_amount'       => $config->annual_amount,
+            'installment_amount' => round($config->annual_amount / 2, 2),
+            'paid_amount'        => 0,
+            'status'             => 'pending',
+            'due_date'           => $dueDate,
+        ]
+    );
+}
 }

@@ -14,7 +14,7 @@ interface QuotaInstallment {
   label: string;
   amount: number;
   status: "not_submitted" | "pending" | "confirmed" | "rejected";
-  payment?: any; // pode ser null
+  payment?: any;
 }
 
 interface PlayerQuota {
@@ -47,14 +47,6 @@ interface PlayerPayment {
   quota_title?: string;
 }
 
-interface PaymentRecord {
-  id: string;
-  reference: string;
-  description: string;
-  amount: string;
-  status: "confirmed" | "pending";
-}
-
 interface Notification {
   id: number;
   title: string;
@@ -65,7 +57,6 @@ interface Notification {
   highlight?: boolean;
 }
 
-// 🆕 Tipo para documento de transferência
 interface TransferDoc {
   id: number;
   type: "origin_approval" | "destination_approval";
@@ -88,7 +79,7 @@ interface Transfer {
   created_at: string;
   to_association?: { id: number; name: string };
   from_association?: { id: number; name: string };
-  documents?: TransferDoc[]; // 🆕 documentos anexados
+  documents?: TransferDoc[];
 }
 
 const PlayerDashboard: React.FC = () => {
@@ -99,7 +90,6 @@ const PlayerDashboard: React.FC = () => {
     const saved = localStorage.getItem("theme") as "light" | "dark" | null;
     return saved ?? null;
   });
-  const [loading, setLoading] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,12 +113,10 @@ const PlayerDashboard: React.FC = () => {
   });
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
 
-  // ✅ State sem documentos
   const [transferForm, setTransferForm] = useState({
     targetAssociation: "",
     reason: "",
@@ -157,7 +145,6 @@ const PlayerDashboard: React.FC = () => {
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
   const closeSidebar = () => setIsSidebarOpen(false);
 
-  // Carrega perfil do jogador
   useEffect(() => {
     const loadPlayer = async () => {
       setProfileLoaded(false);
@@ -182,11 +169,9 @@ const PlayerDashboard: React.FC = () => {
         setProfileLoaded(false);
       }
     };
-
     loadPlayer();
   }, []);
 
-  // Carrega histórico de transferências
   useEffect(() => {
     if (!playerData.playerId) return;
     const fetchTransfers = async () => {
@@ -208,20 +193,16 @@ const PlayerDashboard: React.FC = () => {
     await logout();
   };
 
-  // ✅ handleTransferSubmit — FormData sem ficheiros
   const handleTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!profileLoaded || playerData.fromAssociationId === null) {
       alert("Ainda estamos a carregar os seus dados. Aguarde um instante.");
       return;
     }
-
     if (!transferForm.targetAssociation) {
       alert("Selecione a associação de destino.");
       return;
     }
-
     if (!transferForm.reason || transferForm.reason.trim().length < 10) {
       alert("O motivo deve ter pelo menos 10 caracteres.");
       return;
@@ -232,15 +213,12 @@ const PlayerDashboard: React.FC = () => {
     formData.append("from_association_id", String(playerData.fromAssociationId));
     formData.append("to_association_id", transferForm.targetAssociation);
     formData.append("reason", transferForm.reason);
-    // ❌ Sem ficheiros
 
     try {
       await http.post(endpoints.players.transferRequest, formData);
       alert("Solicitação de transferência enviada com sucesso!");
-
       setShowTransferModal(false);
       setTransferForm({ targetAssociation: "", reason: "" });
-
       const { data } = await http.get(`/players/${playerData.playerId}/transfers`);
       setTransfers(data);
       const active = data.find(
@@ -368,7 +346,6 @@ const PlayerDashboard: React.FC = () => {
         </main>
       </div>
 
-      {/* Modais */}
       <NotificationsModal isOpen={showNotificationsModal} onClose={() => setShowNotificationsModal(false)} />
       <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} player={playerData} onLogout={handleLogout} />
       <TransferModal
@@ -383,8 +360,6 @@ const PlayerDashboard: React.FC = () => {
     </div>
   );
 };
-
-// ==================== NOVOS COMPONENTES ====================
 
 // ---- QuotasContent ----
 const QuotasContent: React.FC = () => {
@@ -405,9 +380,7 @@ const QuotasContent: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchQuotas();
-  }, []);
+  useEffect(() => { fetchQuotas(); }, []);
 
   const [selectedQuota, setSelectedQuota] = useState<PlayerQuota | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -433,7 +406,7 @@ const QuotasContent: React.FC = () => {
   const handlePaymentSuccess = () => {
     setShowPayModal(false);
     setShowDetailModal(false);
-    fetchQuotas(); // actualiza lista
+    fetchQuotas();
   };
 
   if (loading) return <div className={styles.loading}>Carregando quotas...</div>;
@@ -465,35 +438,21 @@ const QuotasContent: React.FC = () => {
         </div>
       )}
 
-      {/* Modal de detalhe da quota */}
       {selectedQuota && showDetailModal && (
-        <QuotaDetailModal
-          quota={selectedQuota}
-          onClose={() => setShowDetailModal(false)}
-          onPayInstallment={handlePayClick}
-        />
+        <QuotaDetailModal quota={selectedQuota} onClose={() => setShowDetailModal(false)} onPayInstallment={handlePayClick} />
       )}
-
-      {/* Modal de pagamento */}
       {showPayModal && payInstallment && selectedQuota && (
-        <PayInstallmentModal
-          quotaId={selectedQuota.id}
-          installment={payInstallment}
-          onClose={() => setShowPayModal(false)}
-          onSuccess={handlePaymentSuccess}
-        />
+        <PayInstallmentModal quotaId={selectedQuota.id} installment={payInstallment} onClose={() => setShowPayModal(false)} onSuccess={handlePaymentSuccess} />
       )}
     </div>
   );
 };
 
-// ---- QuotaDetailModal ----
 const QuotaDetailModal: React.FC<{
   quota: PlayerQuota;
   onClose: () => void;
   onPayInstallment: (inst: QuotaInstallment) => void;
 }> = ({ quota, onClose, onPayInstallment }) => {
-  const isPaid = quota.status === 'paid';
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -522,16 +481,9 @@ const QuotaDetailModal: React.FC<{
                         inst.status === 'pending' ? styles.pending :
                         inst.status === 'rejected' ? styles.rejected :
                         styles.inactive
-                      }`}>
-                        {inst.status}
-                      </span>
+                      }`}>{inst.status}</span>
                       {canPay && (
-                        <button
-                          className={styles.payButton}
-                          onClick={() => onPayInstallment(inst)}
-                        >
-                          Pagar
-                        </button>
+                        <button className={styles.payButton} onClick={() => onPayInstallment(inst)}>Pagar</button>
                       )}
                     </div>
                   </div>
@@ -539,9 +491,6 @@ const QuotaDetailModal: React.FC<{
               })}
             </div>
           )}
-          <p className={styles.infoText}>
-            {quota.installments?.can_pay ? 'Pode pagar a próxima prestação.' : 'Nenhuma prestação disponível para pagamento.'}
-          </p>
           <div className={styles.modalActions}>
             <button onClick={onClose} className={styles.cancelButton}>Fechar</button>
           </div>
@@ -551,7 +500,6 @@ const QuotaDetailModal: React.FC<{
   );
 };
 
-// ---- PayInstallmentModal ----
 const PayInstallmentModal: React.FC<{
   quotaId: number;
   installment: QuotaInstallment;
@@ -565,10 +513,7 @@ const PayInstallmentModal: React.FC<{
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!method) {
-      setError("Selecione o método de pagamento.");
-      return;
-    }
+    if (!method) { setError("Selecione o método de pagamento."); return; }
     setLoading(true);
     setError("");
     try {
@@ -580,9 +525,7 @@ const PayInstallmentModal: React.FC<{
       onSuccess();
     } catch (err: any) {
       setError(err.response?.data?.message || "Erro ao processar pagamento.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   return (
@@ -608,21 +551,12 @@ const PayInstallmentModal: React.FC<{
             </div>
             <div className={styles.formGroup}>
               <label>Referência (opcional)</label>
-              <input
-                type="text"
-                value={reference}
-                onChange={(e) => setReference(e.target.value)}
-                placeholder="Ex: TXN-ABC123"
-              />
+              <input type="text" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Ex: TXN-ABC123" />
             </div>
             {error && <p className={styles.fieldError}>{error}</p>}
             <div className={styles.modalActions}>
-              <button type="button" onClick={onClose} className={styles.cancelButton} disabled={loading}>
-                Cancelar
-              </button>
-              <button type="submit" className={styles.submitButton} disabled={loading}>
-                {loading ? "Enviando..." : "Confirmar Pagamento"}
-              </button>
+              <button type="button" onClick={onClose} className={styles.cancelButton} disabled={loading}>Cancelar</button>
+              <button type="submit" className={styles.submitButton} disabled={loading}>{loading ? "Enviando..." : "Confirmar Pagamento"}</button>
             </div>
           </div>
         </form>
@@ -631,7 +565,6 @@ const PayInstallmentModal: React.FC<{
   );
 };
 
-// ---- HistoryContent (integrado com API) ----
 const HistoryContent: React.FC = () => {
   const [payments, setPayments] = useState<PlayerPayment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -645,14 +578,10 @@ const HistoryContent: React.FC = () => {
       setError(null);
     } catch (err: any) {
       setError("Erro ao carregar histórico de pagamentos.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchPayments();
-  }, []);
+  useEffect(() => { fetchPayments(); }, []);
 
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -682,12 +611,7 @@ const HistoryContent: React.FC = () => {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Quota</th>
-                <th>Prestação</th>
-                <th>Valor</th>
-                <th>Método</th>
-                <th>Estado</th>
-                <th>Data</th>
+                <th>Quota</th><th>Prestação</th><th>Valor</th><th>Método</th><th>Estado</th><th>Data</th>
               </tr>
             </thead>
             <tbody>
@@ -697,11 +621,7 @@ const HistoryContent: React.FC = () => {
                   <td>{p.label || `Prestação ${p.installment_number}`}</td>
                   <td>{p.amount} MT</td>
                   <td>{p.method}</td>
-                  <td>
-                    <span className={`${styles.statusBadge} ${getStatusClass(p.status)}`}>
-                      {getStatusLabel(p.status)}
-                    </span>
-                  </td>
+                  <td><span className={`${styles.statusBadge} ${getStatusClass(p.status)}`}>{getStatusLabel(p.status)}</span></td>
                   <td>{p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td>
                 </tr>
               ))}
@@ -713,7 +633,6 @@ const HistoryContent: React.FC = () => {
   );
 };
 
-// ---- NotificationsContent (com dados mock) ----
 const NotificationsContent: React.FC = () => {
   const notifications: Notification[] = [
     { id: 1, title: "Convocatória para Treinos Provinciais", message: "A Federação Moçambicana convoca todos os atletas da categoria Sénior para a sessão de treinos no dia 12 de Junho.", time: "Há 2 horas", icon: "calendar_month", iconColor: "primary", highlight: true },
@@ -740,13 +659,10 @@ const NotificationsContent: React.FC = () => {
   );
 };
 
-// ---- ProfileContent ----
 const ProfileContent: React.FC<{ player: any; stats: any }> = ({ player, stats }) => (
   <div className={styles.profileGrid}>
     <div className={styles.profileCard}>
-      <div className={styles.profileImageWrapper}>
-        <img src="https://via.placeholder.com/150" alt="Profile" />
-      </div>
+      <div className={styles.profileImageWrapper}><img src="https://via.placeholder.com/150" alt="Profile" /></div>
       <div className={styles.profileInfo}>
         <span className={styles.badge}>Atleta Federado</span>
         <h3>{player.name}</h3>
@@ -779,7 +695,6 @@ const ProfileContent: React.FC<{ player: any; stats: any }> = ({ player, stats }
   </div>
 );
 
-// ---- TransferContent (exibe documentos) ----
 const TransferContent: React.FC<{
   onOpenModal: () => void;
   activeTransfer: Transfer | null;
@@ -808,26 +723,13 @@ const TransferContent: React.FC<{
       {activeTransfer ? (
         <div className={styles.activeTransferCard}>
           <div className={styles.activeTransferHeader}>
-            <span className={`${styles.statusBadge} ${getStatusClass(activeTransfer.status)}`}>
-              {getStatusLabel(activeTransfer.status)}
-            </span>
-            <button className={styles.dangerButton} onClick={() => onCancelTransfer(activeTransfer.id)}>
-              Cancelar Solicitação
-            </button>
+            <span className={`${styles.statusBadge} ${getStatusClass(activeTransfer.status)}`}>{getStatusLabel(activeTransfer.status)}</span>
+            <button className={styles.dangerButton} onClick={() => onCancelTransfer(activeTransfer.id)}>Cancelar Solicitação</button>
           </div>
           <div className={styles.activeTransferBody}>
-            <div className={styles.transferDetail}>
-              <span>Destino</span>
-              <strong>{activeTransfer.to_association?.name || "N/A"}</strong>
-            </div>
-            <div className={styles.transferDetail}>
-              <span>Motivo</span>
-              <p>{activeTransfer.reason}</p>
-            </div>
-            <div className={styles.transferDetail}>
-              <span>Data do pedido</span>
-              <span>{new Date(activeTransfer.created_at).toLocaleDateString()}</span>
-            </div>
+            <div className={styles.transferDetail}><span>Destino</span><strong>{activeTransfer.to_association?.name || "N/A"}</strong></div>
+            <div className={styles.transferDetail}><span>Motivo</span><p>{activeTransfer.reason}</p></div>
+            <div className={styles.transferDetail}><span>Data do pedido</span><span>{new Date(activeTransfer.created_at).toLocaleDateString()}</span></div>
             {activeTransfer.documents && activeTransfer.documents.length > 0 && (
               <div className={styles.transferDetail}>
                 <span>Documentos</span>
@@ -845,10 +747,7 @@ const TransferContent: React.FC<{
             <li><strong>Carta de Aceitação</strong> – documento do novo clube confirmando a recepção (será anexado pela associação de destino).</li>
           </ul>
           <p>O motivo deve descrever claramente a razão do pedido (mínimo 10 caracteres).</p>
-          <button className={styles.primaryButton} onClick={onOpenModal}>
-            <span className="material-symbols-outlined">upload</span>
-            Iniciar Solicitação
-          </button>
+          <button className={styles.primaryButton} onClick={onOpenModal}><span className="material-symbols-outlined">upload</span> Iniciar Solicitação</button>
         </div>
       )}
       <div>
@@ -859,30 +758,15 @@ const TransferContent: React.FC<{
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
               <thead>
-                <tr>
-                  <th>Destino</th>
-                  <th>Status</th>
-                  <th>Data</th>
-                  <th>Documentos</th>
-                </tr>
+                <tr><th>Destino</th><th>Status</th><th>Data</th><th>Documentos</th></tr>
               </thead>
               <tbody>
                 {transfers.map((t) => (
                   <tr key={t.id}>
                     <td>{t.to_association?.name || "N/A"}</td>
-                    <td>
-                      <span className={`${styles.statusBadge} ${getStatusClass(t.status)}`}>
-                        {getStatusLabel(t.status)}
-                      </span>
-                    </td>
+                    <td><span className={`${styles.statusBadge} ${getStatusClass(t.status)}`}>{getStatusLabel(t.status)}</span></td>
                     <td>{new Date(t.created_at).toLocaleDateString()}</td>
-                    <td>
-                      {t.documents && t.documents.length > 0 ? (
-                        <TransferDocuments documents={t.documents} />
-                      ) : (
-                        "—"
-                      )}
-                    </td>
+                    <td>{t.documents && t.documents.length > 0 ? <TransferDocuments documents={t.documents} /> : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -894,30 +778,17 @@ const TransferContent: React.FC<{
   );
 };
 
-// 🆕 Componente para exibir documentos
-const TransferDocuments: React.FC<{ documents: TransferDoc[] }> = ({ documents }) => {
-  return (
-    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-      {documents.map((doc) => (
-        <li key={doc.id} style={{ marginBottom: "0.25rem" }}>
-          <a
-            href={doc.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontSize: "0.9rem" }}
-          >
-            📄 {doc.original_name || doc.type}
-          </a>
-          <span style={{ marginLeft: "0.5rem", color: "#666", fontSize: "0.8rem" }}>
-            — {doc.type === "origin_approval" ? "Doc. origem" : "Doc. destino"}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-};
+const TransferDocuments: React.FC<{ documents: TransferDoc[] }> = ({ documents }) => (
+  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+    {documents.map((doc) => (
+      <li key={doc.id} style={{ marginBottom: "0.25rem" }}>
+        <a href={doc.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.9rem" }}>📄 {doc.original_name || doc.type}</a>
+        <span style={{ marginLeft: "0.5rem", color: "#666", fontSize: "0.8rem" }}> — {doc.type === "origin_approval" ? "Doc. origem" : "Doc. destino"}</span>
+      </li>
+    ))}
+  </ul>
+);
 
-// ---- Modais que permanecem ----
 const NotificationsModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
@@ -927,9 +798,7 @@ const NotificationsModal: React.FC<{ isOpen: boolean; onClose: () => void }> = (
           <h3>Notificações</h3>
           <button onClick={onClose} className={styles.modalClose}>&times;</button>
         </div>
-        <div className={styles.modalBody}>
-          <p>Funcionalidade em breve.</p>
-        </div>
+        <div className={styles.modalBody}><p>Funcionalidade em breve.</p></div>
       </div>
     </div>
   );
@@ -955,7 +824,6 @@ const ProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; player: any
   );
 };
 
-// ✅ TransferModal sem campos de ficheiro
 const TransferModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -977,9 +845,7 @@ const TransferModal: React.FC<{
         setAssociations(data);
       } catch (err) {
         console.error("Erro ao carregar associações", err);
-      } finally {
-        setLoadingAssociations(false);
-      }
+      } finally { setLoadingAssociations(false); }
     };
     fetchAssociations();
   }, [isOpen]);
@@ -1013,16 +879,8 @@ const TransferModal: React.FC<{
               </div>
               <div className={styles.formGroup}>
                 <label>Motivo da Transferência</label>
-                <textarea
-                  value={form.reason}
-                  onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                  placeholder="Explique o motivo do pedido (mín. 10 caracteres)"
-                  rows={3}
-                  minLength={10}
-                  required
-                />
+                <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Explique o motivo do pedido (mín. 10 caracteres)" rows={3} minLength={10} required />
               </div>
-              {/* ❌ Sem campos de upload de ficheiro */}
               <div className={styles.modalActions}>
                 <button type="button" className={styles.cancelButton} onClick={onClose}>Cancelar</button>
                 <button type="submit" className={styles.submitButton}>Enviar Solicitação</button>

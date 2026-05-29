@@ -11,6 +11,10 @@ use App\Services\QuotaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use App\Models\AssociationQuotaConfig;  
+use App\Models\User;
+use App\Models\Association;
+
 
 
 class QuotaController extends Controller
@@ -358,4 +362,87 @@ class QuotaController extends Controller
             ],
         ]);
     }
+
+    // app/Http/Controllers/QuotaController.php — ADICIONAR à classe existente
+
+/*
+|--------------------------------------------------------------------------
+| CONFIGURAÇÃO GLOBAL (presidente/secretário)
+|--------------------------------------------------------------------------
+*/
+
+/**
+ * GET /api/association/quota-config
+ */
+public function getConfig(Request $request): JsonResponse
+{
+    $association = $this->resolveAssociation($request->user());
+
+    $config = $this->quotaService->getOrCreateConfig($association);
+
+    return response()->json(['data' => $this->formatConfig($config)]);
+}
+
+/**
+ * PUT /api/association/quota-config
+ */
+public function updateConfig(Request $request): JsonResponse
+{
+    $request->validate([
+        'annual_amount' => 'required|numeric|min:0',
+        'auto_generate' => 'boolean',
+        'title_template'=> 'string|max:100',
+        'issue_month'   => 'integer|between:1,12',
+        'issue_day'     => 'integer|between:1,31',
+        'due_month'     => 'integer|between:1,12',
+        'due_day'       => 'integer|between:1,31',
+    ]);
+
+    $association = $this->resolveAssociation($request->user());
+    $config = $this->quotaService->updateConfig($association, $request->all());
+
+    return response()->json([
+        'message' => 'Configuração guardada.',
+        'data'    => $this->formatConfig($config),
+    ]);
+}
+
+/**
+ * POST /api/association/quota-config/generate-now
+ * Gera manualmente as quotas do ano indicado (ou corrente).
+ */
+public function generateNow(Request $request): JsonResponse
+{
+    $request->validate(['year' => 'integer|min:2020|max:2100']);
+
+    $association = $this->resolveAssociation($request->user());
+    $year = $request->input('year', now()->year);
+
+    $result = $this->quotaService->generateAnnualQuotas($association, $year);
+
+    return response()->json(['message' => 'Geração concluída.', 'data' => $result]);
+}
+
+// ── helpers privados ──────────────────────────────────────────────────
+
+private function resolveAssociation(User $user): Association
+{
+    $id = $user->associationMember?->association_id;
+    if (! $id) abort(403, 'Utilizador sem associação.');
+    return Association::findOrFail($id);
+}
+
+private function formatConfig(AssociationQuotaConfig $config): array
+{
+    return [
+        'annual_amount'  => (float) $config->annual_amount,
+        'installments'   => $config->installments,
+        'title_template' => $config->title_template,
+        'auto_generate'  => $config->auto_generate,
+        'issue_month'    => $config->issue_month,
+        'issue_day'      => $config->issue_day,
+        'due_month'      => $config->due_month,
+        'due_day'        => $config->due_day,
+    ];
+}
 }

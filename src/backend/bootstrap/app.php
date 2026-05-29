@@ -3,24 +3,30 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-;
+use Illuminate\Console\Scheduling\Schedule;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-    web: __DIR__.'/../routes/web.php',
-    api: __DIR__.'/../routes/api.php',   // 👈 Adicionar esta linha
-    commands: __DIR__.'/../routes/console.php',
-    health: '/up',
-)
-  ->withMiddleware(function (Middleware $middleware) {
-    //  $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
-     $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
-    $middleware->alias([
-        'role'               => \Spatie\Permission\Middleware\RoleMiddleware::class,
-        'permission'         => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-        'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-    ]);
-})
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware) {
+        $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
+        $middleware->alias([
+            'role'               => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'permission'         => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+        ]);
+    })
+    ->withSchedule(function (Schedule $schedule) {
+        $schedule->command('quotas:generate-annual')
+                 ->yearlyOn(1, 1, '06:00')
+                 ->withoutOverlapping()
+                 ->runInBackground();
+    })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
-    })->create();
+    })
+    ->create();
