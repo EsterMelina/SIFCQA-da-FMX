@@ -151,7 +151,7 @@ interface UserProfile {
   roles: string[];
 }
 
-// 🆕 Configuração global de quotas
+// Configuração global de quotas
 interface QuotaConfig {
   annual_amount: number;
   installments: number;
@@ -311,7 +311,15 @@ const AssociationDashboard: React.FC = () => {
     );
 
     switch (activeTab) {
-      case "dashboard": return <DashboardContent stats={stats} role={role} associationId={associationId} />;
+      case "dashboard":
+        return (
+          <DashboardContent
+            stats={stats}
+            role={role}
+            associationId={associationId}
+            associationName={userProfile?.association?.name || "Associação Desportiva"}
+          />
+        );
       case "secretaries": return <SecretariesSection key={secretariesRefreshKey} addToast={addToast} associationId={associationId} onEdit={(s) => { setEditingSecretary(s); setShowSecretaryModal(true); }} onCreate={() => { setEditingSecretary(null); setShowSecretaryModal(true); }} />;
       case "players": return <PlayersSection key={playersRefreshKey} addToast={addToast} associationId={associationId} role={role} onEdit={(p) => { setEditingPlayer(p); setShowPlayerModal(true); }} onCreate={() => { setEditingPlayer(null); setShowPlayerModal(true); }} />;
       case "quotas": return <QuotasSection addToast={addToast} role={role} associationId={associationId} />;
@@ -362,7 +370,10 @@ const AssociationDashboard: React.FC = () => {
               <button className={styles.menuButton} onClick={() => setIsSidebarOpen(v => !v)}>
                 <span className="material-symbols-outlined">menu</span>
               </button>
-              <span className={styles.systemName}>SIFCQA - Associação</span>
+              {/* Nome da associação vindo do perfil */}
+              <span className={styles.systemName}>
+                {userProfile?.association?.name || "SIFCQA - Associação"}
+              </span>
             </div>
             <div className={styles.topbarRight}>
               <button className={styles.themeToggle} onClick={() => setTheme(t => t === "light" ? "dark" : "light")}>
@@ -398,7 +409,7 @@ const AssociationDashboard: React.FC = () => {
 };
 
 /* ==================== DASHBOARD CONTENT ==================== */
-const DashboardContent: React.FC<{ stats: DashboardStats; role: string; associationId: number }> = ({ stats, role }) => {
+const DashboardContent: React.FC<{ stats: DashboardStats; role: string; associationId: number; associationName: string }> = ({ stats, role, associationName }) => {
   const activityData = [
     { label: "Seg", value: 2 }, { label: "Ter", value: 5 }, { label: "Qua", value: 3 },
     { label: "Qui", value: 7 }, { label: "Sex", value: 4 }, { label: "Sáb", value: 6 }, { label: "Dom", value: 1 },
@@ -410,7 +421,8 @@ const DashboardContent: React.FC<{ stats: DashboardStats; role: string; associat
       <div className={styles.dashboardHero}>
         <div className={styles.heroText}>
           <p>Bem-vindo ao painel da</p>
-          <h2>Associação Desportiva</h2>
+          {/* Nome real da associação */}
+          <h2>{associationName}</h2>
           <span className={styles.roleBadge}>{role === "president" ? "Presidente" : "Secretário(a)"}</span>
         </div>
         <div className={styles.heroIcon}><span className="material-symbols-outlined">stadium</span></div>
