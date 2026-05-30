@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use App\Models\Association;
 use App\Models\AssociationQuotaConfig;
+use Illuminate\Support\Facades\Hash;
 
 class QuotaService
 {
@@ -369,6 +370,17 @@ public function updateConfig(Association $association, array $data): Association
  * Gera quotas para todos os jogadores activos de uma associação.
  * Idempotente: não duplica se já existir quota para o mesmo título/jogador/ano.
  */
+private function systemUserId(): int
+{
+    return User::firstOrCreate(
+        ['email' => 'system@fmx.local'],
+        [
+            'name' => 'System',
+            'password' => Hash::make('password123'),
+        ]
+    )->id;
+}
+
 public function generateAnnualQuotas(Association $association, int $year): array
 {
     $config = $this->getOrCreateConfig($association);
@@ -396,7 +408,7 @@ public function generateAnnualQuotas(Association $association, int $year): array
         Quota::create([
             'association_id'     => $association->id,
             'player_id'          => $player->id,
-            'created_by'         => null, // gerado pelo sistema
+            'created_by' => auth()->id() ?? $this->systemUserId(),
             'title'              => $title,
             'total_amount'       => $config->annual_amount,
             'installment_amount' => round($config->annual_amount / 2, 2),
@@ -434,7 +446,7 @@ public function generateForNewPlayer(Player $player, Association $association): 
             'title'          => $title,
         ],
         [
-            'created_by'         => null,
+            'created_by' => auth()->id() ?? $this->systemUserId(),
             'total_amount'       => $config->annual_amount,
             'installment_amount' => round($config->annual_amount / 2, 2),
             'paid_amount'        => 0,

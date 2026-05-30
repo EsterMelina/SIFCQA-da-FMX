@@ -48,6 +48,7 @@ class UserSeeder extends Seeder
             'password' => Hash::make('password123'),
         ]);
 
+
         // ❌ NÃO atribui role player
     }
 }
