@@ -17,6 +17,8 @@ class User extends Authenticatable
         'email',
         'password',
         'status',
+        'dataNascimento',
+        'genero'
     ];
 
     protected $hidden = [
@@ -27,6 +29,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'dataNascimento' => 'date',
     ];
 
     public function fmxStaff()

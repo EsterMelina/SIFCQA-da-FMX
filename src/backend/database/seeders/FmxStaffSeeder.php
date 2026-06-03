@@ -24,13 +24,22 @@ class FmxStaffSeeder extends Seeder
         }
 
         // 2. Criar (ou obter) o usuário FMX
+        // $user = User::firstOrCreate(
+        //     ['email' => 'fmx@fmx.org'],
+        //     [
+        //         'name' => 'FMX Admin',
+        //         'password' => Hash::make('password'),
+        //     ]
+        // );
         $user = User::firstOrCreate(
-            ['email' => 'fmx@fmx.org'],
-            [
-                'name' => 'FMX Admin',
-                'password' => Hash::make('password'),
-            ]
-        );
+    ['email' => 'fmx@fmx.org'],
+    [
+        'name' => 'FMX Admin',
+        'password' => Hash::make('password'),
+        'genero' => 'M',
+        'dataNascimento' => '2000-01-01',
+    ]
+);
 
         // Garantir que o usuário tenha a role 'fmx'
         if (!$user->hasRole('fmx')) {

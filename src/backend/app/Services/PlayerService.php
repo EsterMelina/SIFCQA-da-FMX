@@ -133,4 +133,13 @@ Log::info('DEBUG PLAYER ACTIVE', [
     return $player->fresh();
 }
 
+public function delete(Player $player){
+
+     $player->delete();
+
+      return response()->json([
+        'message' => 'Player removido com sucesso'
+    ]);
+}
+
 }

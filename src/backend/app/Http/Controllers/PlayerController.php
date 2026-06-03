@@ -288,4 +288,11 @@ public function suspender(Player $player)
     return response()->json($updatedPlayer);
 }
 
+
+public function delete(Player $player){
+    $softDeletePlayer = $this->service->delete($player);
+
+    return response()->json($softDeletePlayer);
+}
+
 }

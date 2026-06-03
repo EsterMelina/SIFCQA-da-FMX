@@ -16,6 +16,8 @@ class UserSeeder extends Seeder
             'email' => 'admin@fmx.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password123'),
+             'genero' => 'M',
+            'dataNascimento' => '2000-01-01',
         ]);
 
         $admin->assignRole('admin');
@@ -26,6 +28,8 @@ class UserSeeder extends Seeder
             'email' => 'fmx@fmx.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password123'),
+             'genero' => 'M',
+             'dataNascimento' => '2000-01-01',
         ]);
 
         $fmxUser->assignRole('fmx');
@@ -36,6 +40,8 @@ class UserSeeder extends Seeder
             'email' => 'association@fmx.com',
             'email_verified_at' => now(),
             'password' => Hash::make('password123'),
+             'genero' => 'M',
+            'dataNascimento' => '2000-01-01',
         ]);
 
         $associationUser->assignRole('association');
@@ -46,6 +52,8 @@ class UserSeeder extends Seeder
             'email' => 'player@fmx.com',
             'email_verified_at' => null,
             'password' => Hash::make('password123'),
+             'genero' => 'M',
+    'dataNascimento' => '2000-01-01',
         ]);
 
 
