@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Player;
+use App\Models\AssociationMembers;
+use App\Models\User;
 use App\Services\PlayerService;
 use Illuminate\Http\Request;
 use App\Models\Association;
@@ -224,5 +226,66 @@ public function associationPlayers($associationId)
         );
     }
 
+//    public function suspender(Player $player)
+// {
+    
+//     $association->players()->findOrFail($player->id);
+
+//     return response()->json(
+//         $this->service->suspender($player)
+//     );
+// }
+// public function suspender(Player $player)
+// {
+//     $user = auth()->user();
+
+// Log::info('USER DEBUG', [
+//     'user_id' => $user?->id,
+//     'has_association' => $user?->association,
+// ]);
+// Log::info('PLAYER RECEBIDO:', [
+//     'player_id' => $player->id,
+//     'active' => $player->active,
+// ]);
+// Log::info('REQUEST DATA:', request()->all());
+// Log::info('DEBUG PLAYER ACTIVE', [
+//     'value' => $player->active,
+//     'type' => gettype($player->active),
+// ]);
+
+//     $association = auth()->user()->association;
+
+//     // garante que o player pertence à associação logada
+//     $association->players()->findOrFail($player->id);
+
+//     $updatedPlayer = $this->service->toggleStatus($player);
+
+//     return response()->json($updatedPlayer);
+// }
+
+public function suspender(Player $player)
+{
+    $user = auth()->user();
+
+    // busca membership
+    $membership = $user->associationMember;
+
+    if (!$membership) {
+        return response()->json([
+            'message' => 'Utilizador não pertence a nenhuma associação.'
+        ], 403);
+    }
+
+    // pega associação real
+    $association = $membership->association;
+
+    // valida se o player pertence à associação
+    $association->players()->findOrFail($player->id);
+
+    // toggle status
+    $updatedPlayer = $this->service->toggleStatus($player);
+
+    return response()->json($updatedPlayer);
+}
 
 }

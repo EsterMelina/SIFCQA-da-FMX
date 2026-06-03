@@ -177,6 +177,7 @@ class TransferController extends Controller
         return response()->json($this->service->cancel($transfer));
     }
 
+
     /*
     |--------------------------------------------------------------------------
     | Histórico de transferências de um jogador

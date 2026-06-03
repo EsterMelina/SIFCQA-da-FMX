@@ -6,7 +6,12 @@ import { useAuth } from "@/app/providers/AuthProvider";
 import styles from "./FmxDashboard.module.css";
 
 /* ==================== TIPOS ==================== */
-type TabType = "dashboard" | "associations" | "database" | "reports" | "tournaments";
+type TabType =
+  | "dashboard"
+  | "associations"
+  | "database"
+  | "reports"
+  | "tournaments";
 
 interface Association {
   id: number;
@@ -54,7 +59,7 @@ const FmxDashboard: React.FC = () => {
   const { logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [theme, setTheme] = useState<"light" | "dark">(() =>
-    localStorage.getItem("theme") === "dark" ? "dark" : "light"
+    localStorage.getItem("theme") === "dark" ? "dark" : "light",
   );
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -64,15 +69,37 @@ const FmxDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [tournaments] = useState<Tournament[]>([
-    { id: 1, name: "Open Internacional de Maputo", subtitle: "FIDE Rated", location: "Maputo", startDate: "12 Ago 2024", status: "open" },
-    { id: 2, name: "Provincial de Sub-18 (Gaza)", subtitle: "Juvenil", location: "Xai-Xai", startDate: "18 Jul 2024", status: "ongoing" },
-    { id: 3, name: "Taça Moçambique 2024", subtitle: "Nacional", location: "Beira", startDate: "05 Set 2024", status: "scheduled" },
+    {
+      id: 1,
+      name: "Open Internacional de Maputo",
+      subtitle: "FIDE Rated",
+      location: "Maputo",
+      startDate: "12 Ago 2024",
+      status: "open",
+    },
+    {
+      id: 2,
+      name: "Provincial de Sub-18 (Gaza)",
+      subtitle: "Juvenil",
+      location: "Xai-Xai",
+      startDate: "18 Jul 2024",
+      status: "ongoing",
+    },
+    {
+      id: 3,
+      name: "Taça Moçambique 2024",
+      subtitle: "Nacional",
+      location: "Beira",
+      startDate: "05 Set 2024",
+      status: "scheduled",
+    },
   ]);
 
   const [showAssociationModal, setShowAssociationModal] = useState(false);
   const [editingAssoc, setEditingAssoc] = useState<Association | null>(null);
   const [showPresidentModal, setShowPresidentModal] = useState(false);
-  const [selectedAssocForPresident, setSelectedAssocForPresident] = useState<Association | null>(null);
+  const [selectedAssocForPresident, setSelectedAssocForPresident] =
+    useState<Association | null>(null);
   const [candidates, setCandidates] = useState<UserCandidate[]>([]);
   const [presidentSubmitting, setPresidentSubmitting] = useState(false);
 
@@ -81,7 +108,8 @@ const FmxDashboard: React.FC = () => {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  const toggleTheme = () =>
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -102,8 +130,8 @@ const FmxDashboard: React.FC = () => {
         const res = await http.get("/fmx/players");
         // O backend devolve { total_players: N, players: [...] }
         const playersData =
-          res.data?.players ||          // caso directo: { players: [...] }
-          res.data?.data?.players ||    // caso encapsulado: { data: { players: [...] } }
+          res.data?.players || // caso directo: { players: [...] }
+          res.data?.data?.players || // caso encapsulado: { data: { players: [...] } }
           [];
         setPlayers(Array.isArray(playersData) ? playersData : []);
       }
@@ -159,9 +187,12 @@ const FmxDashboard: React.FC = () => {
     if (!selectedAssocForPresident) return;
     setPresidentSubmitting(true);
     try {
-      await http.post(`/fmx/associations/${selectedAssocForPresident.id}/president`, {
-        user_id: userId,
-      });
+      await http.post(
+        `/fmx/associations/${selectedAssocForPresident.id}/president`,
+        {
+          user_id: userId,
+        },
+      );
       setShowPresidentModal(false);
       fetchData();
     } catch (err: any) {
@@ -207,7 +238,9 @@ const FmxDashboard: React.FC = () => {
           />
         );
       case "database":
-        return <DatabaseContent players={players} loading={loading} error={error} />;
+        return (
+          <DatabaseContent players={players} loading={loading} error={error} />
+        );
       case "reports":
         return (
           <PlaceholderPage
@@ -224,13 +257,17 @@ const FmxDashboard: React.FC = () => {
   };
 
   return (
-    <div className={`${styles.container} ${theme === "dark" ? styles.dark : ""}`}>
+    <div
+      className={`${styles.container} ${theme === "dark" ? styles.dark : ""}`}
+    >
       <div className={styles.layout}>
         <div
           className={`${styles.overlay} ${isSidebarOpen ? styles.overlayVisible : ""}`}
           onClick={() => setIsSidebarOpen(false)}
         />
-        <aside className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ""}`}>
+        <aside
+          className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ""}`}
+        >
           <div className={styles.sidebarHeader}>
             <div className={styles.brand}>
               <div className={styles.logo}>
@@ -245,8 +282,16 @@ const FmxDashboard: React.FC = () => {
           <nav className={styles.nav}>
             {[
               { key: "dashboard", label: "Dashboard", icon: "dashboard" },
-              { key: "associations", label: "Associações", icon: "account_balance" },
-              { key: "database", label: "Base de Dados", icon: "database" },
+              {
+                key: "associations",
+                label: "Associações",
+                icon: "account_balance",
+              },
+              {
+                key: "database",
+                label: "Lista de Jogadores",
+                icon: "database",
+              },
               { key: "reports", label: "Relatórios", icon: "assessment" },
               { key: "tournaments", label: "Torneios", icon: "emoji_events" },
             ].map((item) => (
@@ -273,7 +318,10 @@ const FmxDashboard: React.FC = () => {
         <main className={styles.main}>
           <header className={styles.topbar}>
             <div className={styles.topbarLeft}>
-              <button className={styles.menuButton} onClick={() => setIsSidebarOpen((v) => !v)}>
+              <button
+                className={styles.menuButton}
+                onClick={() => setIsSidebarOpen((v) => !v)}
+              >
                 <span className="material-symbols-outlined">menu</span>
               </button>
               <span className={styles.systemName}>SIFCQA-FMX</span>
@@ -329,7 +377,14 @@ const DashboardContent: React.FC<{
   loading: boolean;
   error: string | null;
   onViewAssociations: () => void;
-}> = ({ stats, provinces, tournaments, loading, error, onViewAssociations }) => {
+}> = ({
+  stats,
+  provinces,
+  tournaments,
+  loading,
+  error,
+  onViewAssociations,
+}) => {
   if (loading) return <div className={styles.loading}>Carregando...</div>;
   if (error) return <div className={styles.error}>{error}</div>;
 
@@ -339,10 +394,12 @@ const DashboardContent: React.FC<{
         <div className={styles.heroHeader}>
           <div>
             <p className={styles.heroLabel}>Panorama Nacional</p>
-            <h2 className={styles.heroTitle}>Federação Moçambicana de Xadrez</h2>
+            <h2 className={styles.heroTitle}>
+              Federação Moçambicana de Xadrez
+            </h2>
             <p className={styles.heroDesc}>
-              Crescimento institucional de 12.4% no último trimestre. Consolidação das associações
-              provinciais em curso.
+              Crescimento institucional de 12.4% no último trimestre.
+              Consolidação das associações provinciais em curso.
             </p>
           </div>
           <div className={styles.heroStats}>
@@ -406,8 +463,12 @@ const DashboardContent: React.FC<{
                   <span>{t.subtitle}</span>
                 </div>
                 <div className={styles.tournamentMeta}>
-                  <span className="material-symbols-outlined">location_on</span> {t.location}
-                  <span className="material-symbols-outlined">calendar_today</span> {t.startDate}
+                  <span className="material-symbols-outlined">location_on</span>{" "}
+                  {t.location}
+                  <span className="material-symbols-outlined">
+                    calendar_today
+                  </span>{" "}
+                  {t.startDate}
                 </div>
               </li>
             ))}
@@ -439,14 +500,15 @@ const AssociationsContent: React.FC<{
   const handleToggleStatus = async (assoc: Association) => {
     console.log("🔎 Toggle status associação:", assoc);
 
-    if (!confirm(`Deseja ${assoc.status ? "suspender" : "reativar"} ${assoc.name}?`))
+    if (
+      !confirm(
+        `Deseja ${assoc.status ? "suspender" : "reativar"} ${assoc.name}?`,
+      )
+    )
       return;
 
     try {
-      const res = await http.patch(
-        `/fmx/associations/${assoc.id}/status`,
-        {}
-      );
+      const res = await http.patch(`/fmx/associations/${assoc.id}/status`, {});
 
       console.log("📡 Response toggle status:", res);
       console.log("📦 Data:", res.data);
@@ -516,9 +578,7 @@ const AssociationsContent: React.FC<{
                   <td>
                     <div className={styles.actionButtons}>
                       <button onClick={() => onEdit(a)} title="Editar">
-                        <span className="material-symbols-outlined">
-                          edit
-                        </span>
+                        <span className="material-symbols-outlined">edit</span>
                       </button>
 
                       <button
@@ -547,9 +607,7 @@ const AssociationsContent: React.FC<{
         </table>
 
         {associations.length === 0 && !loading && (
-          <div className={styles.empty}>
-            Nenhuma associação cadastrada.
-          </div>
+          <div className={styles.empty}>Nenhuma associação cadastrada.</div>
         )}
       </div>
     </div>
@@ -602,104 +660,96 @@ const DatabaseContent: React.FC<{
   // };
 
   const handleDownload = async () => {
+    console.log("=== INÍCIO DOWNLOAD PDF ===");
 
-  console.log("=== INÍCIO DOWNLOAD PDF ===");
+    try {
+      console.log("A enviar request para /fmx/reports/players/national/pdf");
 
-  try {
-
-    console.log("A enviar request para /fmx/reports/players/national/pdf");
-
-    const res = await http.get(
-      "/fmx/reports/players/national/pdf",
-      {
+      const res = await http.get("/fmx/reports/players/national/pdf", {
         responseType: "blob",
-      }
-    );
+      });
 
-    // =========================================
-    // RESPONSE COMPLETA
-    // =========================================
-    console.log("RESPONSE COMPLETA:", res);
+      // =========================================
+      // RESPONSE COMPLETA
+      // =========================================
+      console.log("RESPONSE COMPLETA:", res);
 
-    // =========================================
-    // STATUS
-    // =========================================
-    console.log("STATUS:", res.status);
+      // =========================================
+      // STATUS
+      // =========================================
+      console.log("STATUS:", res.status);
 
-    // =========================================
-    // HEADERS
-    // =========================================
-    console.log("HEADERS:", res.headers);
+      // =========================================
+      // HEADERS
+      // =========================================
+      console.log("HEADERS:", res.headers);
 
-    // =========================================
-    // DATA / BLOB
-    // =========================================
-    console.log("DATA:", res.data);
+      // =========================================
+      // DATA / BLOB
+      // =========================================
+      console.log("DATA:", res.data);
 
-    console.log("TIPO DA DATA:", typeof res.data);
+      console.log("TIPO DA DATA:", typeof res.data);
 
-    console.log("É BLOB?", res.data instanceof Blob);
+      console.log("É BLOB?", res.data instanceof Blob);
 
-    console.log("TAMANHO BLOB:", res.data.size);
+      console.log("TAMANHO BLOB:", res.data.size);
 
-    console.log("TIPO MIME:", res.data.type);
+      console.log("TIPO MIME:", res.data.type);
 
-    // =========================================
-    // URL GERADA
-    // =========================================
-    const url = window.URL.createObjectURL(
-      new Blob([res.data])
-    );
+      // =========================================
+      // URL GERADA
+      // =========================================
+      const url = window.URL.createObjectURL(new Blob([res.data]));
 
-    console.log("URL GERADA:", url);
+      console.log("URL GERADA:", url);
 
-    // =========================================
-    // DOWNLOAD
-    // =========================================
-    const a = document.createElement("a");
+      // =========================================
+      // DOWNLOAD
+      // =========================================
+      const a = document.createElement("a");
 
-    a.href = url;
+      a.href = url;
 
-    a.download = "base_dados_nacional_jogadores.pdf";
+      a.download = "base_dados_nacional_jogadores.pdf";
 
-    console.log("NOME DOWNLOAD:", a.download);
+      console.log("NOME DOWNLOAD:", a.download);
 
-    document.body.appendChild(a);
+      document.body.appendChild(a);
 
-    console.log("A iniciar clique automático...");
+      console.log("A iniciar clique automático...");
 
-    a.click();
+      a.click();
 
-    a.remove();
+      a.remove();
 
-    window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(url);
 
-    console.log("DOWNLOAD FINALIZADO");
+      console.log("DOWNLOAD FINALIZADO");
+    } catch (err: any) {
+      console.log("=== ERRO DOWNLOAD PDF ===");
 
-  } catch (err: any) {
+      console.error(err);
 
-    console.log("=== ERRO DOWNLOAD PDF ===");
+      console.log("ERR RESPONSE:", err.response);
 
-    console.error(err);
+      console.log("ERR DATA:", err.response?.data);
 
-    console.log("ERR RESPONSE:", err.response);
+      console.log("ERR STATUS:", err.response?.status);
 
-    console.log("ERR DATA:", err.response?.data);
+      console.log("ERR HEADERS:", err.response?.headers);
 
-    console.log("ERR STATUS:", err.response?.status);
-
-    console.log("ERR HEADERS:", err.response?.headers);
-
-    alert("Não foi possível gerar o PDF. Tente novamente.");
-  }
-};
+      alert("Não foi possível gerar o PDF. Tente novamente.");
+    }
+  };
 
   return (
     <div className={styles.pageContainer}>
       <div className={styles.pageHeader}>
-        <h2>Base de Dados Nacional – Jogadores</h2>
+        <h2>Lista de Jogadores</h2>
         <button className={styles.pdfButton} onClick={handleDownload}>
-          <span className="material-symbols-outlined">picture_as_pdf</span> Download Relatório
+          <span className="material-symbols-outlined">picture_as_pdf</span>{" "}
+          Baixar Lista
         </button>
       </div>
 
@@ -713,7 +763,9 @@ const DatabaseContent: React.FC<{
         />
         <select
           className={styles.filterSelect}
-          value={filterActive === null ? "all" : filterActive ? "active" : "inactive"}
+          value={
+            filterActive === null ? "all" : filterActive ? "active" : "inactive"
+          }
           onChange={(e) => {
             const val = e.target.value;
             setFilterActive(val === "all" ? null : val === "active");
@@ -774,7 +826,9 @@ const DatabaseContent: React.FC<{
 };
 
 /* ==================== TORNEIOS ==================== */
-const TournamentsContent: React.FC<{ tournaments: Tournament[] }> = ({ tournaments }) => (
+const TournamentsContent: React.FC<{ tournaments: Tournament[] }> = ({
+  tournaments,
+}) => (
   <div className={styles.pageContainer}>
     <div className={styles.pageHeader}>
       <h2>Torneios Nacionais</h2>
@@ -799,7 +853,9 @@ const TournamentsContent: React.FC<{ tournaments: Tournament[] }> = ({ tournamen
               <td>{t.location}</td>
               <td>{t.startDate}</td>
               <td>
-                <span className={`${styles.status} ${styles[t.status]}`}>{t.status}</span>
+                <span className={`${styles.status} ${styles[t.status]}`}>
+                  {t.status}
+                </span>
               </td>
             </tr>
           ))}
@@ -920,17 +976,27 @@ const AssociationModal: React.FC<{
                 <input
                   type="checkbox"
                   checked={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.checked })}
+                  onChange={(e) =>
+                    setForm({ ...form, status: e.target.checked })
+                  }
                 />
                 Ativo
               </label>
             </div>
           </div>
           <div className={styles.modalActions}>
-            <button type="button" onClick={onClose} className={styles.cancelButton}>
+            <button
+              type="button"
+              onClick={onClose}
+              className={styles.cancelButton}
+            >
               Cancelar
             </button>
-            <button type="submit" className={styles.submitButton} disabled={loading}>
+            <button
+              type="submit"
+              className={styles.submitButton}
+              disabled={loading}
+            >
               {loading ? "Salvando..." : "Guardar"}
             </button>
           </div>
@@ -979,7 +1045,11 @@ const PresidentModal: React.FC<{
             </select>
           </div>
           <div className={styles.modalActions}>
-            <button type="button" onClick={onClose} className={styles.cancelButton}>
+            <button
+              type="button"
+              onClick={onClose}
+              className={styles.cancelButton}
+            >
               Cancelar
             </button>
             <button

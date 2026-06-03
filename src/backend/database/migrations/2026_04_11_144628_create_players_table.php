@@ -16,7 +16,9 @@ public function up(): void
 
         $table->foreignId('user_id')->constrained()->cascadeOnDelete();
         $table->foreignId('association_id')->constrained()->cascadeOnDelete();
+        $table->string('fide-id', 15)->unique()->nullable();
 
+        $table->unsignedBigInteger('rating')->nullable();
         $table->boolean('active')->default(true);
 
         $table->timestamps();

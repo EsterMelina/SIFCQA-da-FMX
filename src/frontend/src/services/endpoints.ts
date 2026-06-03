@@ -79,35 +79,37 @@
 //   },
 // };
 
-
 export const endpoints = {
   auth: {
     login: "/auth/login",
     forgotPassword: "/auth/forgot-password",
     resetPassword: "/auth/reset-password",
-    setPassword: "/auth/set-password",      // existe
+    setPassword: "/auth/set-password", // existe
     logout: "/auth/logout",
     me: "/auth/me",
   },
 
   users: {
-    base: "/admin/users",                   // prefixo admin, ok
+    base: "/admin/users", // prefixo admin, ok
     updateRole: (id: number | string) => `/admin/users/${id}/role`,
     invite: "/admin/users/invite",
   },
 
   associations: {
-    base: "/admin/associations",            // admin cria/edita
-    list: "/fmx/associations",              // fmx pode listar
-    store: "/fmx/associations",             // fmx pode criar
+    base: "/admin/associations", // admin cria/edita
+    list: "/fmx/associations", // fmx pode listar
+    store: "/fmx/associations", // fmx pode criar
     detail: (id: number | string) => `/admin/associations/${id}`,
     update: (id: number | string) => `/admin/associations/${id}`,
     toggleStatus: (id: number | string) => `/admin/associations/${id}/status`, // ⚠️ endpoint não existe
     // members
-    members: (associationId: number | string) => `/associations/${associationId}/members`,
-    storeMember: (associationId: number | string) => `/associations/${associationId}/members`,
+    members: (associationId: number | string) =>
+      `/associations/${associationId}/members`,
+    storeMember: (associationId: number | string) =>
+      `/associations/${associationId}/members`,
     // players dentro da associação
-    associationPlayers: (associationId: number | string) => `/associations/${associationId}/players`,
+    associationPlayers: (associationId: number | string) =>
+      `/associations/${associationId}/players`,
   },
 
   players: {
@@ -117,7 +119,8 @@ export const endpoints = {
     // myTransfers: "/players/me/transfers",  ⚠️ não existe
     // submitLetter: "/players/me/letters",   ⚠️ não existe
     detail: (id: number) => `/players/${id}`,
-    toggleStatus: (id: number) => `/players/${id}/toggle-status`,
+    // toggleStatus: (id: number) => `/players/${id}/toggle-status`,
+    toggleStatus: (id: number) => `/association/players/${id}/toggle-status`,
     transferRequest: "/transfers", // existe
     // quotas: (id: string) => `/players/${id}/quotas`,  ⚠️ não existe
     // transfers: (id: string) => `/players/${id}/transfers`, ⚠️ não existe
@@ -132,6 +135,6 @@ export const endpoints = {
   // audit: { ... },
 
   public: {
-    provinces: "/provinces",   // ⚠️ Não vi a rota, mas pode existir
+    provinces: "/provinces", // ⚠️ Não vi a rota, mas pode existir
   },
 };

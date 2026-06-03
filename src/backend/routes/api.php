@@ -149,6 +149,14 @@ Route::middleware(['auth:sanctum', 'role:association|admin'])->prefix('associati
 
 });
 
+//activar e desactivar players
+ Route::middleware(['auth:sanctum', 'role:association|admin'])->group(function () {
+
+    // PLAYERS
+    Route::patch('association/players/{player}/toggle-status', [PlayerController::class, 'suspender']);
+    // Route::post('{association}/players', [UserController::class, 'store']);
+
+});
 
 /*
 |--------------------------------------------------------------------------

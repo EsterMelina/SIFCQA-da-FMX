@@ -103,4 +103,34 @@ class PlayerService
 //     ]);
 // }
 
+// public function suspender(Player $player): Player
+// {
+//     if ($player->active) {
+//         $player->update(['active' => false]);
+//     } else {
+//         $player->update(['active' => true]);
+//     }
+
+//     return $player->fresh();
+// }
+
+public function toggleStatus(Player $player): Player
+{
+Log::info('PLAYER RECEBIDO:', [
+    'player_id' => $player->id,
+    'active' => $player->active,
+]);
+Log::info('REQUEST DATA:', request()->all());
+Log::info('DEBUG PLAYER ACTIVE', [
+    'value' => $player->active,
+    'type' => gettype($player->active),
+]);
+
+    $player->update([
+        'active' => !$player->active
+    ]);
+
+    return $player->fresh();
+}
+
 }

@@ -217,15 +217,41 @@ public function approveByDestination(
     | PLAYER CANCELA  →  status: cancelled  (apenas enquanto pending_origin)
     |--------------------------------------------------------------------------
     */
+    // public function cancel(Transfer $transfer): Transfer
+    // {
+    //     $this->assertStatus($transfer, 'pending_origin', 'Só é possível cancelar transferências pendentes na associação de origem.');
+
+    //     $transfer->update(['status' => 'cancelled']);
+
+    //     return $transfer->fresh();
+    // }
+
+    //   public function cancelOnDestination(Transfer $transfer): Transfer
+    // {
+    //     $this->assertStatus($transfer, 'pending_destination', 'Só é possível cancelar transferências pendentes na associação de destino.');
+
+    //     $transfer->update(['status' => 'cancelled']);
+
+    //     return $transfer->fresh();
+    // }
+
     public function cancel(Transfer $transfer): Transfer
-    {
-        $this->assertStatus($transfer, 'pending_origin', 'Só é possível cancelar transferências pendentes na associação de origem.');
-
-        $transfer->update(['status' => 'cancelled']);
-
-        return $transfer->fresh();
+{
+    if (
+        $transfer->status !== 'pending_origin' &&
+        $transfer->status !== 'pending_destination'
+    ) {
+        throw new Exception(
+            'Só é possível cancelar transferências pendentes.'
+        );
     }
 
+    $transfer->update([
+        'status' => 'cancelled'
+    ]);
+
+    return $transfer->fresh();
+}
     /*
     |--------------------------------------------------------------------------
     | LISTAGEM
