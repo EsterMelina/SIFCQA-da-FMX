@@ -154,6 +154,8 @@ Route::middleware(['auth:sanctum', 'role:association|admin'])->prefix('associati
 
     // PLAYERS
     Route::patch('association/players/{player}/toggle-status', [PlayerController::class, 'suspender']);
+
+    // Route::delete('players/{player}', [PlayerController::class, ])
     // Route::post('{association}/players', [UserController::class, 'store']);
 
 });
