@@ -1,25 +1,21 @@
-/* src/styles/globals.css */
-
 /* =========================
    ☀️ LIGHT (default)
 ========================= */
 
 :root {
-  /* 🔴 PRIMARY (mais vivo) */
+  /* 🔴 PRIMARY */
   --color-primary: #e60023;
   --color-primary-container: #c30320;
   --color-on-primary-container: #4a000a;
 
   --color-secondary: #5f5e5e;
-
-  /* removido protagonismo do verde (mantido neutro) */
   --color-tertiary: #6b6a69;
   --color-tertiary-container: #d6d3d0;
 
   --color-error: #c62828;
   --color-error-container: #ffdad6;
 
-  /* BASE mais quente (menos pálido frio) */
+  /* BASE */
   --color-background: #f6f3ea;
   --color-surface: #fffdf9;
 
@@ -29,7 +25,7 @@
   --color-surface-container-high: #e6e0d8;
   --color-surface-container-highest: #ded8cf;
 
-  /* TEXTO */
+  /* TEXT */
   --color-on-surface: #1b1a18;
   --color-on-surface-variant: #5a524c;
   --color-on-background: #1b1a18;
@@ -42,29 +38,54 @@
   --sidebar-hover: #eae4db;
 
   --font-body: "Manrope", sans-serif;
-}
 
+  /* SUCCESS */
+  --color-success: #009924;
+  --color-success-container: rgba(0, 153, 36, 0.08);
+
+  /* RGB */
+  --color-primary-rgb: 230, 0, 35;
+
+  /* BADGES */
+  --badge-pending-bg: rgba(230, 0, 35, 0.08);
+  --badge-pending-text: var(--color-primary);
+  --badge-rejected-bg: rgba(0, 0, 0, 0.05);
+  --badge-rejected-text: var(--color-on-surface-variant);
+  --badge-active-bg: var(--color-success-container);
+  --badge-active-text: var(--color-success);
+
+  /* =========================
+     LOGIN / UI TOKENS
+  ========================= */
+
+  --shadow-primary: 0 12px 24px rgba(230, 0, 35, 0.2);
+  --focus-ring: 0 0 0 2px rgba(230, 0, 35, 0.3);
+
+  --decorative-blur: rgba(230, 0, 35, 0.15);
+
+  --brand-overlay-start: rgba(230, 0, 35, 0.85);
+  --brand-overlay-middle: rgba(0, 0, 0, 0.4);
+  --brand-overlay-end: rgba(0, 0, 0, 0.9);
+
+  --quote-accent: #ffdad6;
+}
 
 /* =========================
    🌙 DARK MODE
 ========================= */
 
 .dark {
-  /* 🔴 PRIMARY equilibrado (vivo, não neon) */
   --color-primary: #ff7a76;
   --color-primary-container: #8a2a2b;
   --color-on-primary-container: #ffd6d3;
 
   --color-secondary: #bdb9b6;
-
-  /* terciário neutro */
   --color-tertiary: #9a9590;
   --color-tertiary-container: #3a353c;
 
   --color-error: #ff7a7a;
   --color-error-container: #93000a;
 
-  /* BASE mais leve (menos preto pesado) */
   --color-background: #161416;
   --color-surface: #1b181c;
 
@@ -74,19 +95,32 @@
   --color-surface-container-high: #302b32;
   --color-surface-container-highest: #3a343c;
 
-  /* TEXTO mais confortável */
   --color-on-surface: #ebe7e3;
   --color-on-surface-variant: #cfc8c2;
   --color-on-background: #ebe7e3;
 
-  /* OUTLINE suave */
   --color-outline-variant: #363138;
 
-  /* SIDEBAR */
   --sidebar-bg: #1a171b;
   --sidebar-hover: #252128;
-}
 
+  --color-success: #4caf50;
+  --color-success-container: rgba(76, 175, 80, 0.12);
+
+  --color-primary-rgb: 255, 122, 118;
+
+  /* LOGIN / UI TOKENS */
+  --shadow-primary: 0 12px 24px rgba(255, 122, 118, 0.15);
+  --focus-ring: 0 0 0 2px rgba(255, 122, 118, 0.5);
+
+  --decorative-blur: rgba(255, 122, 118, 0.12);
+
+  --brand-overlay-start: rgba(138, 42, 43, 0.85);
+  --brand-overlay-middle: rgba(0, 0, 0, 0.5);
+  --brand-overlay-end: rgba(0, 0, 0, 0.95);
+
+  --quote-accent: #ffd6d3;
+}
 
 /* =========================
    BASE GLOBAL
@@ -97,7 +131,6 @@ body {
   background-color: var(--color-background);
   color: var(--color-on-background);
 }
-
 
 /* =========================
    ICONS
@@ -112,7 +145,6 @@ body {
   line-height: 1;
   text-transform: none;
   letter-spacing: normal;
-  word-wrap: normal;
   white-space: nowrap;
   direction: ltr;
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;

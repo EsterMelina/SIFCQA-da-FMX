@@ -1,4 +1,4 @@
-/* PlayerDashboard.module.css */
+PlayerDashboard.module.css
 
 /* ===== RESET ===== */
 .container * {
@@ -197,9 +197,9 @@
   top: 0;
   z-index: 20;
 }
-:global(.dark) .topbar {
+/* :global(.dark) .topbar {
   background: rgba(30, 30, 30, 0.7);
-}
+} */
 .topbarLeft {
   display: flex;
   align-items: center;
@@ -1077,3 +1077,6 @@
   font-size: 0.75rem;
   margin-top: 0.25rem;
 }
+
+
+
