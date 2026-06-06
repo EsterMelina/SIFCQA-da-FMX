@@ -17,8 +17,8 @@ return new class extends Migration
     $table->string('email')->unique();
     $table->string('password')->nullable();
 $table->rememberToken();
-    $table->string('genero')->default('M');
-$table->date('dataNascimento')->nullable()->default('2000-01-01');
+    $table->string('genero')->notNullable();
+$table->date('dataNascimento')->notNullable();
     // $table->enum('role', ['admin', 'fmx', 'association', 'player']);
     $table->boolean('status')->default(true);
 

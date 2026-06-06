@@ -29,7 +29,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
-        'dataNascimento' => 'date',
+         'dataNascimento' => 'date:Y-m-d', // força o formato '2005-12-23'
     ];
 
     public function fmxStaff()

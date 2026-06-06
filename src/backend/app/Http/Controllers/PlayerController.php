@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\Facade\Pdf as PDF2;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class PlayerController extends Controller
 {
@@ -21,6 +25,69 @@ class PlayerController extends Controller
     {
         $this->service = $service;
     }
+
+public function update(Request $request, Player $player)
+{
+    Log::info('UPDATE PLAYER REQUEST', [
+        'player_id' => $player->id,
+        'payload'   => $request->all(),
+    ]);
+
+    $data = $request->validate([
+        // USER
+        'name'            => 'sometimes|string|max:255',
+        'email'           => 'sometimes|email|unique:users,email,' . $player->user_id,
+        'genero'          => 'sometimes|in:M,F',
+        'dataNascimento'  => 'sometimes|date|before:today',
+
+        // PLAYER
+        'association_id'  => 'sometimes|exists:associations,id',
+        'fide-id'         => 'nullable|string|max:15',
+        'rating'          => 'nullable|integer|min:0',
+        'active'          => 'sometimes|boolean',
+    ]);
+
+    DB::transaction(function () use ($player, $data) {
+
+        // ====================
+        // UPDATE USER
+        // ====================
+
+        $userData = Arr::only($data, [
+            'name',
+            'email',
+            'genero',
+            'dataNascimento'
+        ]);
+
+        if (!empty($userData)) {
+            $player->user->update($userData);
+        }
+
+        // ====================
+        // UPDATE PLAYER
+        // ====================
+
+        $playerData = Arr::only($data, [
+            'association_id',
+            'fide-id',
+            'rating',
+            'active'
+        ]);
+
+        if (!empty($playerData)) {
+            $player->update($playerData);
+        }
+    });
+
+    return response()->json([
+        'message' => 'Jogador atualizado com sucesso',
+        'player' => $player->fresh()->load([
+            'user',
+            'association'
+        ])
+    ]);
+}
 
 
 //     public function indexByAssociation($associationId)

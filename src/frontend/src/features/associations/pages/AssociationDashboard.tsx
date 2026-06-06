@@ -1,8 +1,10 @@
-// AssociationDashboard.tsx
+// AssociationDashboard.tsx (versão final com ECharts)
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
 import { useAuth } from "@/app/providers/AuthProvider";
+import ReactECharts from 'echarts-for-react';
+import * as echarts from 'echarts';
 import styles from "./AssociationDashboard.module.css";
 
 /* ==================== TIPOS ==================== */
@@ -46,10 +48,17 @@ interface Player {
   active: boolean;
   created_at?: string;
   updated_at?: string;
-  user?: { id?: number; name: string; email: string };
+  "fide-id"?: string;
+  rating?: number;
+  user?: {
+    id?: number;
+    name: string;
+    email: string;
+    genero?: string;
+    dataNascimento?: string;
+  };
   association?: { id: number; name: string };
   age?: number;
-  rating?: number;
   province?: string;
   monthly_fee?: number;
   team?: string;
@@ -60,10 +69,11 @@ interface Quota {
   player_id: number;
   title?: string;
   total_amount: number;
-  amount?: number;
+  paid_amount?: number;
+  remaining?: number;
   status: "pending" | "paid" | "rejected" | "expired";
   due_date?: string;
-  player?: { name: string };
+  player?: { id: number; name: string };
   year?: number;
   installment?: number;
   total_installments?: number;
@@ -83,6 +93,7 @@ interface PendingPayment {
   method: string;
   reference?: string;
   status: string;
+  created_at?: string;
 }
 
 interface TransferDoc {
@@ -157,7 +168,6 @@ interface UserProfile {
   roles: string[];
 }
 
-// Configuração global de quotas
 interface QuotaConfig {
   annual_amount: number;
   installments: number;
@@ -451,7 +461,7 @@ const AssociationDashboard: React.FC = () => {
           <TransfersSection addToast={addToast} associationId={associationId} />
         );
       case "reports":
-        return <ReportsSection role={role} />;
+        return <ReportsSection associationId={associationId} />;
       default:
         return null;
     }
@@ -520,7 +530,6 @@ const AssociationDashboard: React.FC = () => {
               >
                 <span className="material-symbols-outlined">menu</span>
               </button>
-              {/* Nome da associação vindo do perfil */}
               <span className={styles.systemName}>
                 {userProfile?.association?.name || "SIFCQA - Associação"}
               </span>
@@ -647,7 +656,6 @@ const DashboardContent: React.FC<{
       <div className={styles.dashboardHero}>
         <div className={styles.heroText}>
           <p>Bem-vindo ao painel da</p>
-          {/* Nome real da associação */}
           <h2>{associationName}</h2>
           <span className={styles.roleBadge}>
             {role === "president" ? "Presidente" : "Secretário(a)"}
@@ -2013,16 +2021,257 @@ const RejectModal: React.FC<{
   );
 };
 
-/* ==================== RELATÓRIOS ==================== */
-const ReportsSection: React.FC<{ role: string }> = () => (
-  <div className={styles.pageContainer}>
-    <h2>Relatórios</h2>
-    <div className={styles.placeholder}>
-      <span className="material-symbols-outlined">construction</span>
-      <p>Em desenvolvimento</p>
+/* ==================== RELATÓRIOS (com ECharts) ==================== */
+const ReportsSection: React.FC<{ associationId: number }> = ({ associationId }) => {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchReportData = async () => {
+      try {
+        const [playersRes, quotasRes, transfersRes, paymentsRes] = await Promise.all([
+          http.get(endpoints.associations.associationPlayers(associationId)),
+          http.get("/association/quotas", { params: { per_page: 1000 } }),
+          http.get(`/associations/${associationId}/transfers`),
+          http.get("/association/payments", { params: { per_page: 1000 } }),
+        ]);
+
+        const players: Player[] = playersRes.data.data || playersRes.data;
+        const quotas: Quota[] = quotasRes.data.data || quotasRes.data;
+        const transfersData = transfersRes.data;
+        const allTransfers: Transfer[] = [
+          ...(transfersData.outgoing || []),
+          ...(transfersData.incoming || []),
+        ];
+        const payments: PendingPayment[] = paymentsRes.data.data || paymentsRes.data;
+
+        const totalPlayers = players.length;
+        const activePlayers = players.filter(p => p.active).length;
+
+        const quotaCounts: Record<string, number> = { pending: 0, paid: 0, rejected: 0, expired: 0 };
+        let totalQuotaAmount = 0, paidAmount = 0, pendingAmount = 0;
+        quotas.forEach(q => {
+          quotaCounts[q.status]++;
+          totalQuotaAmount += Number(q.total_amount) || 0;
+          paidAmount += Number(q.paid_amount) || 0;
+          pendingAmount += Number(q.remaining) || 0;
+        });
+
+        const transferCounts: Record<string, number> = {
+          total: allTransfers.length,
+          completed: 0, pending_origin: 0, pending_destination: 0,
+          rejected_origin: 0, rejected_destination: 0,
+        };
+        allTransfers.forEach(t => {
+          const norm = normalizeStatus(t.status, t.is_origin, t.is_destination);
+          if (norm in transferCounts) transferCounts[norm]++;
+        });
+
+        const now = new Date();
+        const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+        const last6Months: { month: string; amount: number }[] = [];
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          last6Months.push({ month: monthNames[d.getMonth()] + " " + d.getFullYear(), amount: 0 });
+        }
+        payments
+          .filter(p => p.status === "confirmed" || p.status === "paid")
+          .forEach(p => {
+            if (p.created_at) {
+              const d = new Date(p.created_at);
+              const existing = last6Months.find(m => m.month.startsWith(monthNames[d.getMonth()]));
+              if (existing) existing.amount += Number(p.amount) || 0;
+            }
+          });
+
+        if (!cancelled) {
+          setData({
+            players: { total: totalPlayers, active: activePlayers, inactive: totalPlayers - activePlayers },
+            quotas: { total: quotas.length, ...quotaCounts, totalAmount: totalQuotaAmount, paidAmount, pendingAmount },
+            transfers: transferCounts,
+            revenueByMonth: last6Months,
+          });
+        }
+      } catch (err) {
+        console.error("Erro ao carregar relatório:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchReportData();
+    return () => { cancelled = true; };
+  }, [associationId]);
+
+  if (loading) return <div className={styles.loading}>A carregar relatório...</div>;
+  if (!data) return <div className={styles.emptyState}>Erro ao carregar dados.</div>;
+
+  // ─── Dados para gráficos ──────────────────────────────────────────
+  const quotaPieData = [
+    { name: "Pendente", value: data.quotas.pending },
+    { name: "Pago", value: data.quotas.paid },
+    { name: "Rejeitado", value: data.quotas.rejected },
+    { name: "Expirado", value: data.quotas.expired },
+  ];
+
+  const transferPieData = [
+    { name: "Concluídas", value: data.transfers.completed },
+    { name: "Pendentes (saída)", value: data.transfers.pending_origin },
+    { name: "Pendentes (entrada)", value: data.transfers.pending_destination },
+    { name: "Rejeitadas (saída)", value: data.transfers.rejected_origin },
+    { name: "Rejeitadas (entrada)", value: data.transfers.rejected_destination },
+  ];
+
+  const barMonths = data.revenueByMonth.map((m: any) => m.month.split(" ")[0]);
+  const barValues = data.revenueByMonth.map((m: any) => m.amount);
+
+  // Cores do tema (usando as variáveis CSS)
+  const PRIMARY = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#e60023';
+  const TERTIARY = getComputedStyle(document.documentElement).getPropertyValue('--color-tertiary').trim() || '#6b6a69';
+  const ON_SURFACE_VARIANT = getComputedStyle(document.documentElement).getPropertyValue('--color-on-surface-variant').trim() || '#5a524c';
+  const SURFACE_CONTAINER = getComputedStyle(document.documentElement).getPropertyValue('--color-surface-container').trim() || '#eee9e2';
+
+  const statusLabels: Record<string, string> = {
+    pending: "Pendente",
+    paid: "Pago",
+    rejected: "Rejeitado",
+    expired: "Expirado",
+  };
+
+  return (
+    <div className={styles.pageContainer}>
+      <h2 style={{ marginBottom: "1.5rem" }}>Relatório Estatístico da Associação</h2>
+
+      {/* Jogadores */}
+      <div className={styles.reportSection}>
+        <h3>Jogadores</h3>
+        <div className={styles.reportGrid}>
+          <div className={styles.reportCard}><strong>{data.players.total}</strong><span>Total</span></div>
+          <div className={styles.reportCard}><strong>{data.players.active}</strong><span>Ativos</span></div>
+          <div className={styles.reportCard}><strong>{data.players.inactive}</strong><span>Inativos</span></div>
+        </div>
+      </div>
+
+      {/* Quotas */}
+      <div className={styles.reportSection}>
+        <h3>Quotizações</h3>
+        <div className={styles.reportGrid}>
+          <div className={styles.reportCard}><strong>{data.quotas.total}</strong><span>Total de quotas</span></div>
+          {Object.entries(data.quotas)
+            .filter(([k]) => ["pending", "paid", "rejected", "expired"].includes(k))
+            .map(([key, value]) => (
+              <div className={styles.reportCard} key={key}>
+                <strong>{value as number}</strong>
+                <span>{statusLabels[key]}</span>
+              </div>
+            ))}
+        </div>
+        <div className={styles.amountTable}>
+          <table className={styles.table}>
+            <thead><tr><th>Indicador</th><th>Valor (MT)</th></tr></thead>
+            <tbody>
+              <tr><td>Valor total emitido</td><td>{data.quotas.totalAmount.toLocaleString("pt-MZ")} MT</td></tr>
+              <tr><td>Valor já pago</td><td>{data.quotas.paidAmount.toLocaleString("pt-MZ")} MT</td></tr>
+              <tr><td>Valor pendente</td><td>{data.quotas.pendingAmount.toLocaleString("pt-MZ")} MT</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Gráfico pizza – Quotas (ECharts) */}
+        <div className={styles.chartContainer}>
+          <ReactECharts
+            style={{ height: 320, width: '100%' }}
+            option={{
+              tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+              legend: { orient: 'horizontal', bottom: 0, textStyle: { color: ON_SURFACE_VARIANT } },
+              series: [{
+                type: 'pie',
+                radius: ['45%', '75%'],
+                avoidLabelOverlap: false,
+                label: { show: true, formatter: '{b}: {d}%', color: ON_SURFACE_VARIANT },
+                emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
+                data: quotaPieData,
+                color: ['#f59e0b', '#10b981', '#ef4444', '#6b7280'],
+              }],
+              backgroundColor: 'transparent',
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Transferências */}
+      <div className={styles.reportSection}>
+        <h3>Transferências</h3>
+        <div className={styles.reportGrid}>
+          <div className={styles.reportCard}><strong>{data.transfers.total}</strong><span>Total</span></div>
+          <div className={styles.reportCard}><strong>{data.transfers.completed}</strong><span>Concluídas</span></div>
+          <div className={styles.reportCard}><strong>{data.transfers.pending_origin}</strong><span>Pendentes (saída)</span></div>
+          <div className={styles.reportCard}><strong>{data.transfers.pending_destination}</strong><span>Pendentes (entrada)</span></div>
+          <div className={styles.reportCard}><strong>{data.transfers.rejected_origin}</strong><span>Rejeitadas (saída)</span></div>
+          <div className={styles.reportCard}><strong>{data.transfers.rejected_destination}</strong><span>Rejeitadas (entrada)</span></div>
+        </div>
+
+        {/* Gráfico pizza – Transferências (ECharts) */}
+        <div className={styles.chartContainer}>
+          <ReactECharts
+            style={{ height: 320, width: '100%' }}
+            option={{
+              tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+              legend: { orient: 'horizontal', bottom: 0, textStyle: { color: ON_SURFACE_VARIANT } },
+              series: [{
+                type: 'pie',
+                radius: ['45%', '75%'],
+                avoidLabelOverlap: false,
+                label: { show: true, formatter: '{b}: {d}%', color: ON_SURFACE_VARIANT },
+                emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
+                data: transferPieData,
+                color: ['#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6'],
+              }],
+              backgroundColor: 'transparent',
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Receita Mensal (ECharts bar) */}
+      <div className={styles.reportSection}>
+        <h3>Receita Mensal (pagamentos confirmados)</h3>
+        <div className={styles.chartContainer}>
+          <ReactECharts
+            style={{ height: 300, width: '100%' }}
+            option={{
+              tooltip: { trigger: 'axis', formatter: '{b}: {c} MT' },
+              xAxis: {
+                type: 'category',
+                data: barMonths,
+                axisLabel: { color: ON_SURFACE_VARIANT },
+              },
+              yAxis: {
+                type: 'value',
+                axisLabel: { color: ON_SURFACE_VARIANT },
+                splitLine: { lineStyle: { color: SURFACE_CONTAINER } },
+              },
+              series: [{
+                data: barValues,
+                type: 'bar',
+                barWidth: '50%',
+                itemStyle: {
+                  borderRadius: [6, 6, 0, 0],
+                  color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    { offset: 0, color: PRIMARY },
+                    { offset: 1, color: TERTIARY },
+                  ]),
+                },
+              }],
+              grid: { top: 10, bottom: 30, left: 40, right: 20 },
+              backgroundColor: 'transparent',
+            }}
+          />
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ==================== MODAIS DE SECRETÁRIO E JOGADOR ==================== */
 interface SecretaryModalProps {
@@ -2146,6 +2395,7 @@ const SecretaryModal: React.FC<SecretaryModalProps> = ({
   );
 };
 
+/* ==================== PLAYER MODAL (com FIDE ID e Rating) ==================== */
 interface PlayerModalProps {
   isOpen: boolean;
   player: Player | null;
@@ -2164,9 +2414,11 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [active, setActive] = useState(true);
-  const [age, setAge] = useState("");
+  const [fideId, setFideId] = useState("");
   const [rating, setRating] = useState("");
-  const [province, setProvince] = useState("");
+  const [genero, setGenero] = useState("M");
+  const [dataNascimento, setDataNascimento] = useState("2000-01-01");
+
   const [loading, setLoading] = useState(false);
   const isEditing = !!player;
 
@@ -2175,16 +2427,22 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
       setName(player.user?.name || "");
       setEmail(player.user?.email || "");
       setActive(player.active);
-      setAge(player.age?.toString() || "");
+      setFideId(player["fide-id"] || "");
       setRating(player.rating?.toString() || "");
-      setProvince(player.province || "");
+      setGenero(player.user?.genero || "M");
+      setDataNascimento(
+        player.user?.dataNascimento
+          ? player.user.dataNascimento.split("T")[0]
+          : "2000-01-01",
+      );
     } else {
       setName("");
       setEmail("");
       setActive(true);
-      setAge("");
+      setFideId("");
       setRating("");
-      setProvince("");
+      setGenero("M");
+      setDataNascimento("2000-01-01");
     }
   }, [player]);
 
@@ -2192,17 +2450,22 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
     e.preventDefault();
     setLoading(true);
     try {
+      const payload = {
+        name,
+        email,
+        genero,
+        dataNascimento,
+        active,
+        "fide-id": fideId || null,
+        rating: rating ? parseInt(rating, 10) : null,
+      };
+
       if (isEditing) {
-        await http.put(endpoints.players.detail(player.id), {
-          age: age ? Number(age) : undefined,
-          rating: rating ? Number(rating) : undefined,
-          province,
-          active,
-        });
+        await http.put(endpoints.players.detail(player.id), payload);
       } else {
         await http.post(
           endpoints.associations.associationPlayers(associationId),
-          { name, email, status: active },
+          payload,
         );
       }
       onSuccess();
@@ -2217,67 +2480,84 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={styles.modal}
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxHeight: "90vh", display: "flex", flexDirection: "column" }}
+      >
         <div className={styles.modalHeader}>
           <h3>{isEditing ? "Editar Jogador" : "Registar Jogador"}</h3>
           <button onClick={onClose} className={styles.modalClose}>
             ×
           </button>
         </div>
-        <form onSubmit={handleSubmit}>
-          <div className={styles.modalBody}>
-            {isEditing ? (
-              <>
-                <div className={styles.formGroup}>
-                  <label>Nome</label>
-                  <input value={name} disabled className={styles.readonly} />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Idade</label>
-                  <input
-                    type="number"
-                    value={age}
-                    onChange={(e) => setAge(e.target.value)}
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Rating</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={rating}
-                    onChange={(e) => setRating(e.target.value)}
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Província</label>
-                  <input
-                    value={province}
-                    onChange={(e) => setProvince(e.target.value)}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className={styles.formGroup}>
-                  <label>Nome *</label>
-                  <input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Email *</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-              </>
-            )}
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            flex: 1,
+          }}
+        >
+          <div
+            className={styles.modalBody}
+            style={{ overflowY: "auto", flex: 1 }}
+          >
+            <div className={styles.formGroup}>
+              <label>Nome *</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Email *</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Género</label>
+              <select value={genero} onChange={(e) => setGenero(e.target.value)}>
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Data de Nascimento</label>
+              <input
+                type="date"
+                value={dataNascimento}
+                onChange={(e) => setDataNascimento(e.target.value)}
+                required
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>FIDE ID</label>
+              <input
+                type="text"
+                maxLength={15}
+                value={fideId}
+                onChange={(e) => setFideId(e.target.value)}
+                placeholder="Opcional"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Rating</label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                value={rating}
+                onChange={(e) => setRating(e.target.value)}
+                placeholder="Opcional"
+              />
+            </div>
             <div className={styles.formGroup}>
               <label className={styles.checkboxLabel}>
                 <input

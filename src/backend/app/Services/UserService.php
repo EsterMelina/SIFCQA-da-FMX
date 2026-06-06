@@ -61,7 +61,9 @@ public function create(array $data)
         'name' => $data['name'],
         'email' => $data['email'],
         'password' => null, // 👈 importante
-        'status' => $data['status'] ?? true
+        'status' => $data['status'] ?? true,
+        'genero'         => $data['genero'],          // obrigatório
+        'dataNascimento' => $data['dataNascimento'],  // obrigatório
     ]);
 
     if (isset($data['role'])) {
@@ -94,7 +96,9 @@ public function create(array $data)
         $user->update([
             'name' => $data['name'] ?? $user->name,
             'email' => $data['email'] ?? $user->email,
-            'status' => $data['status'] ?? $user->status
+            'status' => $data['status'] ?? $user->status,
+            'genero' => $data['genero'] ?? $user->genero,
+            'dataNascimento' => $data['dataNascimento'] ?? $user->dataNascimento
         ]);
 
         if (isset($data['password'])) {

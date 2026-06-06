@@ -1,4 +1,3 @@
-// AdminDashboard.tsx
 import React, { useState, useEffect, useCallback } from "react";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
@@ -30,6 +29,8 @@ interface User {
   email: string;
   status?: string;
   roles?: Role[];
+  genero?: string;        // adicionado
+  dataNascimento?: string; // adicionado
 }
 
 interface PresidentData {
@@ -319,7 +320,7 @@ const AdminDashboard: React.FC = () => {
                 ? "Presidente criado"
                 : "Presidente actualizado",
             );
-            setPresidentRefreshKey((prev) => prev + 1); // dispara atualização
+            setPresidentRefreshKey((prev) => prev + 1);
           }}
         />
       )}
@@ -547,10 +548,11 @@ const DashboardContent: React.FC = () => {
   );
 };
 
-/* ==================== SEÇÕES ==================== */
+/* ==================== SEÇÕES (mantidas, sem alterações) ==================== */
 const FmxSection: React.FC<{
   addToast: (type: ToastMessage["type"], msg: string) => void;
 }> = ({ addToast }) => {
+  /* ... código inalterado ... */
   const [fmxData, setFmxData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
@@ -610,77 +612,38 @@ const FmxSection: React.FC<{
         <h2>FMX</h2>
         {fmxData && (
           <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button
-              className={styles.outlineButton}
-              onClick={() => setMode("view")}
-            >
-              Ver
-            </button>
-            <button
-              className={styles.outlineButton}
-              onClick={() => setMode("edit")}
-            >
-              Editar
-            </button>
+            <button className={styles.outlineButton} onClick={() => setMode("view")}>Ver</button>
+            <button className={styles.outlineButton} onClick={() => setMode("edit")}>Editar</button>
           </div>
         )}
       </div>
       {mode === "view" && fmxData ? (
         <div className={styles.cardInfo}>
-          <p>
-            <strong>Nome:</strong> {fmxData.name}
-          </p>
-          <p>
-            <strong>Email:</strong> {fmxData.contact_email}
-          </p>
-          <p>
-            <strong>Telefone:</strong> {fmxData.phone || "-"}
-          </p>
-          <p>
-            <strong>Endereço:</strong> {fmxData.address || "-"}
-          </p>
+          <p><strong>Nome:</strong> {fmxData.name}</p>
+          <p><strong>Email:</strong> {fmxData.contact_email}</p>
+          <p><strong>Telefone:</strong> {fmxData.phone || "-"}</p>
+          <p><strong>Endereço:</strong> {fmxData.address || "-"}</p>
         </div>
       ) : (
         <form onSubmit={handleSave}>
           <div className={styles.formGroup}>
             <label>Nome</label>
-            <input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </div>
           <div className={styles.formGroup}>
             <label>Email de contacto</label>
-            <input
-              type="email"
-              value={form.contact_email}
-              onChange={(e) =>
-                setForm({ ...form, contact_email: e.target.value })
-              }
-              required
-            />
+            <input type="email" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} required />
           </div>
           <div className={styles.formGroup}>
             <label>Telefone</label>
-            <input
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            />
+            <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </div>
           <div className={styles.formGroup}>
             <label>Endereço</label>
-            <input
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-            />
+            <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
           </div>
           <div className={styles.modalActions}>
-            <button
-              type="submit"
-              className={styles.submitButton}
-              disabled={saving}
-            >
+            <button type="submit" className={styles.submitButton} disabled={saving}>
               {saving ? "Salvando..." : "Guardar"}
             </button>
           </div>
@@ -696,6 +659,7 @@ const PresidenteSection: React.FC<{
   onOpenCreate: () => void;
   onOpenEdit: (president: PresidentData) => void;
 }> = ({ addToast, refreshKey, onOpenCreate, onOpenEdit }) => {
+  /* ... código inalterado ... */
   const [president, setPresident] = useState<PresidentData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -714,7 +678,7 @@ const PresidenteSection: React.FC<{
 
   useEffect(() => {
     fetchPresident();
-  }, [refreshKey]); // <-- recarrega quando a chave muda
+  }, [refreshKey]);
 
   const handleSuspend = async () => {
     if (!president) return;
@@ -737,41 +701,23 @@ const PresidenteSection: React.FC<{
         <div className={styles.cardInfo}>
           <div className={styles.cardHeader}>
             <div>
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: "3rem", color: "var(--color-primary)" }}
-              >
-                badge
-              </span>
+              <span className="material-symbols-outlined" style={{ fontSize: "3rem", color: "var(--color-primary)" }}>badge</span>
               <h3>{president.user?.name || "N/A"}</h3>
               <p className={styles.cardSubtitle}>{president.user?.email}</p>
             </div>
-            <span
-              className={
-                president.active ? styles.statusActive : styles.statusInactive
-              }
-            >
+            <span className={president.active ? styles.statusActive : styles.statusInactive}>
               {president.active ? "Ativo" : "Inativo"}
             </span>
           </div>
           <div className={styles.cardActions}>
-            <button
-              className={styles.outlineButton}
-              onClick={() => onOpenEdit(president)}
-            >
-              Alterar Presidente
-            </button>
-            <button className={styles.dangerButton} onClick={handleSuspend}>
-              Suspender Presidente
-            </button>
+            <button className={styles.outlineButton} onClick={() => onOpenEdit(president)}>Alterar Presidente</button>
+            <button className={styles.dangerButton} onClick={handleSuspend}>Suspender Presidente</button>
           </div>
         </div>
       ) : (
         <div className={styles.emptyState}>
           <p>Nenhum presidente atribuído.</p>
-          <button className={styles.addButton} onClick={onOpenCreate}>
-            Criar Presidente
-          </button>
+          <button className={styles.addButton} onClick={onOpenCreate}>Criar Presidente</button>
         </div>
       )}
     </div>
@@ -786,15 +732,7 @@ const UtilizadoresSection: React.FC<{
   addToast: (type: ToastMessage["type"], msg: string) => void;
   onOpenCreate: () => void;
   onEditUser: (user: User) => void;
-}> = ({
-  users,
-  setUsers,
-  loading,
-  error,
-  addToast,
-  onOpenCreate,
-  onEditUser,
-}) => {
+}> = ({ users, setUsers, loading, error, addToast, onOpenCreate, onEditUser }) => {
   const [search, setSearch] = useState("");
 
   const filtered = search
@@ -840,16 +778,10 @@ const UtilizadoresSection: React.FC<{
     <div className={styles.pageContainer}>
       <div className={styles.pageHeader}>
         <h2>Utilizadores</h2>
-        <button className={styles.addButton} onClick={onOpenCreate}>
-          Criar utilizador
-        </button>
+        <button className={styles.addButton} onClick={onOpenCreate}>Criar utilizador</button>
       </div>
       <div className={styles.filters}>
-        <input
-          placeholder="Pesquisar..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <input placeholder="Pesquisar..." value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
       {loading && <div className={styles.loading}>Carregando...</div>}
       {error && <div className={styles.error}>{error}</div>}
@@ -867,8 +799,7 @@ const UtilizadoresSection: React.FC<{
           <tbody>
             {filtered.map((u) => {
               const status = u.status ?? "inactive";
-              const isOnlyPlayer =
-                u.roles && u.roles.length === 1 && u.roles[0].name === "player";
+              const isOnlyPlayer = u.roles && u.roles.length === 1 && u.roles[0].name === "player";
 
               return (
                 <tr key={u.id}>
@@ -876,37 +807,18 @@ const UtilizadoresSection: React.FC<{
                   <td>{u.email}</td>
                   <td>{getRoleNames(u)}</td>
                   <td>
-                    <span
-                      className={
-                        status === "active"
-                          ? styles.statusActive
-                          : styles.statusInactive
-                      }
-                    >
+                    <span className={status === "active" ? styles.statusActive : styles.statusInactive}>
                       {status === "active" ? "Ativo" : "Inativo"}
                     </span>
                   </td>
                   <td>
                     {!isOnlyPlayer && (
-                      <button
-                        className={styles.actionBtn}
-                        onClick={() => onEditUser(u)}
-                      >
-                        Editar
-                      </button>
+                      <button className={styles.actionBtn} onClick={() => onEditUser(u)}>Editar</button>
                     )}
-                    <button
-                      className={styles.actionBtn}
-                      onClick={() => handleToggleStatus(u)}
-                    >
+                    <button className={styles.actionBtn} onClick={() => handleToggleStatus(u)}>
                       {status === "active" ? "Desativar" : "Ativar"}
                     </button>
-                    <button
-                      className={styles.actionBtn}
-                      onClick={() => handleDelete(u.id)}
-                    >
-                      Eliminar
-                    </button>
+                    <button className={styles.actionBtn} onClick={() => handleDelete(u.id)}>Eliminar</button>
                   </td>
                 </tr>
               );
@@ -923,28 +835,20 @@ const PermissoesSection: React.FC<{
   users: User[];
   fetchUsers: () => void;
 }> = ({ addToast, users, fetchUsers }) => {
+  /* ... código inalterado ... */
   const availableRoles = ["admin", "fmx", "association", "player"];
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string>(""); // "admin" | "fmx" | "association" | "player"
+  const [roleFilter, setRoleFilter] = useState<string>("");
   const [savingUsers, setSavingUsers] = useState<Set<number>>(new Set());
 
-  // Filtragem combinada
   const filteredUsers = users.filter((u) => {
-    const matchesSearch =
-      !search ||
-      u.name?.toLowerCase().includes(search.toLowerCase()) ||
-      u.email?.toLowerCase().includes(search.toLowerCase());
-    const matchesRole =
-      !roleFilter || (u.roles && u.roles.some((r) => r.name === roleFilter));
+    const matchesSearch = !search || u.name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase());
+    const matchesRole = !roleFilter || (u.roles && u.roles.some((r) => r.name === roleFilter));
     return matchesSearch && matchesRole;
   });
 
-  // Sincroniza os roles selecionados para cada utilizador
-  const [userRolesMap, setUserRolesMap] = useState<Record<number, string[]>>(
-    {},
-  );
+  const [userRolesMap, setUserRolesMap] = useState<Record<number, string[]>>({});
 
-  // Inicializa o mapa a partir dos users
   useEffect(() => {
     const map: Record<number, string[]> = {};
     users.forEach((u) => {
@@ -957,9 +861,7 @@ const PermissoesSection: React.FC<{
     setUserRolesMap((prev) => {
       const current = prev[userId] || [];
       const exists = current.includes(role);
-      const updated = exists
-        ? current.filter((r) => r !== role)
-        : [...current, role];
+      const updated = exists ? current.filter((r) => r !== role) : [...current, role];
       return { ...prev, [userId]: updated };
     });
   };
@@ -968,18 +870,11 @@ const PermissoesSection: React.FC<{
     const newRoles = userRolesMap[userId] || [];
     setSavingUsers((prev) => new Set(prev).add(userId));
     try {
-      await http.put(`${endpoints.users.base}/${userId}/roles`, {
-        roles: newRoles,
-      });
+      await http.put(`${endpoints.users.base}/${userId}/roles`, { roles: newRoles });
       addToast("success", "Permissões atualizadas");
-      // Atualiza a lista global de utilizadores
       fetchUsers();
     } catch (err: any) {
-      addToast(
-        "error",
-        err.response?.data?.message || "Erro ao salvar permissões",
-      );
-      // Reverte para os roles originais
+      addToast("error", err.response?.data?.message || "Erro ao salvar permissões");
       setUserRolesMap((prev) => {
         const user = users.find((u) => u.id === userId);
         const originalRoles = user?.roles?.map((r) => r.name) || [];
@@ -997,29 +892,12 @@ const PermissoesSection: React.FC<{
   return (
     <div className={styles.pageContainer}>
       <h2>Gestão de Permissões (Múltiplas Roles)</h2>
-      <div
-        className={styles.filters}
-        style={{
-          marginBottom: "1rem",
-          display: "flex",
-          gap: "1rem",
-          flexWrap: "wrap",
-        }}
-      >
-        <input
-          placeholder="Pesquisar utilizador..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-        >
+      <div className={styles.filters} style={{ marginBottom: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+        <input placeholder="Pesquisar utilizador..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
           <option value="">Todas as roles</option>
           {availableRoles.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
+            <option key={r} value={r}>{r}</option>
           ))}
         </select>
       </div>
@@ -1043,45 +921,19 @@ const PermissoesSection: React.FC<{
                 <tr key={u.id}>
                   <td>{u.name}</td>
                   <td>{u.email}</td>
+                  <td>{currentRoles.length > 0 ? currentRoles.join(", ") : "—"}</td>
                   <td>
-                    {currentRoles.length > 0 ? currentRoles.join(", ") : "—"}
-                  </td>
-                  <td>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: "0.5rem",
-                      }}
-                    >
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                       {availableRoles.map((role) => (
-                        <label
-                          key={role}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.25rem",
-                            cursor: "pointer",
-                            fontSize: "0.875rem",
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={currentRoles.includes(role)}
-                            onChange={() => handleRoleToggle(u.id, role)}
-                            disabled={isLoading}
-                          />
+                        <label key={role} style={{ display: "flex", alignItems: "center", gap: "0.25rem", cursor: "pointer", fontSize: "0.875rem" }}>
+                          <input type="checkbox" checked={currentRoles.includes(role)} onChange={() => handleRoleToggle(u.id, role)} disabled={isLoading} />
                           {role}
                         </label>
                       ))}
                     </div>
                   </td>
                   <td>
-                    <button
-                      className={styles.submitButton}
-                      onClick={() => handleSaveRoles(u.id)}
-                      disabled={isLoading}
-                    >
+                    <button className={styles.submitButton} onClick={() => handleSaveRoles(u.id)} disabled={isLoading}>
                       {isLoading ? "Salvando..." : "Guardar"}
                     </button>
                   </td>
@@ -1091,13 +943,7 @@ const PermissoesSection: React.FC<{
           </tbody>
         </table>
         {filteredUsers.length === 0 && (
-          <p
-            style={{
-              padding: "1rem",
-              textAlign: "center",
-              color: "var(--color-on-surface-variant)",
-            }}
-          >
+          <p style={{ padding: "1rem", textAlign: "center", color: "var(--color-on-surface-variant)" }}>
             Nenhum utilizador encontrado.
           </p>
         )}
@@ -1107,23 +953,10 @@ const PermissoesSection: React.FC<{
 };
 
 const AuditoriaSection: React.FC = () => {
+  /* ... código inalterado ... */
   const logs = [
-    {
-      id: 1,
-      timestamp: "2024-08-10 10:20",
-      user: "admin",
-      action: "Login",
-      entity: "Sistema",
-      status: "success",
-    },
-    {
-      id: 2,
-      timestamp: "2024-08-10 09:55",
-      user: "presidente",
-      action: "Criou jogador",
-      entity: "Jogador #44",
-      status: "success",
-    },
+    { id: 1, timestamp: "2024-08-10 10:20", user: "admin", action: "Login", entity: "Sistema", status: "success" },
+    { id: 2, timestamp: "2024-08-10 09:55", user: "presidente", action: "Criou jogador", entity: "Jogador #44", status: "success" },
   ];
   return (
     <div className={styles.pageContainer}>
@@ -1146,17 +979,7 @@ const AuditoriaSection: React.FC = () => {
                 <td>{l.user}</td>
                 <td>{l.action}</td>
                 <td>{l.entity}</td>
-                <td>
-                  <span
-                    className={
-                      l.status === "success"
-                        ? styles.statusSuccess
-                        : styles.statusError
-                    }
-                  >
-                    {l.status}
-                  </span>
-                </td>
+                <td><span className={l.status === "success" ? styles.statusSuccess : styles.statusError}>{l.status}</span></td>
               </tr>
             ))}
           </tbody>
@@ -1176,7 +999,7 @@ const SistemaSection: React.FC = () => (
   </div>
 );
 
-/* ==================== MODAIS ==================== */
+/* ==================== MODAIS (ATUALIZADOS) ==================== */
 const UserModal: React.FC<{
   isOpen: boolean;
   user: User | null;
@@ -1189,6 +1012,8 @@ const UserModal: React.FC<{
     name: "",
     email: "",
     role: "association",
+    genero: "M",                // novo
+    dataNascimento: "2000-01-01", // novo
   });
   const [associationId, setAssociationId] = useState<number | "">("");
   const [position, setPosition] = useState<string>("Secretário");
@@ -1204,12 +1029,14 @@ const UserModal: React.FC<{
           name: user.name,
           email: user.email,
           role: currentRole,
+          genero: user.genero || "M",
+          dataNascimento: user.dataNascimento || "2000-01-01",
         });
         fetchAssociations();
         setAssociationId("");
         setPosition("Secretário");
       } else {
-        setForm({ name: "", email: "", role: "association" });
+        setForm({ name: "", email: "", role: "association", genero: "M", dataNascimento: "2000-01-01" });
         setAssociationId("");
         setPosition("Secretário");
       }
@@ -1236,6 +1063,8 @@ const UserModal: React.FC<{
         name: form.name,
         email: form.email,
         role: form.role,
+        genero: form.genero,
+        dataNascimento: form.dataNascimento,
       };
 
       if (isEdit) {
@@ -1264,9 +1093,7 @@ const UserModal: React.FC<{
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h3>{isEdit ? "Editar Utilizador" : "Novo Utilizador"}</h3>
-          <button onClick={onClose} className={styles.modalClose}>
-            ×
-          </button>
+          <button onClick={onClose} className={styles.modalClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
@@ -1285,6 +1112,21 @@ const UserModal: React.FC<{
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Género</label>
+              <select value={form.genero} onChange={(e) => setForm({ ...form, genero: e.target.value })}>
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Data de Nascimento</label>
+              <input
+                type="date"
+                value={form.dataNascimento}
+                onChange={(e) => setForm({ ...form, dataNascimento: e.target.value })}
               />
             </div>
             <div className={styles.formGroup}>
@@ -1310,33 +1152,19 @@ const UserModal: React.FC<{
                 <div className={styles.formGroup}>
                   <label>Associação</label>
                   {loadingAssoc ? (
-                    <select disabled>
-                      <option>Carregando...</option>
-                    </select>
+                    <select disabled><option>Carregando...</option></select>
                   ) : (
-                    <select
-                      value={associationId}
-                      onChange={(e) =>
-                        setAssociationId(
-                          e.target.value ? Number(e.target.value) : "",
-                        )
-                      }
-                    >
+                    <select value={associationId} onChange={(e) => setAssociationId(e.target.value ? Number(e.target.value) : "")}>
                       <option value="">Selecione uma associação</option>
                       {associations.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
+                        <option key={a.id} value={a.id}>{a.name}</option>
                       ))}
                     </select>
                   )}
                 </div>
                 <div className={styles.formGroup}>
-                  <label>Position</label>
-                  <select
-                    value={position}
-                    onChange={(e) => setPosition(e.target.value)}
-                  >
+                  <label>Cargo</label>
+                  <select value={position} onChange={(e) => setPosition(e.target.value)}>
                     <option value="Presidente">Presidente</option>
                     <option value="Secretário">Secretário</option>
                   </select>
@@ -1355,18 +1183,8 @@ const UserModal: React.FC<{
           </div>
 
           <div className={styles.modalActions}>
-            <button
-              type="button"
-              onClick={onClose}
-              className={styles.cancelButton}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className={styles.submitButton}
-              disabled={loading}
-            >
+            <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
+            <button type="submit" className={styles.submitButton} disabled={loading}>
               {loading ? "Salvando..." : "Guardar"}
             </button>
           </div>
@@ -1383,31 +1201,21 @@ const PresidentModal: React.FC<{
   onClose: () => void;
   onSuccess: () => void;
 }> = ({ isOpen, mode, currentPresident, onClose, onSuccess }) => {
-  const [form, setForm] = useState({
-    user_id: "",
-    position: "Presidente",
-    active: true,
-  });
+  /* ... código inalterado (não necessita de novos campos) ... */
+  const [form, setForm] = useState({ user_id: "", position: "Presidente", active: true });
   const [loading, setLoading] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
 
-  // ID estável para evitar reset desnecessário do formulário
   const presidentId = currentPresident?.id;
 
-  // Preenche o formulário apenas quando o ID do presidente realmente muda
   useEffect(() => {
     if (mode === "edit" && currentPresident) {
-      setForm({
-        user_id: String(currentPresident.user_id),
-        position: currentPresident.position,
-        active: currentPresident.active,
-      });
+      setForm({ user_id: String(currentPresident.user_id), position: currentPresident.position, active: currentPresident.active });
     } else {
       setForm({ user_id: "", position: "Presidente", active: true });
     }
-  }, [mode, presidentId]); // ✅ dependência apenas do ID
+  }, [mode, presidentId]);
 
-  // Carrega utilizadores e filtra os que já são presidentes ativos
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -1415,28 +1223,15 @@ const PresidentModal: React.FC<{
           http.get(endpoints.users.base),
           http.get("/fmx/staff?position=Presidente"),
         ]);
-
         const allUsers: User[] = usersRes.data.data || usersRes.data;
-        const presidents: PresidentData[] =
-          presidentsRes.data.data || presidentsRes.data;
-
-        // IDs dos utilizadores que já são presidentes ativos
-        const presidentUserIds = presidents
-          .filter((p) => p.active)
-          .map((p) => p.user_id);
-
-        // Exclui presidentes ativos, exceto o próprio (se estiver em edição)
+        const presidents: PresidentData[] = presidentsRes.data.data || presidentsRes.data;
+        const presidentUserIds = presidents.filter((p) => p.active).map((p) => p.user_id);
         const filtered = allUsers.filter(
-          (u) =>
-            !presidentUserIds.includes(u.id) ||
-            (mode === "edit" &&
-              currentPresident &&
-              u.id === currentPresident.user_id),
+          (u) => !presidentUserIds.includes(u.id) ||
+            (mode === "edit" && currentPresident && u.id === currentPresident.user_id),
         );
-
         setAvailableUsers(filtered);
       } catch {
-        // fallback: exibe todos os utilizadores se a filtragem falhar
         try {
           const res = await http.get(endpoints.users.base);
           setAvailableUsers(res.data.data || res.data);
@@ -1445,24 +1240,18 @@ const PresidentModal: React.FC<{
     };
 
     if (isOpen) fetchData();
-  }, [isOpen, mode, presidentId]); // recarrega se o presidente editado mudar
+  }, [isOpen, mode, presidentId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      let response;
       const payload = { ...form, user_id: Number(form.user_id) };
-      console.log("PAYLOAD ENVIADO:", payload);
       if (mode === "create") {
-        response = await http.post("/fmx/staff", payload); // ✅ endpoint corrigido
+        await http.post("/fmx/staff", payload);
       } else {
-        response = await http.put(
-          `/fmx/staff/${currentPresident?.id}`,
-          payload,
-        ); // ✅ endpoint corrigido
+        await http.put(`/fmx/staff/${currentPresident?.id}`, payload);
       }
-      console.log("RESPOSTA RECEBIDA:", response.data);
       onSuccess();
     } catch (err: any) {
       alert(err.response?.data?.message || "Erro");
@@ -1477,27 +1266,17 @@ const PresidentModal: React.FC<{
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h3>
-            {mode === "create" ? "Criar Presidente" : "Alterar Presidente"}
-          </h3>
-          <button onClick={onClose} className={styles.modalClose}>
-            ×
-          </button>
+          <h3>{mode === "create" ? "Criar Presidente" : "Alterar Presidente"}</h3>
+          <button onClick={onClose} className={styles.modalClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
             <div className={styles.formGroup}>
               <label>Utilizador</label>
-              <select
-                value={form.user_id}
-                onChange={(e) => setForm({ ...form, user_id: e.target.value })}
-                required
-              >
+              <select value={form.user_id} onChange={(e) => setForm({ ...form, user_id: e.target.value })} required>
                 <option value="">Selecione um utilizador</option>
                 {availableUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.email})
-                  </option>
+                  <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
                 ))}
               </select>
             </div>
@@ -1507,30 +1286,13 @@ const PresidentModal: React.FC<{
             </div>
             <div className={styles.formGroup}>
               <label>
-                <input
-                  type="checkbox"
-                  checked={form.active}
-                  onChange={(e) =>
-                    setForm({ ...form, active: e.target.checked })
-                  }
-                />{" "}
-                Ativo
+                <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} /> Ativo
               </label>
             </div>
           </div>
           <div className={styles.modalActions}>
-            <button
-              type="button"
-              onClick={onClose}
-              className={styles.cancelButton}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className={styles.submitButton}
-              disabled={loading}
-            >
+            <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
+            <button type="submit" className={styles.submitButton} disabled={loading}>
               {loading ? "Salvando..." : "Guardar"}
             </button>
           </div>
@@ -1547,9 +1309,7 @@ const ToastContainer: React.FC<{
   <div className={styles.toastContainer}>
     {toasts.map((t) => (
       <div key={t.id} className={`${styles.toast} ${styles[t.type]}`}>
-        <span>
-          {t.type === "success" ? "✓" : t.type === "error" ? "⚠️" : "ℹ️"}
-        </span>
+        <span>{t.type === "success" ? "✓" : t.type === "error" ? "⚠️" : "ℹ️"}</span>
         <p>{t.message}</p>
         <button onClick={() => onClose(t.id)}>×</button>
       </div>

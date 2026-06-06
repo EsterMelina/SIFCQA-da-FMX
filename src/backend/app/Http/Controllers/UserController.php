@@ -54,6 +54,8 @@ public function store(Request $request, Association $association)
         'name'   => 'required|string',
         'email'  => 'required|email|unique:users,email',
         'status' => 'sometimes|boolean',
+        'genero'         => 'required|in:M,F',        // novo, notNullable()
+        'dataNascimento' => 'required|date|before:today', // novo, notNullable()
     ];
 
     /**
@@ -83,6 +85,8 @@ public function store(Request $request, Association $association)
             ? Hash::make($data['password'])
             : null,
         'status' => $data['status'] ?? true,
+        'genero'         => $data['genero'],          // obrigatório
+        'dataNascimento' => $data['dataNascimento'],  // obrigatório
     ]);
 
     /**
@@ -116,6 +120,7 @@ public function store(Request $request, Association $association)
             'association_id' => $association->id,
             'position' => 'player',
             'active' => $data['active'] ?? true,
+            
         ]);
 
         /**
@@ -154,6 +159,8 @@ public function update(Request $request, User $user)
         'status'   => 'sometimes|boolean',
         'position' => 'nullable|string',
         'association_id' => 'nullable|exists:associations,id',
+        'genero'         => 'sometimes|in:M,F',
+        'dataNascimento' => 'sometimes|date|before:today',
     ]);
 
     $oldEmail = $user->email;
