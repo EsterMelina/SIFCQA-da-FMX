@@ -3,6 +3,11 @@ import { useNavigate, Link } from "react-router-dom";
 import { http } from "@/services/http";
 import styles from "./css/Register.module.css";
 import logo from "../../../assets/logo.png";
+import mozambiqueChess from "../../../assets/moz-chess-players.jpg"; // Imagem local
+
+// Se estiver a usar TypeScript e precisar de declarar o módulo para imagens,
+// adicione isto num ficheiro .d.ts (ex: src/custom.d.ts) ou descomente a linha:
+// declare module "*.jpg";
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -16,11 +21,11 @@ const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Controle de visibilidade das senhas
+  // Controle de visibilidade das senhas (botões desabilitados)
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Tema: null = automático, 'light' ou 'dark'
+  // Tema
   const [theme, setTheme] = useState<"light" | "dark" | null>(() => {
     const saved = localStorage.getItem("theme");
     if (saved === "light" || saved === "dark") return saved;
@@ -59,6 +64,7 @@ const Register: React.FC = () => {
     }
   }, [theme]);
 
+  // Handler (não será chamado porque os campos estão disabled)
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -73,6 +79,7 @@ const Register: React.FC = () => {
     if (error) setError(null);
   };
 
+  // Submit (botão disabled impede a submissão)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -116,7 +123,17 @@ const Register: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      {/* Botão de alternância de tema */}
+      {/* ===== NOTA INFORMATIVA ===== */}
+      <div className={styles.infoBanner}>
+        <span className={styles.materialSymbolsOutlined}>info</span>
+        <p>
+          Esta funcionalidade será implementada nas próximas actualizações.
+          Dirija-se à associação de xadrez mais próxima para saber mais sobre o
+          registo como jogador.
+        </p>
+      </div>
+
+      {/* Botão de tema (funcional) */}
       <button
         className={styles.themeToggle}
         onClick={handleThemeToggle}
@@ -139,23 +156,19 @@ const Register: React.FC = () => {
       </button>
 
       <main className={styles.main}>
-        {/* ===== LADO ESQUERDO (VISUAL / BRANDING) ===== */}
+        {/* ===== LADO ESQUERDO (IMAGEM LOCAL) ===== */}
         <section className={styles.leftSection}>
           <div className={styles.backgroundImage}>
             <img
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuA45ckori24ySBwewUjIJ3Ggy35RxZPptqyV-yqXb-ofqaloY7YbesCp1HokiN25CxqIUcvHCl2OVNe-tMieoWQgOBnF385v3AVxg-Cq-U1l2BhO0a7IHVnn6G3LZErgmolzizjXdcKvu8zPfU4NNUdLJnqInHVlekC-aHLgr9Rgd0vUxD2vVqqKoGJUc_SDxxIUAT6BSS6-4rVB8qSEYOgtZbgBsU5zDZP5DbJ5I6fwCW5YKDzmyATyDBw899Tql6J5_ULqUPRIeU"
-              alt="Chess grandmaster thinking deeply"
+              src={mozambiqueChess}
+              alt="Jogadores moçambicanos de xadrez"
             />
             <div className={styles.gradientOverlay}></div>
           </div>
 
           <div className={styles.brandHeader}>
             <div className={styles.brandRow}>
-              <img
-                className={styles.logoImage}
-                src={logo}
-                alt="FMX Logo"
-              />
+              <img className={styles.logoImage} src={logo} alt="FMX Logo" />
               <div className={styles.brandText}>
                 <p>Federação Moçambicana de Xadrez</p>
               </div>
@@ -176,7 +189,7 @@ const Register: React.FC = () => {
           <div className={styles.decorBlur}></div>
         </section>
 
-        {/* ===== LADO DIREITO (FORMULÁRIO) ===== */}
+        {/* ===== LADO DIREITO (FORMULÁRIO COMPLETO) ===== */}
         <section className={styles.rightSection}>
           <div className={styles.formContainer}>
             {/* Logo mobile */}
@@ -222,6 +235,7 @@ const Register: React.FC = () => {
                     name="name"
                     type="text"
                     required
+                    disabled
                     value={formData.name}
                     onChange={handleChange}
                     className={styles.input}
@@ -246,6 +260,7 @@ const Register: React.FC = () => {
                     name="email"
                     type="email"
                     required
+                    disabled
                     value={formData.email}
                     onChange={handleChange}
                     className={styles.input}
@@ -254,7 +269,7 @@ const Register: React.FC = () => {
                 </div>
               </div>
 
-              {/* Senha e Confirmar Senha com botão de olhinho */}
+              {/* Senha e Confirmar Senha */}
               <div className={styles.passwordGrid}>
                 {/* Campo Senha */}
                 <div className={styles.fieldGroup}>
@@ -272,6 +287,7 @@ const Register: React.FC = () => {
                       name="password"
                       type={showPassword ? "text" : "password"}
                       required
+                      disabled
                       value={formData.password}
                       onChange={handleChange}
                       className={styles.input}
@@ -280,6 +296,7 @@ const Register: React.FC = () => {
                     />
                     <button
                       type="button"
+                      disabled
                       onClick={() => setShowPassword((prev) => !prev)}
                       style={{
                         position: "absolute",
@@ -288,16 +305,15 @@ const Register: React.FC = () => {
                         transform: "translateY(-50%)",
                         background: "none",
                         border: "none",
-                        cursor: "pointer",
+                        cursor: "not-allowed",
                         color: "var(--color-on-surface-variant)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         padding: "0.25rem",
+                        opacity: 0.5,
                       }}
-                      aria-label={
-                        showPassword ? "Ocultar senha" : "Mostrar senha"
-                      }
+                      aria-label="Alternar visibilidade da senha (desabilitado)"
                     >
                       <span className={styles.materialSymbolsOutlined}>
                         {showPassword ? "visibility_off" : "visibility"}
@@ -322,6 +338,7 @@ const Register: React.FC = () => {
                       name="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
                       required
+                      disabled
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       className={styles.input}
@@ -330,6 +347,7 @@ const Register: React.FC = () => {
                     />
                     <button
                       type="button"
+                      disabled
                       onClick={() => setShowConfirmPassword((prev) => !prev)}
                       style={{
                         position: "absolute",
@@ -338,18 +356,15 @@ const Register: React.FC = () => {
                         transform: "translateY(-50%)",
                         background: "none",
                         border: "none",
-                        cursor: "pointer",
+                        cursor: "not-allowed",
                         color: "var(--color-on-surface-variant)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         padding: "0.25rem",
+                        opacity: 0.5,
                       }}
-                      aria-label={
-                        showConfirmPassword
-                          ? "Ocultar senha"
-                          : "Mostrar senha"
-                      }
+                      aria-label="Alternar visibilidade da confirmação (desabilitado)"
                     >
                       <span className={styles.materialSymbolsOutlined}>
                         {showConfirmPassword ? "visibility_off" : "visibility"}
@@ -359,13 +374,14 @@ const Register: React.FC = () => {
                 </div>
               </div>
 
-              {/* Checkbox de aceitação dos termos */}
+              {/* Checkbox de termos */}
               <div className={styles.termsGroup}>
                 <div className={styles.checkboxWrapper}>
                   <input
                     id="terms"
                     name="acceptTerms"
                     type="checkbox"
+                    disabled
                     checked={formData.acceptTerms}
                     onChange={handleChange}
                     className={styles.checkbox}
@@ -384,26 +400,15 @@ const Register: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled
                 className={styles.submitButton}
               >
-                {loading ? (
-                  <div className={styles.buttonContent}>
-                    <span>Criando conta...</span>
-                    <span
-                      className={`${styles.materialSymbolsOutlined} ${styles.spinner}`}
-                    >
-                      progress_activity
-                    </span>
-                  </div>
-                ) : (
-                  <div className={styles.buttonContent}>
-                    <span>Criar Conta</span>
-                    <span className={styles.materialSymbolsOutlined}>
-                      arrow_forward
-                    </span>
-                  </div>
-                )}
+                <div className={styles.buttonContent}>
+                  <span>Criar Conta</span>
+                  <span className={styles.materialSymbolsOutlined}>
+                    arrow_forward
+                  </span>
+                </div>
               </button>
             </form>
 
@@ -425,7 +430,6 @@ const Register: React.FC = () => {
                   Termos
                 </a>
               </div>
-              
             </div>
           </div>
         </section>

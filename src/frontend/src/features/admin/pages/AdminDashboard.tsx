@@ -1096,7 +1096,8 @@ const UserModal: React.FC<{
           <button onClick={onClose} className={styles.modalClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div className={styles.modalBody}>
+          {/* ADICIONADO maxHeight e overflowY para scroll quando necessário */}
+          <div className={styles.modalBody} style={{ maxHeight: '70vh', overflowY: 'auto' }}>
             <div className={styles.formGroup}>
               <label>Nome</label>
               <input

@@ -636,3 +636,33 @@
   direction: ltr;
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
+
+.infoBanner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background-color: #fff3cd;   /* amarelo suave */
+  border-bottom: 1px solid #ffecb5;
+  color: #856404;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  position: relative;
+  z-index: 10;
+}
+
+.infoBanner span {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.infoBanner p {
+  margin: 0;
+}
+
+/* Tema escuro */
+.dark .infoBanner {
+  background-color: #332b00;
+  border-bottom: 1px solid #665500;
+  color: #ffd966;
+}

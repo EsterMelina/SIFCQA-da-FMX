@@ -1,4 +1,4 @@
-// AssociationDashboard.tsx (versão final com ECharts)
+// AssociationDashboard.tsx (versão final – sem toggle de notificações)
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
@@ -217,6 +217,27 @@ const normalizeStatus = (
   return status;
 };
 
+/* Ortografia antiga – substituições comuns */
+const oldSpelling = (text: string): string => {
+  return text
+    .replace(/\bAtivo\b/g, "Activo")
+    .replace(/\bAtiva\b/g, "Activa")
+    .replace(/\bInativo\b/g, "Inactivo")
+    .replace(/\bInativa\b/g, "Inactiva")
+    .replace(/\bAtivar\b/g, "Activar")
+    .replace(/\bAção\b/g, "Acção")
+    .replace(/\bAções\b/g, "Acções")
+    .replace(/\bSelecione\b/g, "Seleccione")
+    .replace(/\bSelecionar\b/g, "Seleccionar")
+    .replace(/\bAtualizar\b/g, "Actualizar")
+    .replace(/\bAtualizado\b/g, "Actualizado")
+    .replace(/\bAtualizações\b/g, "Actualizações")
+    .replace(/\bDireção\b/g, "Direcção")
+    .replace(/\bAntidoping\b/g, "Antidopagem")
+    .replace(/\bRegistar\b/g, "Registar")
+    .replace(/\bRegisto\b/g, "Registo");
+};
+
 /* ==================== COMPONENTE PRINCIPAL ==================== */
 const AssociationDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -251,6 +272,13 @@ const AssociationDashboard: React.FC = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  // Visualizador de documento
+  const [documentViewer, setDocumentViewer] = useState<{
+    url: string;
+    originalName: string;
+    mimeType: string;
+  } | null>(null);
 
   const addToast = useCallback(
     (type: ToastMessage["type"], message: string) => {
@@ -351,37 +379,37 @@ const AssociationDashboard: React.FC = () => {
   }[] = [
     {
       key: "dashboard",
-      label: "Painel",
+      label: oldSpelling("Painel"),
       icon: "dashboard",
       roles: ["president", "secretary"],
     },
     {
       key: "secretaries",
-      label: "Secretários",
+      label: oldSpelling("Secretários"),
       icon: "group",
       roles: ["president"],
     },
     {
       key: "players",
-      label: "Jogadores",
+      label: oldSpelling("Jogadores"),
       icon: "sports_motorsports",
       roles: ["president", "secretary"],
     },
     {
       key: "quotas",
-      label: "Quotas",
+      label: oldSpelling("Quotas"),
       icon: "payments",
       roles: ["president", "secretary"],
     },
     {
       key: "transfers",
-      label: "Transferências",
+      label: oldSpelling("Transferências"),
       icon: "swap_horiz",
       roles: ["president", "secretary"],
     },
     {
       key: "reports",
-      label: "Relatórios",
+      label: oldSpelling("Relatórios"),
       icon: "assessment",
       roles: ["president", "secretary"],
     },
@@ -389,16 +417,24 @@ const AssociationDashboard: React.FC = () => {
 
   const visibleMenu = menuItems.filter((item) => item.roles.includes(role));
 
+  const openDocumentViewer = (doc: TransferDoc) => {
+    setDocumentViewer({
+      url: doc.url,
+      originalName: doc.original_name || doc.type,
+      mimeType: doc.mime_type,
+    });
+  };
+
   const renderContent = () => {
     if (!isProfileLoaded)
-      return <div className={styles.loading}>A carregar associação...</div>;
+      return <div className={styles.loading}>{oldSpelling("A carregar associação...")}</div>;
     if (!associationId)
       return (
         <div className={styles.pageContainer}>
           <div className={styles.emptyState} style={{ marginTop: "4rem" }}>
             <span className="material-symbols-outlined">lock</span>
-            <h2>Acesso restrito</h2>
-            <p>Não tem uma associação atribuída. Contacte o administrador.</p>
+            <h2>{oldSpelling("Acesso restrito")}</h2>
+            <p>{oldSpelling("Não tem uma associação atribuída. Contacte o administrador.")}</p>
           </div>
         </div>
       );
@@ -411,7 +447,7 @@ const AssociationDashboard: React.FC = () => {
             role={role}
             associationId={associationId}
             associationName={
-              userProfile?.association?.name || "Associação Desportiva"
+              userProfile?.association?.name || oldSpelling("Associação Desportiva")
             }
           />
         );
@@ -421,14 +457,8 @@ const AssociationDashboard: React.FC = () => {
             key={secretariesRefreshKey}
             addToast={addToast}
             associationId={associationId}
-            onEdit={(s) => {
-              setEditingSecretary(s);
-              setShowSecretaryModal(true);
-            }}
-            onCreate={() => {
-              setEditingSecretary(null);
-              setShowSecretaryModal(true);
-            }}
+            onEdit={() => {}}
+            onCreate={() => {}}
           />
         );
       case "players":
@@ -458,7 +488,11 @@ const AssociationDashboard: React.FC = () => {
         );
       case "transfers":
         return (
-          <TransfersSection addToast={addToast} associationId={associationId} />
+          <TransfersSection
+            addToast={addToast}
+            associationId={associationId}
+            onViewDocument={openDocumentViewer}
+          />
         );
       case "reports":
         return <ReportsSection associationId={associationId} />;
@@ -470,7 +504,7 @@ const AssociationDashboard: React.FC = () => {
   if (!isAuthReady)
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>A carregar sessão...</div>
+        <div className={styles.loading}>{oldSpelling("A carregar sessão...")}</div>
       </div>
     );
 
@@ -494,8 +528,8 @@ const AssociationDashboard: React.FC = () => {
                 <span className="material-symbols-outlined">chess</span>
               </div>
               <div>
-                <h1>Associação</h1>
-                <p>{role === "president" ? "Presidência" : "Secretaria"}</p>
+                <h1>{oldSpelling("Associação")}</h1>
+                <p>{role === "president" ? oldSpelling("Presidência") : oldSpelling("Secretaria")}</p>
               </div>
             </div>
           </div>
@@ -516,7 +550,7 @@ const AssociationDashboard: React.FC = () => {
           </nav>
           <div className={styles.sidebarFooter}>
             <button className={styles.footerLink} onClick={logout}>
-              <span className="material-symbols-outlined">logout</span> Sair
+              <span className="material-symbols-outlined">logout</span> {oldSpelling("Sair")}
             </button>
           </div>
         </aside>
@@ -531,7 +565,7 @@ const AssociationDashboard: React.FC = () => {
                 <span className="material-symbols-outlined">menu</span>
               </button>
               <span className={styles.systemName}>
-                {userProfile?.association?.name || "SIFCQA - Associação"}
+                {userProfile?.association?.name || oldSpelling("SIFCQA - Associação")}
               </span>
             </div>
             <div className={styles.topbarRight}>
@@ -591,24 +625,11 @@ const AssociationDashboard: React.FC = () => {
           </header>
           <div className={styles.content}>{renderContent()}</div>
           <footer className={styles.footer}>
-            <p>© {new Date().getFullYear()} SIFCQA - Associação Desportiva</p>
+            <p>© {new Date().getFullYear()} {oldSpelling("SIFCQA - Associação Desportiva")}</p>
           </footer>
         </main>
       </div>
 
-      {showSecretaryModal && (
-        <SecretaryModal
-          isOpen={showSecretaryModal}
-          secretary={editingSecretary}
-          associationId={associationId!}
-          onClose={() => setShowSecretaryModal(false)}
-          onSuccess={() => {
-            setShowSecretaryModal(false);
-            addToast("success", "Secretário guardado!");
-            setSecretariesRefreshKey((prev) => prev + 1);
-          }}
-        />
-      )}
       {showPlayerModal && (
         <PlayerModal
           isOpen={showPlayerModal}
@@ -619,7 +640,7 @@ const AssociationDashboard: React.FC = () => {
             setShowPlayerModal(false);
             addToast(
               "success",
-              editingPlayer ? "Jogador atualizado!" : "Jogador registado!",
+              editingPlayer ? oldSpelling("Jogador actualizado!") : oldSpelling("Jogador registado!"),
             );
             setPlayersRefreshKey((prev) => prev + 1);
           }}
@@ -629,6 +650,14 @@ const AssociationDashboard: React.FC = () => {
         toasts={toasts}
         onClose={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
       />
+      {documentViewer && (
+        <DocumentViewerModal
+          url={documentViewer.url}
+          originalName={documentViewer.originalName}
+          mimeType={documentViewer.mimeType}
+          onClose={() => setDocumentViewer(null)}
+        />
+      )}
     </div>
   );
 };
@@ -655,10 +684,10 @@ const DashboardContent: React.FC<{
     <div className={styles.pageContainer}>
       <div className={styles.dashboardHero}>
         <div className={styles.heroText}>
-          <p>Bem-vindo ao painel da</p>
+          <p>{oldSpelling("Bem-vindo ao painel da")}</p>
           <h2>{associationName}</h2>
           <span className={styles.roleBadge}>
-            {role === "president" ? "Presidente" : "Secretário(a)"}
+            {role === "president" ? oldSpelling("Presidente") : oldSpelling("Secretário(a)")}
           </span>
         </div>
         <div className={styles.heroIcon}>
@@ -672,9 +701,9 @@ const DashboardContent: React.FC<{
             <span className="material-symbols-outlined">groups</span>
           </div>
           <div className={styles.statInfo}>
-            <p>Jogadores Ativos</p>
+            <p>{oldSpelling("Jogadores Activos")}</p>
             <strong>{stats.activePlayers}</strong>
-            <small>de {stats.totalPlayers} registados</small>
+            <small>{oldSpelling(`de ${stats.totalPlayers} registados`)}</small>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.cardQuotas}`}>
@@ -682,9 +711,9 @@ const DashboardContent: React.FC<{
             <span className="material-symbols-outlined">payments</span>
           </div>
           <div className={styles.statInfo}>
-            <p>Quotas Pendentes</p>
+            <p>{oldSpelling("Quotas Pendentes")}</p>
             <strong>{stats.pendingQuotas}</strong>
-            <small>a aguardar pagamento</small>
+            <small>{oldSpelling("a aguardar pagamento")}</small>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.cardTransfers}`}>
@@ -692,9 +721,9 @@ const DashboardContent: React.FC<{
             <span className="material-symbols-outlined">swap_horiz</span>
           </div>
           <div className={styles.statInfo}>
-            <p>Transferências Pendentes</p>
+            <p>{oldSpelling("Transferências Pendentes")}</p>
             <strong>{stats.pendingTransfers}</strong>
-            <small>para aprovação</small>
+            <small>{oldSpelling("para aprovação")}</small>
           </div>
         </div>
         <div className={`${styles.statCard} ${styles.cardTotal}`}>
@@ -702,16 +731,16 @@ const DashboardContent: React.FC<{
             <span className="material-symbols-outlined">people</span>
           </div>
           <div className={styles.statInfo}>
-            <p>Total Jogadores</p>
+            <p>{oldSpelling("Total Jogadores")}</p>
             <strong>{stats.totalPlayers}</strong>
-            <small>na associação</small>
+            <small>{oldSpelling("na associação")}</small>
           </div>
         </div>
       </div>
 
       <div className={styles.dashboardGrid}>
         <div className={styles.chartCard}>
-          <h4>Atividade Semanal</h4>
+          <h4>{oldSpelling("Actividade Semanal")}</h4>
           <div className={styles.barChart}>
             {activityData.map((item) => (
               <div key={item.label} className={styles.barColumn}>
@@ -727,23 +756,23 @@ const DashboardContent: React.FC<{
           </div>
         </div>
         <div className={styles.summaryCard}>
-          <h4>Resumo Rápido</h4>
+          <h4>{oldSpelling("Resumo Rápido")}</h4>
           <ul className={styles.summaryList}>
             <li>
               <span className="material-symbols-outlined">check_circle</span>
-              <span>Jogadores ativos: {stats.activePlayers}</span>
+              <span>{oldSpelling(`Jogadores activos: ${stats.activePlayers}`)}</span>
             </li>
             <li>
               <span className="material-symbols-outlined">pending</span>
-              <span>Quotas por cobrar: {stats.pendingQuotas}</span>
+              <span>{oldSpelling(`Quotas por cobrar: ${stats.pendingQuotas}`)}</span>
             </li>
             <li>
               <span className="material-symbols-outlined">sync</span>
-              <span>Transferências em curso: {stats.pendingTransfers}</span>
+              <span>{oldSpelling(`Transferências em curso: ${stats.pendingTransfers}`)}</span>
             </li>
             <li>
               <span className="material-symbols-outlined">trending_up</span>
-              <span>Total de membros: {stats.totalPlayers}</span>
+              <span>{oldSpelling(`Total de membros: ${stats.totalPlayers}`)}</span>
             </li>
           </ul>
         </div>
@@ -752,7 +781,7 @@ const DashboardContent: React.FC<{
   );
 };
 
-/* ==================== SECRETÁRIOS ==================== */
+/* ==================== SECRETÁRIOS (com nota de implementação futura) ==================== */
 const SecretariesSection: React.FC<{
   addToast: (type: ToastMessage["type"], msg: string) => void;
   associationId: number;
@@ -765,6 +794,7 @@ const SecretariesSection: React.FC<{
 
   const fetchSecretaries = async () => {
     try {
+      setLoading(true);
       const res = await http.get(endpoints.associations.members(associationId));
       setSecretaries(
         (res.data.data || res.data).filter(
@@ -772,7 +802,7 @@ const SecretariesSection: React.FC<{
         ),
       );
     } catch (err: any) {
-      addToast("error", "Erro ao carregar");
+      console.error("Erro ao carregar secretários:", err);
     } finally {
       setLoading(false);
     }
@@ -782,94 +812,111 @@ const SecretariesSection: React.FC<{
     fetchSecretaries();
   }, [associationId]);
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Remover secretário?")) return;
-    try {
-      await http.delete(
-        `${endpoints.associations.members(associationId)}/${id}`,
-      );
-      addToast("success", "Removido");
-      fetchSecretaries();
-    } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro");
-    }
-  };
-
   const filtered = secretaries.filter(
     (s) =>
       s.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
       s.user?.email?.toLowerCase().includes(search.toLowerCase()),
   );
 
-  if (loading) return <div className={styles.loading}>Carregando...</div>;
-
   return (
     <div className={styles.pageContainer}>
+      <div className={styles.infoBanner}>
+        <span className="material-symbols-outlined">construction</span>
+        <p>
+          {oldSpelling(
+            "Esta funcionalidade será implementada nas próximas actualizações. A gestão completa de secretários estará disponível em breve.",
+          )}
+        </p>
+      </div>
+
       <div className={styles.pageHeader}>
-        <h2>Secretários da Associação</h2>
-        <button className={styles.primaryButton} onClick={onCreate}>
-          <span className="material-symbols-outlined">add</span> Novo Secretário
+        <h2>{oldSpelling("Secretários da Associação")}</h2>
+        <button
+          className={styles.primaryButton}
+          onClick={() => addToast("info", oldSpelling("Funcionalidade em desenvolvimento."))}
+          disabled
+        >
+          <span className="material-symbols-outlined">add</span> {oldSpelling("Novo Secretário")}
         </button>
       </div>
-      <div className={styles.searchBar}>
-        <span className="material-symbols-outlined">search</span>
-        <input
-          type="text"
-          placeholder="Pesquisar secretário..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-      <div className={styles.tableWrapper}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Email</th>
-              <th>Estado</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((s) => (
-              <tr key={s.id}>
-                <td>
-                  <div className={styles.userCell}>
-                    <img
-                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(s.user?.name || "S")}&background=1e3a5f&color=fff&size=32`}
-                      alt=""
-                      className={styles.userAvatar}
-                    />
-                    {s.user?.name}
-                  </div>
-                </td>
-                <td>{s.user?.email}</td>
-                <td>
-                  <span
-                    className={`${styles.statusBadge} ${s.active ? styles.active : styles.inactive}`}
-                  >
-                    {s.active ? "Ativo" : "Inativo"}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    className={styles.actionBtn}
-                    onClick={() => onEdit(s)}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    className={styles.actionBtn}
-                    onClick={() => handleDelete(s.id)}
-                  >
-                    Remover
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {loading ? (
+        <div className={styles.loading}>{oldSpelling("Carregando...")}</div>
+      ) : (
+        <>
+          <div className={styles.searchBar}>
+            <span className="material-symbols-outlined">search</span>
+            <input
+              type="text"
+              placeholder={oldSpelling("Pesquisar secretário...")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className={styles.tableWrapper}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>{oldSpelling("Nome")}</th>
+                  <th>{oldSpelling("Email")}</th>
+                  <th>{oldSpelling("Estado")}</th>
+                  <th>{oldSpelling("Acções")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: "center", padding: "2rem" }}>
+                      {oldSpelling("Nenhum secretário encontrado.")}
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((s) => (
+                    <tr key={s.id}>
+                      <td>
+                        <div className={styles.userCell}>
+                          <img
+                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(s.user?.name || "S")}&background=1e3a5f&color=fff&size=32`}
+                            alt=""
+                            className={styles.userAvatar}
+                          />
+                          {s.user?.name}
+                        </div>
+                      </td>
+                      <td>{s.user?.email}</td>
+                      <td>
+                        <span
+                          className={`${styles.statusBadge} ${s.active ? styles.active : styles.inactive}`}
+                        >
+                          {s.active ? oldSpelling("Activo") : oldSpelling("Inactivo")}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className={styles.actionBtn}
+                          onClick={() => addToast("info", oldSpelling("Funcionalidade em desenvolvimento."))}
+                          disabled
+                          title={oldSpelling("Disponível em breve")}
+                        >
+                          {oldSpelling("Editar")}
+                        </button>
+                        <button
+                          className={styles.actionBtn}
+                          onClick={() => addToast("info", oldSpelling("Funcionalidade em desenvolvimento."))}
+                          disabled
+                          title={oldSpelling("Disponível em breve")}
+                        >
+                          {oldSpelling("Remover")}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -893,7 +940,7 @@ const PlayersSection: React.FC<{
       );
       setPlayers(res.data.data || res.data);
     } catch (err: any) {
-      addToast("error", "Erro ao carregar");
+      addToast("error", oldSpelling("Erro ao carregar"));
     } finally {
       setLoading(false);
     }
@@ -905,26 +952,26 @@ const PlayersSection: React.FC<{
 
   const handleToggleActive = async (player: Player) => {
     if (
-      !confirm(`Deseja ${player.active ? "suspender" : "ativar"} este jogador?`)
+      !confirm(oldSpelling(`Deseja ${player.active ? "suspender" : "activar"} este jogador?`))
     )
       return;
     try {
       await http.patch(endpoints.players.toggleStatus(player.id));
-      addToast("success", `Jogador ${player.active ? "suspenso" : "ativado"}`);
+      addToast("success", oldSpelling(`Jogador ${player.active ? "suspenso" : "activado"}`));
       fetchPlayers();
     } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro");
+      addToast("error", err.response?.data?.message || oldSpelling("Erro"));
     }
   };
 
   const handleDelete = async (playerId: number) => {
-    if (!confirm("Eliminar jogador?")) return;
+    if (!confirm(oldSpelling("Eliminar jogador?"))) return;
     try {
       await http.delete(endpoints.players.detail(playerId));
-      addToast("success", "Jogador eliminado");
+      addToast("success", oldSpelling("Jogador eliminado"));
       fetchPlayers();
     } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro");
+      addToast("error", err.response?.data?.message || oldSpelling("Erro"));
     }
   };
 
@@ -935,22 +982,21 @@ const PlayersSection: React.FC<{
       p.association?.name?.toLowerCase().includes(search.toLowerCase()),
   );
 
-  if (loading) return <div className={styles.loading}>Carregando...</div>;
+  if (loading) return <div className={styles.loading}>{oldSpelling("Carregando...")}</div>;
 
   return (
     <div className={styles.pageContainer}>
       <div className={styles.pageHeader}>
-        <h2>Jogadores</h2>
+        <h2>{oldSpelling("Jogadores")}</h2>
         <button className={styles.primaryButton} onClick={onCreate}>
-          <span className="material-symbols-outlined">add</span> Registar
-          Jogador
+          <span className="material-symbols-outlined">add</span> {oldSpelling("Registar Jogador")}
         </button>
       </div>
       <div className={styles.searchBar}>
         <span className="material-symbols-outlined">search</span>
         <input
           type="text"
-          placeholder="Pesquisar jogador..."
+          placeholder={oldSpelling("Pesquisar jogador...")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -959,11 +1005,11 @@ const PlayersSection: React.FC<{
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Nome</th>
-              <th>Email</th>
-              <th>Associação</th>
-              <th>Estado</th>
-              <th>Ações</th>
+              <th>{oldSpelling("Nome")}</th>
+              <th>{oldSpelling("Email")}</th>
+              <th>{oldSpelling("Associação")}</th>
+              <th>{oldSpelling("Estado")}</th>
+              <th>{oldSpelling("Acções")}</th>
             </tr>
           </thead>
           <tbody>
@@ -985,7 +1031,7 @@ const PlayersSection: React.FC<{
                   <span
                     className={`${styles.statusBadge} ${p.active ? styles.active : styles.inactive}`}
                   >
-                    {p.active ? "Ativo" : "Inativo"}
+                    {p.active ? oldSpelling("Activo") : oldSpelling("Inactivo")}
                   </span>
                 </td>
                 <td>
@@ -993,19 +1039,19 @@ const PlayersSection: React.FC<{
                     className={styles.actionBtn}
                     onClick={() => onEdit(p)}
                   >
-                    Editar
+                    {oldSpelling("Editar")}
                   </button>
                   <button
                     className={styles.actionBtn}
                     onClick={() => handleToggleActive(p)}
                   >
-                    {p.active ? "Suspender" : "Ativar"}
+                    {p.active ? oldSpelling("Suspender") : oldSpelling("Activar")}
                   </button>
                   <button
                     className={styles.actionBtn}
                     onClick={() => handleDelete(p.id)}
                   >
-                    Eliminar
+                    {oldSpelling("Eliminar")}
                   </button>
                 </td>
               </tr>
@@ -1045,7 +1091,7 @@ const QuotasSection: React.FC<{
       setPendingPayments(payments);
       setConfig(configRes.data.data || configRes.data);
     } catch (err: any) {
-      addToast("error", "Erro ao carregar dados");
+      addToast("error", oldSpelling("Erro ao carregar dados"));
     } finally {
       setLoading(false);
     }
@@ -1056,7 +1102,7 @@ const QuotasSection: React.FC<{
   }, [fetchData]);
 
   const handleGenerateNow = async () => {
-    if (!confirm(`Gerar quotas automáticas para ${new Date().getFullYear()}?`))
+    if (!confirm(oldSpelling(`Gerar quotas automáticas para ${new Date().getFullYear()}?`)))
       return;
     try {
       const { data } = await http.post(
@@ -1065,32 +1111,32 @@ const QuotasSection: React.FC<{
       );
       addToast(
         "success",
-        `Criadas: ${data.data.created}, já existiam: ${data.data.skipped}`,
+        oldSpelling(`Criadas: ${data.data.created}, já existiam: ${data.data.skipped}`),
       );
       fetchData();
     } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro ao gerar");
+      addToast("error", err.response?.data?.message || oldSpelling("Erro ao gerar"));
     }
   };
 
   const handleConfirm = async (paymentId: number) => {
     try {
       await http.post(`/association/payments/${paymentId}/confirm`);
-      addToast("success", "Pagamento confirmado!");
+      addToast("success", oldSpelling("Pagamento confirmado!"));
       fetchData();
     } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro ao confirmar");
+      addToast("error", err.response?.data?.message || oldSpelling("Erro ao confirmar"));
     }
   };
 
   const handleReject = async (paymentId: number) => {
-    const reason = prompt("Motivo da rejeição (opcional):");
+    const reason = prompt(oldSpelling("Motivo da rejeição (opcional):"));
     try {
       await http.post(`/association/payments/${paymentId}/reject`, { reason });
-      addToast("success", "Pagamento rejeitado.");
+      addToast("success", oldSpelling("Pagamento rejeitado."));
       fetchData();
     } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro ao rejeitar");
+      addToast("error", err.response?.data?.message || oldSpelling("Erro ao rejeitar"));
     }
   };
 
@@ -1117,37 +1163,37 @@ const QuotasSection: React.FC<{
   const statusLabel = (status: string) => {
     switch (status) {
       case "paid":
-        return "Pago";
+        return oldSpelling("Pago");
       case "pending":
-        return "Pendente";
+        return oldSpelling("Pendente");
       case "rejected":
-        return "Rejeitado";
+        return oldSpelling("Rejeitado");
       case "expired":
-        return "Expirado";
+        return oldSpelling("Expirado");
       default:
         return status;
     }
   };
 
-  if (loading) return <div className={styles.loading}>Carregando...</div>;
+  if (loading) return <div className={styles.loading}>{oldSpelling("Carregando...")}</div>;
 
   return (
     <div className={styles.pageContainer}>
       <div className={styles.pageHeader}>
-        <h2>Quotizações</h2>
+        <h2>{oldSpelling("Quotizações")}</h2>
         <div className={styles.headerActions}>
           {config && (
             <div className={styles.quotaConfigBadge}>
               <span>
-                Quota global:{" "}
+                {oldSpelling("Quota global:")}{" "}
                 <strong>
                   {config.annual_amount > 0
                     ? `${config.annual_amount} MT`
-                    : "não definida"}
+                    : oldSpelling("não definida")}
                 </strong>
               </span>
               {config.auto_generate && (
-                <span className={styles.autoBadge}>Auto</span>
+                <span className={styles.autoBadge}>{oldSpelling("Auto")}</span>
               )}
             </div>
           )}
@@ -1156,7 +1202,7 @@ const QuotasSection: React.FC<{
             onClick={() => setShowConfigModal(true)}
           >
             <span className="material-symbols-outlined">settings</span>
-            Configurar Quota Global
+            {oldSpelling("Configurar Quota Global")}
           </button>
           {config?.auto_generate && config.annual_amount > 0 && (
             <button
@@ -1164,7 +1210,7 @@ const QuotasSection: React.FC<{
               onClick={handleGenerateNow}
             >
               <span className="material-symbols-outlined">bolt</span>
-              Gerar Agora
+              {oldSpelling("Gerar Agora")}
             </button>
           )}
           <select
@@ -1172,18 +1218,17 @@ const QuotasSection: React.FC<{
             onChange={(e) => setStatusFilter(e.target.value)}
             className={styles.filterSelect}
           >
-            <option value="all">Todos</option>
-            <option value="pending">Pendente</option>
-            <option value="paid">Pago</option>
-            <option value="rejected">Rejeitado</option>
-            <option value="expired">Expirado</option>
+            <option value="all">{oldSpelling("Todos")}</option>
+            <option value="pending">{oldSpelling("Pendente")}</option>
+            <option value="paid">{oldSpelling("Pago")}</option>
+            <option value="rejected">{oldSpelling("Rejeitado")}</option>
+            <option value="expired">{oldSpelling("Expirado")}</option>
           </select>
           <button
             className={styles.primaryButton}
             onClick={() => setShowCreateModal(true)}
           >
-            <span className="material-symbols-outlined">add</span> Nova Quota
-            Manual
+            <span className="material-symbols-outlined">add</span> {oldSpelling("Nova Quota Manual")}
           </button>
         </div>
       </div>
@@ -1192,12 +1237,12 @@ const QuotasSection: React.FC<{
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Jogador</th>
-              <th>Título</th>
-              <th>Valor</th>
-              <th>Prestações</th>
-              <th>Estado</th>
-              <th>Vencimento</th>
+              <th>{oldSpelling("Jogador")}</th>
+              <th>{oldSpelling("Título")}</th>
+              <th>{oldSpelling("Valor")}</th>
+              <th>{oldSpelling("Prestações")}</th>
+              <th>{oldSpelling("Estado")}</th>
+              <th>{oldSpelling("Vencimento")}</th>
             </tr>
           </thead>
           <tbody>
@@ -1227,17 +1272,17 @@ const QuotasSection: React.FC<{
 
       {pendingPayments.length > 0 && (
         <div className={styles.pendingPaymentsSection}>
-          <h3>Pagamentos por confirmar</h3>
+          <h3>{oldSpelling("Pagamentos por confirmar")}</h3>
           <div className={styles.pendingPaymentsList}>
             {pendingPayments.map((payment) => (
               <div key={payment.id} className={styles.paymentCard}>
                 <div className={styles.paymentInfo}>
                   <strong>{payment.player_name}</strong>
                   <span>
-                    Quota: {payment.quota_title || `#${payment.quota_id}`}
+                    {oldSpelling("Quota:")} {payment.quota_title || `#${payment.quota_id}`}
                   </span>
                   <span>
-                    Prestação {payment.installment_number} – {payment.amount} MT
+                    {oldSpelling("Prestação")} {payment.installment_number} – {payment.amount} MT
                   </span>
                   <span className={styles.paymentMethod}>
                     {payment.method}{" "}
@@ -1249,13 +1294,13 @@ const QuotasSection: React.FC<{
                     className={styles.approveButton}
                     onClick={() => handleConfirm(payment.id)}
                   >
-                    Confirmar
+                    {oldSpelling("Confirmar")}
                   </button>
                   <button
                     className={styles.rejectButton}
                     onClick={() => handleReject(payment.id)}
                   >
-                    Rejeitar
+                    {oldSpelling("Rejeitar")}
                   </button>
                 </div>
               </div>
@@ -1272,7 +1317,7 @@ const QuotasSection: React.FC<{
           onSuccess={(updated) => {
             setConfig(updated);
             setShowConfigModal(false);
-            addToast("success", "Configuração guardada!");
+            addToast("success", oldSpelling("Configuração guardada!"));
           }}
         />
       )}
@@ -1283,7 +1328,7 @@ const QuotasSection: React.FC<{
           onClose={() => setShowCreateModal(false)}
           onSuccess={() => {
             setShowCreateModal(false);
-            addToast("success", "Quota criada!");
+            addToast("success", oldSpelling("Quota criada!"));
             fetchData();
           }}
         />
@@ -1309,32 +1354,22 @@ const QuotaConfigModal: React.FC<{
       const { data } = await http.put("/association/quota-config", form);
       onSuccess(data.data);
     } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro ao guardar");
+      addToast("error", err.response?.data?.message || oldSpelling("Erro ao guardar"));
     } finally {
       setLoading(false);
     }
   };
 
   const months = [
-    "Janeiro",
-    "Fevereiro",
-    "Março",
-    "Abril",
-    "Maio",
-    "Junho",
-    "Julho",
-    "Agosto",
-    "Setembro",
-    "Outubro",
-    "Novembro",
-    "Dezembro",
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
   ];
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h3>Configuração de Quota Global</h3>
+          <h3>{oldSpelling("Configuração de Quota Global")}</h3>
           <button onClick={onClose} className={styles.modalClose}>
             ×
           </button>
@@ -1342,7 +1377,7 @@ const QuotaConfigModal: React.FC<{
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
             <div className={styles.formGroup}>
-              <label>Valor Anual (MT) *</label>
+              <label>{oldSpelling("Valor Anual (MT) *")}</label>
               <input
                 type="number"
                 step="0.01"
@@ -1354,7 +1389,7 @@ const QuotaConfigModal: React.FC<{
                 required
               />
               <small>
-                Será dividido em 2 prestações de{" "}
+                {oldSpelling("Será dividido em 2 prestações de")}{" "}
                 {form.annual_amount > 0
                   ? (form.annual_amount / 2).toFixed(2)
                   : "—"}{" "}
@@ -1362,15 +1397,15 @@ const QuotaConfigModal: React.FC<{
               </small>
             </div>
             <div className={styles.formGroup}>
-              <label>Título (use {"{year}"} para o ano)</label>
+              <label>{oldSpelling(`Título (use {"{year}"} para o ano)`)}</label>
               <input
                 value={form.title_template}
                 onChange={(e) =>
                   setForm({ ...form, title_template: e.target.value })
                 }
-                placeholder="Quota Anual {year}"
+                placeholder={oldSpelling("Quota Anual {year}")}
               />
-              <small>Exemplo: "Quota Anual 2025"</small>
+              <small>{oldSpelling("Exemplo: \"Quota Anual 2025\"")}</small>
             </div>
             <div className={styles.formGroup}>
               <label className={styles.checkboxLabel}>
@@ -1381,12 +1416,12 @@ const QuotaConfigModal: React.FC<{
                     setForm({ ...form, auto_generate: e.target.checked })
                   }
                 />
-                Geração automática anual (1 de Janeiro)
+                {oldSpelling("Geração automática anual (1 de Janeiro)")}
               </label>
             </div>
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <label>Mês de vencimento</label>
+                <label>{oldSpelling("Mês de vencimento")}</label>
                 <select
                   value={form.due_month}
                   onChange={(e) =>
@@ -1401,7 +1436,7 @@ const QuotaConfigModal: React.FC<{
                 </select>
               </div>
               <div className={styles.formGroup}>
-                <label>Dia de vencimento</label>
+                <label>{oldSpelling("Dia de vencimento")}</label>
                 <input
                   type="number"
                   min="1"
@@ -1420,14 +1455,14 @@ const QuotaConfigModal: React.FC<{
               onClick={onClose}
               className={styles.cancelButton}
             >
-              Cancelar
+              {oldSpelling("Cancelar")}
             </button>
             <button
               type="submit"
               className={styles.submitButton}
               disabled={loading}
             >
-              {loading ? "A guardar..." : "Guardar Configuração"}
+              {loading ? oldSpelling("A guardar...") : oldSpelling("Guardar Configuração")}
             </button>
           </div>
         </form>
@@ -1463,7 +1498,7 @@ const CreateQuotaModal: React.FC<{
         );
         setPlayers(res.data.data || res.data);
       } catch {
-        addToast("error", "Erro ao carregar jogadores");
+        addToast("error", oldSpelling("Erro ao carregar jogadores"));
       } finally {
         setLoadingPlayers(false);
       }
@@ -1473,15 +1508,15 @@ const CreateQuotaModal: React.FC<{
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    if (!form.player_id) newErrors.player_id = "Seleccione um jogador.";
-    if (!form.title.trim()) newErrors.title = "Título obrigatório.";
+    if (!form.player_id) newErrors.player_id = oldSpelling("Seleccione um jogador.");
+    if (!form.title.trim()) newErrors.title = oldSpelling("Título obrigatório.");
     if (
       !form.total_amount ||
       isNaN(Number(form.total_amount)) ||
       Number(form.total_amount) <= 0
     )
-      newErrors.total_amount = "Valor inválido.";
-    if (!form.due_date) newErrors.due_date = "Data obrigatória.";
+      newErrors.total_amount = oldSpelling("Valor inválido.");
+    if (!form.due_date) newErrors.due_date = oldSpelling("Data obrigatória.");
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -1499,7 +1534,7 @@ const CreateQuotaModal: React.FC<{
       });
       onSuccess();
     } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro ao criar quota");
+      addToast("error", err.response?.data?.message || oldSpelling("Erro ao criar quota"));
     } finally {
       setLoading(false);
     }
@@ -1509,7 +1544,7 @@ const CreateQuotaModal: React.FC<{
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <h3>Nova Quota</h3>
+          <h3>{oldSpelling("Nova Quota")}</h3>
           <button onClick={onClose} className={styles.modalClose}>
             ×
           </button>
@@ -1517,9 +1552,9 @@ const CreateQuotaModal: React.FC<{
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
             <div className={styles.formGroup}>
-              <label>Jogador *</label>
+              <label>{oldSpelling("Jogador *")}</label>
               {loadingPlayers ? (
-                <p>Carregando...</p>
+                <p>{oldSpelling("Carregando...")}</p>
               ) : (
                 <select
                   value={form.player_id}
@@ -1528,7 +1563,7 @@ const CreateQuotaModal: React.FC<{
                   }
                   required
                 >
-                  <option value="">Selecione...</option>
+                  <option value="">{oldSpelling("Seleccione...")}</option>
                   {players.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.user?.name || `#${p.id}`}
@@ -1541,7 +1576,7 @@ const CreateQuotaModal: React.FC<{
               )}
             </div>
             <div className={styles.formGroup}>
-              <label>Título *</label>
+              <label>{oldSpelling("Título *")}</label>
               <input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -1552,7 +1587,7 @@ const CreateQuotaModal: React.FC<{
               )}
             </div>
             <div className={styles.formGroup}>
-              <label>Valor Total (MT) *</label>
+              <label>{oldSpelling("Valor Total (MT) *")}</label>
               <input
                 type="number"
                 step="0.01"
@@ -1568,7 +1603,7 @@ const CreateQuotaModal: React.FC<{
               )}
             </div>
             <div className={styles.formGroup}>
-              <label>Data de Vencimento *</label>
+              <label>{oldSpelling("Data de Vencimento *")}</label>
               <input
                 type="date"
                 value={form.due_date}
@@ -1586,14 +1621,14 @@ const CreateQuotaModal: React.FC<{
               onClick={onClose}
               className={styles.cancelButton}
             >
-              Cancelar
+              {oldSpelling("Cancelar")}
             </button>
             <button
               type="submit"
               className={styles.submitButton}
               disabled={loading}
             >
-              {loading ? "Criando..." : "Criar Quota"}
+              {loading ? oldSpelling("Criando...") : oldSpelling("Criar Quota")}
             </button>
           </div>
         </form>
@@ -1606,7 +1641,8 @@ const CreateQuotaModal: React.FC<{
 const TransfersSection: React.FC<{
   addToast: (type: "success" | "error" | "info", msg: string) => void;
   associationId: number;
-}> = ({ addToast, associationId }) => {
+  onViewDocument: (doc: TransferDoc) => void;
+}> = ({ addToast, associationId, onViewDocument }) => {
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"pending" | "history">("pending");
@@ -1634,7 +1670,7 @@ const TransfersSection: React.FC<{
       }));
       setTransfers([...outgoing, ...incoming]);
     } catch (err: any) {
-      addToast("error", "Erro ao carregar transferências");
+      addToast("error", oldSpelling("Erro ao carregar transferências"));
     } finally {
       setLoading(false);
     }
@@ -1649,11 +1685,11 @@ const TransfersSection: React.FC<{
     if (file) formData.append("document", file);
     try {
       await http.post(`/transfers/${transferId}/origin/approve`, formData);
-      addToast("success", "Saída aprovada!");
+      addToast("success", oldSpelling("Saída aprovada!"));
       setShowOriginApprove(null);
       fetchTransfers();
     } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro ao aprovar");
+      addToast("error", err.response?.data?.message || oldSpelling("Erro ao aprovar"));
     }
   };
 
@@ -1662,11 +1698,11 @@ const TransfersSection: React.FC<{
     if (file) formData.append("document", file);
     try {
       await http.post(`/transfers/${transferId}/destination/approve`, formData);
-      addToast("success", "Entrada aprovada!");
+      addToast("success", oldSpelling("Entrada aprovada!"));
       setShowDestinationApprove(null);
       fetchTransfers();
     } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro ao aprovar");
+      addToast("error", err.response?.data?.message || oldSpelling("Erro ao aprovar"));
     }
   };
 
@@ -1682,11 +1718,11 @@ const TransfersSection: React.FC<{
         await http.patch(`/transfers/${transferId}/destination/reject`, {
           reason,
         });
-      addToast("success", "Transferência rejeitada.");
+      addToast("success", oldSpelling("Transferência rejeitada."));
       setShowReject(null);
       fetchTransfers();
     } catch (err: any) {
-      addToast("error", err.response?.data?.message || "Erro ao rejeitar");
+      addToast("error", err.response?.data?.message || oldSpelling("Erro ao rejeitar"));
     }
   };
 
@@ -1697,23 +1733,23 @@ const TransfersSection: React.FC<{
     (t) => (t.actions || []).length === 0,
   );
 
-  if (loading) return <div className={styles.loading}>Carregando...</div>;
+  if (loading) return <div className={styles.loading}>{oldSpelling("Carregando...")}</div>;
 
   return (
     <div className={styles.pageContainer}>
-      <h2>Transferências</h2>
+      <h2>{oldSpelling("Transferências")}</h2>
       <div className={styles.transferTabs}>
         <button
           className={`${styles.transferTab} ${tab === "pending" ? styles.activeTab : ""}`}
           onClick={() => setTab("pending")}
         >
-          Por Aprovar
+          {oldSpelling("Por Aprovar")}
         </button>
         <button
           className={`${styles.transferTab} ${tab === "history" ? styles.activeTab : ""}`}
           onClick={() => setTab("history")}
         >
-          Histórico
+          {oldSpelling("Histórico")}
         </button>
       </div>
 
@@ -1721,7 +1757,7 @@ const TransfersSection: React.FC<{
         (pendingTransfers.length === 0 ? (
           <div className={styles.emptyState}>
             <span className="material-symbols-outlined">check_circle</span>
-            <p>Nenhuma transferência pendente.</p>
+            <p>{oldSpelling("Nenhuma transferência pendente.")}</p>
           </div>
         ) : (
           <div className={styles.pendingActionsList}>
@@ -1734,25 +1770,18 @@ const TransfersSection: React.FC<{
                   <div className={styles.transferCardInfo}>
                     <strong>{playerName}</strong>
                     <div className={styles.direction}>
-                      <span>{t.from_association?.name || "Origem"}</span>
+                      <span>{t.from_association?.name || oldSpelling("Origem")}</span>
                       <span className="material-symbols-outlined arrow">
                         arrow_forward
                       </span>
-                      <span>{t.to_association?.name || "Destino"}</span>
+                      <span>{t.to_association?.name || oldSpelling("Destino")}</span>
                     </div>
                     {t.documents && t.documents.length > 0 && (
                       <div className={styles.documentsInline}>
-                        {t.documents.map((doc) => (
-                          <a
-                            key={doc.id}
-                            href={doc.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={styles.docLink}
-                          >
-                            📎 {doc.original_name || doc.type}
-                          </a>
-                        ))}
+                        <TransferDocuments
+                          documents={t.documents}
+                          onView={onViewDocument}
+                        />
                       </div>
                     )}
                   </div>
@@ -1762,7 +1791,7 @@ const TransfersSection: React.FC<{
                         className={styles.approveButton}
                         onClick={() => setShowOriginApprove(t)}
                       >
-                        Aprovar Saída
+                        {oldSpelling("Aprovar Saída")}
                       </button>
                     )}
                     {actions.includes("reject_origin") && (
@@ -1772,7 +1801,7 @@ const TransfersSection: React.FC<{
                           setShowReject({ transfer: t, type: "origin" })
                         }
                       >
-                        Rejeitar Saída
+                        {oldSpelling("Rejeitar Saída")}
                       </button>
                     )}
                     {actions.includes("approve_destination") && (
@@ -1780,7 +1809,7 @@ const TransfersSection: React.FC<{
                         className={styles.approveButton}
                         onClick={() => setShowDestinationApprove(t)}
                       >
-                        Aprovar Entrada
+                        {oldSpelling("Aprovar Entrada")}
                       </button>
                     )}
                     {actions.includes("reject_destination") && (
@@ -1790,7 +1819,7 @@ const TransfersSection: React.FC<{
                           setShowReject({ transfer: t, type: "destination" })
                         }
                       >
-                        Rejeitar Entrada
+                        {oldSpelling("Rejeitar Entrada")}
                       </button>
                     )}
                   </div>
@@ -1805,12 +1834,12 @@ const TransfersSection: React.FC<{
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Jogador</th>
-                <th>Origem</th>
-                <th>Destino</th>
-                <th>Estado</th>
-                <th>Data</th>
-                <th>Documentos</th>
+                <th>{oldSpelling("Jogador")}</th>
+                <th>{oldSpelling("Origem")}</th>
+                <th>{oldSpelling("Destino")}</th>
+                <th>{oldSpelling("Estado")}</th>
+                <th>{oldSpelling("Data")}</th>
+                <th>{oldSpelling("Documentos")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1842,19 +1871,14 @@ const TransfersSection: React.FC<{
                         : "—"}
                     </td>
                     <td>
-                      {t.documents && t.documents.length > 0
-                        ? t.documents.map((doc) => (
-                            <a
-                              key={doc.id}
-                              href={doc.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={styles.docLink}
-                            >
-                              {doc.original_name || doc.type}
-                            </a>
-                          ))
-                        : "—"}
+                      {t.documents && t.documents.length > 0 ? (
+                        <TransferDocuments
+                          documents={t.documents}
+                          onView={onViewDocument}
+                        />
+                      ) : (
+                        "—"
+                      )}
                     </td>
                   </tr>
                 );
@@ -1866,7 +1890,7 @@ const TransfersSection: React.FC<{
 
       {showOriginApprove && (
         <ApproveModal
-          title="Aprovar Saída"
+          title={oldSpelling("Aprovar Saída")}
           transfer={showOriginApprove}
           onClose={() => setShowOriginApprove(null)}
           onApprove={handleOriginApprove}
@@ -1874,7 +1898,7 @@ const TransfersSection: React.FC<{
       )}
       {showDestinationApprove && (
         <ApproveModal
-          title="Aprovar Entrada"
+          title={oldSpelling("Aprovar Entrada")}
           transfer={showDestinationApprove}
           onClose={() => setShowDestinationApprove(null)}
           onApprove={handleDestinationApprove}
@@ -1883,7 +1907,9 @@ const TransfersSection: React.FC<{
       {showReject && (
         <RejectModal
           title={
-            showReject.type === "origin" ? "Rejeitar Saída" : "Rejeitar Entrada"
+            showReject.type === "origin"
+              ? oldSpelling("Rejeitar Saída")
+              : oldSpelling("Rejeitar Entrada")
           }
           onClose={() => setShowReject(null)}
           onSubmit={(reason) =>
@@ -1895,6 +1921,173 @@ const TransfersSection: React.FC<{
   );
 };
 
+/* Componente de documentos com ícones cinza e nomes truncados */
+const TransferDocuments: React.FC<{
+  documents: TransferDoc[];
+  onView: (doc: TransferDoc) => void;
+}> = ({ documents, onView }) => (
+  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+    {documents.map((doc) => (
+      <li
+        key={doc.id}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          marginBottom: "0.25rem",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => onView(doc)}
+          title={oldSpelling("Visualizar documento")}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            display: "flex",
+            alignItems: "center",
+            color: "var(--color-on-surface-variant)",
+            opacity: 0.7,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: "1.2rem" }}
+          >
+            visibility
+          </span>
+        </button>
+        <a
+          href={doc.url}
+          download={doc.original_name || undefined}
+          title={oldSpelling("Baixar documento")}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            color: "var(--color-on-surface-variant)",
+            opacity: 0.7,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: "1.2rem" }}
+          >
+            download
+          </span>
+        </a>
+        <span
+          style={{
+            maxWidth: "120px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            fontSize: "0.9rem",
+          }}
+          title={doc.original_name || doc.type}
+        >
+          {doc.original_name || doc.type}
+        </span>
+        <span style={{ marginLeft: "0.5rem", color: "var(--color-on-surface-variant)", fontSize: "0.8rem", opacity: 0.7 }}>
+          — {doc.type === "origin_approval" ? oldSpelling("Doc. origem") : oldSpelling("Doc. destino")}
+        </span>
+      </li>
+    ))}
+  </ul>
+);
+
+/* ---- Modal de visualização de documento ---- */
+const DocumentViewerModal: React.FC<{
+  url: string;
+  originalName: string;
+  mimeType: string;
+  onClose: () => void;
+}> = ({ url, originalName, mimeType, onClose }) => {
+  const isPDF = mimeType === "application/pdf";
+  const isImage = mimeType.startsWith("image/");
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div
+        className={styles.modal}
+        style={{ maxWidth: "90vw", width: "auto" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={styles.modalHeader}>
+          <h3
+            style={{
+              maxWidth: "70%",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {originalName}
+          </h3>
+          <button onClick={onClose} className={styles.modalClose}>
+            &times;
+          </button>
+        </div>
+        <div
+          className={styles.modalBody}
+          style={{ padding: "1rem", textAlign: "center" }}
+        >
+          {isPDF ? (
+            <iframe
+              src={url}
+              title={originalName}
+              style={{
+                width: "100%",
+                height: "70vh",
+                border: "none",
+              }}
+            />
+          ) : isImage ? (
+            <img
+              src={url}
+              alt={originalName}
+              style={{ maxWidth: "100%", maxHeight: "70vh" }}
+            />
+          ) : (
+            <p>
+              {oldSpelling(
+                "O formato deste documento não permite pré‑visualização. Pode baixá‑lo usando o ícone de download.",
+              )}
+            </p>
+          )}
+        </div>
+        <div
+          className={styles.modalActions}
+          style={{ justifyContent: "center" }}
+        >
+          <a
+            href={url}
+            download={originalName}
+            className={styles.submitButton}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              color: "var(--color-on-surface-variant)",
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ color: "var(--color-on-surface-variant)" }}>download</span>
+            {oldSpelling("Baixar")}
+          </a>
+          <button onClick={onClose} className={styles.cancelButton}>
+            {oldSpelling("Fechar")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ==================== MODAIS DE APROVAÇÃO / REJEIÇÃO ==================== */
 const ApproveModal: React.FC<{
   title: string;
   transfer: Transfer;
@@ -1923,7 +2116,7 @@ const ApproveModal: React.FC<{
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
             <p>
-              Jogador:{" "}
+              {oldSpelling("Jogador:")}{" "}
               <strong>
                 {transfer.player?.user?.name ||
                   transfer.player?.name ||
@@ -1931,7 +2124,7 @@ const ApproveModal: React.FC<{
               </strong>
             </p>
             <div className={styles.formGroup}>
-              <label>Documento comprovativo (PDF ou imagem)</label>
+              <label>{oldSpelling("Documento comprovativo (PDF ou imagem)")}</label>
               <input
                 type="file"
                 accept=".pdf,.jpg,.jpeg,.png"
@@ -1944,14 +2137,14 @@ const ApproveModal: React.FC<{
                 onClick={onClose}
                 className={styles.cancelButton}
               >
-                Cancelar
+                {oldSpelling("Cancelar")}
               </button>
               <button
                 type="submit"
                 className={styles.submitButton}
                 disabled={loading}
               >
-                {loading ? "Enviando..." : "Aprovar"}
+                {loading ? oldSpelling("Enviando...") : oldSpelling("Aprovar")}
               </button>
             </div>
           </div>
@@ -1971,7 +2164,7 @@ const RejectModal: React.FC<{
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (reason.trim().length < 5) {
-      alert("Motivo deve ter pelo menos 5 caracteres.");
+      alert(oldSpelling("Motivo deve ter pelo menos 5 caracteres."));
       return;
     }
     setLoading(true);
@@ -1990,7 +2183,7 @@ const RejectModal: React.FC<{
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
             <div className={styles.formGroup}>
-              <label>Motivo</label>
+              <label>{oldSpelling("Motivo")}</label>
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
@@ -2004,14 +2197,14 @@ const RejectModal: React.FC<{
                 onClick={onClose}
                 className={styles.cancelButton}
               >
-                Cancelar
+                {oldSpelling("Cancelar")}
               </button>
               <button
                 type="submit"
                 className={styles.submitButton}
                 disabled={loading}
               >
-                {loading ? "Enviando..." : "Confirmar"}
+                {loading ? oldSpelling("Enviando...") : oldSpelling("Confirmar")}
               </button>
             </div>
           </div>
@@ -2103,60 +2296,56 @@ const ReportsSection: React.FC<{ associationId: number }> = ({ associationId }) 
     return () => { cancelled = true; };
   }, [associationId]);
 
-  if (loading) return <div className={styles.loading}>A carregar relatório...</div>;
-  if (!data) return <div className={styles.emptyState}>Erro ao carregar dados.</div>;
+  if (loading) return <div className={styles.loading}>{oldSpelling("A carregar relatório...")}</div>;
+  if (!data) return <div className={styles.emptyState}>{oldSpelling("Erro ao carregar dados.")}</div>;
 
-  // ─── Dados para gráficos ──────────────────────────────────────────
   const quotaPieData = [
-    { name: "Pendente", value: data.quotas.pending },
-    { name: "Pago", value: data.quotas.paid },
-    { name: "Rejeitado", value: data.quotas.rejected },
-    { name: "Expirado", value: data.quotas.expired },
+    { name: oldSpelling("Pendente"), value: data.quotas.pending },
+    { name: oldSpelling("Pago"), value: data.quotas.paid },
+    { name: oldSpelling("Rejeitado"), value: data.quotas.rejected },
+    { name: oldSpelling("Expirado"), value: data.quotas.expired },
   ];
 
   const transferPieData = [
-    { name: "Concluídas", value: data.transfers.completed },
-    { name: "Pendentes (saída)", value: data.transfers.pending_origin },
-    { name: "Pendentes (entrada)", value: data.transfers.pending_destination },
-    { name: "Rejeitadas (saída)", value: data.transfers.rejected_origin },
-    { name: "Rejeitadas (entrada)", value: data.transfers.rejected_destination },
+    { name: oldSpelling("Concluídas"), value: data.transfers.completed },
+    { name: oldSpelling("Pendentes (saída)"), value: data.transfers.pending_origin },
+    { name: oldSpelling("Pendentes (entrada)"), value: data.transfers.pending_destination },
+    { name: oldSpelling("Rejeitadas (saída)"), value: data.transfers.rejected_origin },
+    { name: oldSpelling("Rejeitadas (entrada)"), value: data.transfers.rejected_destination },
   ];
 
   const barMonths = data.revenueByMonth.map((m: any) => m.month.split(" ")[0]);
   const barValues = data.revenueByMonth.map((m: any) => m.amount);
 
-  // Cores do tema (usando as variáveis CSS)
   const PRIMARY = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#e60023';
   const TERTIARY = getComputedStyle(document.documentElement).getPropertyValue('--color-tertiary').trim() || '#6b6a69';
   const ON_SURFACE_VARIANT = getComputedStyle(document.documentElement).getPropertyValue('--color-on-surface-variant').trim() || '#5a524c';
   const SURFACE_CONTAINER = getComputedStyle(document.documentElement).getPropertyValue('--color-surface-container').trim() || '#eee9e2';
 
   const statusLabels: Record<string, string> = {
-    pending: "Pendente",
-    paid: "Pago",
-    rejected: "Rejeitado",
-    expired: "Expirado",
+    pending: oldSpelling("Pendente"),
+    paid: oldSpelling("Pago"),
+    rejected: oldSpelling("Rejeitado"),
+    expired: oldSpelling("Expirado"),
   };
 
   return (
     <div className={styles.pageContainer}>
-      <h2 style={{ marginBottom: "1.5rem" }}>Relatório Estatístico da Associação</h2>
+      <h2 style={{ marginBottom: "1.5rem" }}>{oldSpelling("Relatório Estatístico da Associação")}</h2>
 
-      {/* Jogadores */}
       <div className={styles.reportSection}>
-        <h3>Jogadores</h3>
+        <h3>{oldSpelling("Jogadores")}</h3>
         <div className={styles.reportGrid}>
-          <div className={styles.reportCard}><strong>{data.players.total}</strong><span>Total</span></div>
-          <div className={styles.reportCard}><strong>{data.players.active}</strong><span>Ativos</span></div>
-          <div className={styles.reportCard}><strong>{data.players.inactive}</strong><span>Inativos</span></div>
+          <div className={styles.reportCard}><strong>{data.players.total}</strong><span>{oldSpelling("Total")}</span></div>
+          <div className={styles.reportCard}><strong>{data.players.active}</strong><span>{oldSpelling("Activos")}</span></div>
+          <div className={styles.reportCard}><strong>{data.players.inactive}</strong><span>{oldSpelling("Inactivos")}</span></div>
         </div>
       </div>
 
-      {/* Quotas */}
       <div className={styles.reportSection}>
-        <h3>Quotizações</h3>
+        <h3>{oldSpelling("Quotizações")}</h3>
         <div className={styles.reportGrid}>
-          <div className={styles.reportCard}><strong>{data.quotas.total}</strong><span>Total de quotas</span></div>
+          <div className={styles.reportCard}><strong>{data.quotas.total}</strong><span>{oldSpelling("Total de quotas")}</span></div>
           {Object.entries(data.quotas)
             .filter(([k]) => ["pending", "paid", "rejected", "expired"].includes(k))
             .map(([key, value]) => (
@@ -2168,16 +2357,15 @@ const ReportsSection: React.FC<{ associationId: number }> = ({ associationId }) 
         </div>
         <div className={styles.amountTable}>
           <table className={styles.table}>
-            <thead><tr><th>Indicador</th><th>Valor (MT)</th></tr></thead>
+            <thead><tr><th>{oldSpelling("Indicador")}</th><th>{oldSpelling("Valor (MT)")}</th></tr></thead>
             <tbody>
-              <tr><td>Valor total emitido</td><td>{data.quotas.totalAmount.toLocaleString("pt-MZ")} MT</td></tr>
-              <tr><td>Valor já pago</td><td>{data.quotas.paidAmount.toLocaleString("pt-MZ")} MT</td></tr>
-              <tr><td>Valor pendente</td><td>{data.quotas.pendingAmount.toLocaleString("pt-MZ")} MT</td></tr>
+              <tr><td>{oldSpelling("Valor total emitido")}</td><td>{data.quotas.totalAmount.toLocaleString("pt-MZ")} MT</td></tr>
+              <tr><td>{oldSpelling("Valor já pago")}</td><td>{data.quotas.paidAmount.toLocaleString("pt-MZ")} MT</td></tr>
+              <tr><td>{oldSpelling("Valor pendente")}</td><td>{data.quotas.pendingAmount.toLocaleString("pt-MZ")} MT</td></tr>
             </tbody>
           </table>
         </div>
 
-        {/* Gráfico pizza – Quotas (ECharts) */}
         <div className={styles.chartContainer}>
           <ReactECharts
             style={{ height: 320, width: '100%' }}
@@ -2199,19 +2387,17 @@ const ReportsSection: React.FC<{ associationId: number }> = ({ associationId }) 
         </div>
       </div>
 
-      {/* Transferências */}
       <div className={styles.reportSection}>
-        <h3>Transferências</h3>
+        <h3>{oldSpelling("Transferências")}</h3>
         <div className={styles.reportGrid}>
-          <div className={styles.reportCard}><strong>{data.transfers.total}</strong><span>Total</span></div>
-          <div className={styles.reportCard}><strong>{data.transfers.completed}</strong><span>Concluídas</span></div>
-          <div className={styles.reportCard}><strong>{data.transfers.pending_origin}</strong><span>Pendentes (saída)</span></div>
-          <div className={styles.reportCard}><strong>{data.transfers.pending_destination}</strong><span>Pendentes (entrada)</span></div>
-          <div className={styles.reportCard}><strong>{data.transfers.rejected_origin}</strong><span>Rejeitadas (saída)</span></div>
-          <div className={styles.reportCard}><strong>{data.transfers.rejected_destination}</strong><span>Rejeitadas (entrada)</span></div>
+          <div className={styles.reportCard}><strong>{data.transfers.total}</strong><span>{oldSpelling("Total")}</span></div>
+          <div className={styles.reportCard}><strong>{data.transfers.completed}</strong><span>{oldSpelling("Concluídas")}</span></div>
+          <div className={styles.reportCard}><strong>{data.transfers.pending_origin}</strong><span>{oldSpelling("Pendentes (saída)")}</span></div>
+          <div className={styles.reportCard}><strong>{data.transfers.pending_destination}</strong><span>{oldSpelling("Pendentes (entrada)")}</span></div>
+          <div className={styles.reportCard}><strong>{data.transfers.rejected_origin}</strong><span>{oldSpelling("Rejeitadas (saída)")}</span></div>
+          <div className={styles.reportCard}><strong>{data.transfers.rejected_destination}</strong><span>{oldSpelling("Rejeitadas (entrada)")}</span></div>
         </div>
 
-        {/* Gráfico pizza – Transferências (ECharts) */}
         <div className={styles.chartContainer}>
           <ReactECharts
             style={{ height: 320, width: '100%' }}
@@ -2233,9 +2419,8 @@ const ReportsSection: React.FC<{ associationId: number }> = ({ associationId }) 
         </div>
       </div>
 
-      {/* Receita Mensal (ECharts bar) */}
       <div className={styles.reportSection}>
-        <h3>Receita Mensal (pagamentos confirmados)</h3>
+        <h3>{oldSpelling("Receita Mensal (pagamentos confirmados)")}</h3>
         <div className={styles.chartContainer}>
           <ReactECharts
             style={{ height: 300, width: '100%' }}
@@ -2273,129 +2458,7 @@ const ReportsSection: React.FC<{ associationId: number }> = ({ associationId }) 
   );
 };
 
-/* ==================== MODAIS DE SECRETÁRIO E JOGADOR ==================== */
-interface SecretaryModalProps {
-  isOpen: boolean;
-  secretary: AssociationMember | null;
-  associationId: number;
-  onClose: () => void;
-  onSuccess: () => void;
-}
-
-const SecretaryModal: React.FC<SecretaryModalProps> = ({
-  isOpen,
-  secretary,
-  associationId,
-  onClose,
-  onSuccess,
-}) => {
-  const [users, setUsers] = useState<UserOption[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState("");
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const fetchUsers = async () => {
-      setLoadingUsers(true);
-      try {
-        const { data } = await http.get(
-          `/users?not_in_association=${associationId}`,
-        );
-        setUsers(data.data || data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoadingUsers(false);
-      }
-    };
-    fetchUsers();
-  }, [isOpen, associationId]);
-
-  useEffect(() => {
-    setSelectedUserId(secretary ? String(secretary.user_id) : "");
-  }, [secretary]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUserId) return;
-    setLoading(true);
-    try {
-      if (secretary) {
-        await http.put(
-          `${endpoints.associations.members(associationId)}/${secretary.id}`,
-          { user_id: Number(selectedUserId), position: "secretary" },
-        );
-      } else {
-        await http.post(endpoints.associations.storeMember(associationId), {
-          user_id: Number(selectedUserId),
-          position: "secretary",
-        });
-      }
-      onSuccess();
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Erro");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h3>{secretary ? "Editar Secretário" : "Novo Secretário"}</h3>
-          <button onClick={onClose} className={styles.modalClose}>
-            ×
-          </button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className={styles.modalBody}>
-            <div className={styles.formGroup}>
-              <label>Utilizador</label>
-              {loadingUsers ? (
-                <p>Carregando...</p>
-              ) : (
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  required
-                >
-                  <option value="">Selecione...</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.email})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          </div>
-          <div className={styles.modalActions}>
-            <button
-              type="button"
-              onClick={onClose}
-              className={styles.cancelButton}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className={styles.submitButton}
-              disabled={loading || !selectedUserId}
-            >
-              {loading ? "Salvando..." : "Guardar"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-/* ==================== PLAYER MODAL (com FIDE ID e Rating) ==================== */
+/* ==================== PLAYER MODAL (sem FIDE ID e Rating no registo) ==================== */
 interface PlayerModalProps {
   isOpen: boolean;
   player: Player | null;
@@ -2450,17 +2513,17 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
     e.preventDefault();
     setLoading(true);
     try {
-      const payload = {
+      const payload: any = {
         name,
         email,
         genero,
         dataNascimento,
         active,
-        "fide-id": fideId || null,
-        rating: rating ? parseInt(rating, 10) : null,
       };
 
       if (isEditing) {
+        payload["fide-id"] = fideId || null;
+        payload.rating = rating ? parseInt(rating, 10) : null;
         await http.put(endpoints.players.detail(player.id), payload);
       } else {
         await http.post(
@@ -2470,7 +2533,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
       }
       onSuccess();
     } catch (err: any) {
-      alert(err.response?.data?.message || "Erro ao guardar jogador");
+      alert(err.response?.data?.message || oldSpelling("Erro ao guardar jogador"));
     } finally {
       setLoading(false);
     }
@@ -2486,7 +2549,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         style={{ maxHeight: "90vh", display: "flex", flexDirection: "column" }}
       >
         <div className={styles.modalHeader}>
-          <h3>{isEditing ? "Editar Jogador" : "Registar Jogador"}</h3>
+          <h3>{isEditing ? oldSpelling("Editar Jogador") : oldSpelling("Registar Jogador")}</h3>
           <button onClick={onClose} className={styles.modalClose}>
             ×
           </button>
@@ -2505,7 +2568,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
             style={{ overflowY: "auto", flex: 1 }}
           >
             <div className={styles.formGroup}>
-              <label>Nome *</label>
+              <label>{oldSpelling("Nome *")}</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -2513,7 +2576,7 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
               />
             </div>
             <div className={styles.formGroup}>
-              <label>Email *</label>
+              <label>{oldSpelling("Email *")}</label>
               <input
                 type="email"
                 value={email}
@@ -2522,40 +2585,19 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
               />
             </div>
             <div className={styles.formGroup}>
-              <label>Género</label>
+              <label>{oldSpelling("Género")}</label>
               <select value={genero} onChange={(e) => setGenero(e.target.value)}>
-                <option value="M">Masculino</option>
-                <option value="F">Feminino</option>
+                <option value="M">{oldSpelling("Masculino")}</option>
+                <option value="F">{oldSpelling("Feminino")}</option>
               </select>
             </div>
             <div className={styles.formGroup}>
-              <label>Data de Nascimento</label>
+              <label>{oldSpelling("Data de Nascimento")}</label>
               <input
                 type="date"
                 value={dataNascimento}
                 onChange={(e) => setDataNascimento(e.target.value)}
                 required
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>FIDE ID</label>
-              <input
-                type="text"
-                maxLength={15}
-                value={fideId}
-                onChange={(e) => setFideId(e.target.value)}
-                placeholder="Opcional"
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Rating</label>
-              <input
-                type="number"
-                step="1"
-                min="0"
-                value={rating}
-                onChange={(e) => setRating(e.target.value)}
-                placeholder="Opcional"
               />
             </div>
             <div className={styles.formGroup}>
@@ -2565,9 +2607,36 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                   checked={active}
                   onChange={(e) => setActive(e.target.checked)}
                 />{" "}
-                Ativo
+                {oldSpelling("Activo")}
               </label>
             </div>
+
+            {/* Campos exclusivos para edição */}
+            {isEditing && (
+              <>
+                <div className={styles.formGroup}>
+                  <label>FIDE ID</label>
+                  <input
+                    type="text"
+                    maxLength={15}
+                    value={fideId}
+                    onChange={(e) => setFideId(e.target.value)}
+                    placeholder={oldSpelling("Opcional")}
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Rating</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={rating}
+                    onChange={(e) => setRating(e.target.value)}
+                    placeholder={oldSpelling("Opcional")}
+                  />
+                </div>
+              </>
+            )}
           </div>
           <div className={styles.modalActions}>
             <button
@@ -2575,14 +2644,14 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
               onClick={onClose}
               className={styles.cancelButton}
             >
-              Cancelar
+              {oldSpelling("Cancelar")}
             </button>
             <button
               type="submit"
               className={styles.submitButton}
               disabled={loading}
             >
-              {loading ? "Salvando..." : "Guardar"}
+              {loading ? oldSpelling("Salvando...") : oldSpelling("Guardar")}
             </button>
           </div>
         </form>
