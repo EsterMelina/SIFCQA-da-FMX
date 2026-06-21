@@ -372,4 +372,5 @@ public function delete(Player $player){
     return response()->json($softDeletePlayer);
 }
 
+
 }

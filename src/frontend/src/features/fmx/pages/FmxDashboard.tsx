@@ -3,8 +3,10 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
 import { useAuth } from "@/app/providers/AuthProvider";
+import ReactECharts from 'echarts-for-react';
+import * as echarts from 'echarts';
 import styles from "./FmxDashboard.module.css";
-import logo from "/assets/logo.png";  // importação da logo (caminho corrigido)
+import logo from "/assets/logo.png";
 
 /* ==================== TIPOS ==================== */
 type TabType =
@@ -53,6 +55,19 @@ interface UserCandidate {
   name: string;
   email: string;
   roles?: { name: string }[];
+}
+
+// Interface para os dados do relatório
+interface ReportStats {
+  total_players: number;
+  active_players: number;
+  gender_distribution: Record<string, number>;
+  membership_distribution: Record<string, number>;
+  association_distribution: Record<string, number>;
+  age_distribution: Record<string, number>;
+  province_distribution: Record<string, number>;
+  student_count: number;
+  rating_distribution: Record<string, number>;
 }
 
 /* ==================== COMPONENTE PRINCIPAL ==================== */
@@ -254,13 +269,7 @@ const FmxDashboard: React.FC = () => {
           <DatabaseContent players={players} loading={loading} error={error} />
         );
       case "reports":
-        return (
-          <PlaceholderPage
-            icon="assessment"
-            title="Relatórios"
-            description="Geração de relatórios institucionais."
-          />
-        );
+        return <ReportsSection />;
       case "tournaments":
         return <TournamentsContent tournaments={tournaments} />;
       default:
@@ -283,7 +292,6 @@ const FmxDashboard: React.FC = () => {
           <div className={styles.sidebarHeader}>
             <div className={styles.brand}>
               <div className={styles.logo}>
-                {/* Logo com fundo que alterna conforme o tema */}
                 <div style={{
                   backgroundColor: isDark ? '#000000' : '#ffffff',
                   borderRadius: '8px',
@@ -307,16 +315,8 @@ const FmxDashboard: React.FC = () => {
           <nav className={styles.nav}>
             {[
               { key: "dashboard", label: "Painel", icon: "dashboard" },
-              {
-                key: "associations",
-                label: "Associações",
-                icon: "account_balance",
-              },
-              {
-                key: "database",
-                label: "Lista de Jogadores",
-                icon: "database",
-              },
+              { key: "associations", label: "Associações", icon: "account_balance" },
+              { key: "database", label: "Lista de Jogadores", icon: "database" },
               { key: "reports", label: "Relatórios", icon: "assessment" },
               { key: "tournaments", label: "Torneios", icon: "emoji_events" },
             ].map((item) => (
@@ -415,29 +415,13 @@ const FmxDashboard: React.FC = () => {
                       <strong style={{ display: "block", fontSize: "1rem" }}>
                         Gestor da FMX
                       </strong>
-                      <span
-                        style={{
-                          fontSize: "0.8rem",
-                          color: "var(--color-on-surface-variant)",
-                        }}
-                      >
+                      <span style={{ fontSize: "0.8rem", color: "var(--color-on-surface-variant)" }}>
                         Federação Moçambicana de Xadrez
                       </span>
                     </div>
                     <div style={{ borderTop: "1px solid var(--color-outline-variant)", paddingTop: "0.5rem" }}>
-                      <p
-                        style={{
-                          fontSize: "0.8rem",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.5rem",
-                          color: "var(--color-on-surface-variant)",
-                          margin: 0,
-                        }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: "1.2rem" }}>
-                          admin_panel_settings
-                        </span>
+                      <p style={{ fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--color-on-surface-variant)", margin: 0 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: "1.2rem" }}>admin_panel_settings</span>
                         Acesso institucional
                       </p>
                     </div>
@@ -486,14 +470,7 @@ const DashboardContent: React.FC<{
   loading: boolean;
   error: string | null;
   onViewAssociations: () => void;
-}> = ({
-  stats,
-  provinces,
-  tournaments,
-  loading,
-  error,
-  onViewAssociations,
-}) => {
+}> = ({ stats, provinces, tournaments, loading, error, onViewAssociations }) => {
   if (loading) return <div className={styles.loading}>Carregando...</div>;
   if (error) return <div className={styles.error}>{error}</div>;
 
@@ -503,27 +480,16 @@ const DashboardContent: React.FC<{
         <div className={styles.heroHeader}>
           <div>
             <p className={styles.heroLabel}>Panorama Nacional</p>
-            <h2 className={styles.heroTitle}>
-              Federação Moçambicana de Xadrez
-            </h2>
+            <h2 className={styles.heroTitle}>Federação Moçambicana de Xadrez</h2>
             <p className={styles.heroDesc}>
               Crescimento institucional de 12.4% no último trimestre.
               Consolidação das associações provinciais em curso.
             </p>
           </div>
           <div className={styles.heroStats}>
-            <div>
-              <span>{stats.totalAthletes.toLocaleString()}</span>
-              <p>Atletas</p>
-            </div>
-            <div>
-              <span>{stats.activeProvinces}</span>
-              <p>Províncias Activas</p>
-            </div>
-            <div>
-              <span>{stats.officialClubs}</span>
-              <p>Associações</p>
-            </div>
+            <div><span>{stats.totalAthletes.toLocaleString()}</span><p>Atletas</p></div>
+            <div><span>{stats.activeProvinces}</span><p>Províncias Activas</p></div>
+            <div><span>{stats.officialClubs}</span><p>Associações</p></div>
           </div>
         </div>
       </div>
@@ -536,10 +502,7 @@ const DashboardContent: React.FC<{
           </div>
           <div className={styles.mapContent}>
             <div className={styles.mapPlaceholder}>
-              <img
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzTk8RFgVmNl63ng06_TE5bfqFdzoUOd8riLX3m0PMNtzg1xYqWMIyeusytbKj-6sMcEDI8cagrNFbpq3ycedb6BpiRFyGMGbFxRLQnFFvsnVTCFr9cSuix8Biw6s0W1nsa_l9BTArqPU_r_84qWnE6hxSRnGtFGBrTOFox6-_ZUTpPp-4Y9HUAlbkkyjL1DjN0EYPclLUWM94jeAQcshvqMJ3hArSs7i4NEB4WAfdnAVJuy4VgJlYvfu6jMaW8Hwx8CI1MnATnzw"
-                alt="Mapa de Moçambique"
-              />
+              <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzTk8RFgVmNl63ng06_TE5bfqFdzoUOd8riLX3m0PMNtzg1xYqWMIyeusytbKj-6sMcEDI8cagrNFbpq3ycedb6BpiRFyGMGbFxRLQnFFvsnVTCFr9cSuix8Biw6s0W1nsa_l9BTArqPU_r_84qWnE6hxSRnGtFGBrTOFox6-_ZUTpPp-4Y9HUAlbkkyjL1DjN0EYPclLUWM94jeAQcshvqMJ3hArSs7i4NEB4WAfdnAVJuy4VgJlYvfu6jMaW8Hwx8CI1MnATnzw" alt="Mapa de Moçambique" />
             </div>
           </div>
           <div className={styles.provinceList}>
@@ -547,10 +510,7 @@ const DashboardContent: React.FC<{
               <div className={styles.empty}>Nenhuma associação registada.</div>
             ) : (
               provinces.map((p) => (
-                <div
-                  key={p.name}
-                  className={`${styles.provinceItem} ${!p.active ? styles.inactive : ""}`}
-                >
+                <div key={p.name} className={`${styles.provinceItem} ${!p.active ? styles.inactive : ""}`}>
                   <span className={styles.dot} />
                   <span>{p.name}</span>
                   <span>{p.associations}</span>
@@ -561,23 +521,14 @@ const DashboardContent: React.FC<{
         </div>
 
         <div className={styles.tournamentCard}>
-          <div className={styles.sectionHeader}>
-            <h3>Próximos Torneios</h3>
-          </div>
+          <div className={styles.sectionHeader}><h3>Próximos Torneios</h3></div>
           <ul className={styles.tournamentList}>
             {tournaments.map((t) => (
               <li key={t.id}>
-                <div>
-                  <p>{t.name}</p>
-                  <span>{t.subtitle}</span>
-                </div>
+                <div><p>{t.name}</p><span>{t.subtitle}</span></div>
                 <div className={styles.tournamentMeta}>
-                  <span className="material-symbols-outlined">location_on</span>{" "}
-                  {t.location}
-                  <span className="material-symbols-outlined">
-                    calendar_today
-                  </span>{" "}
-                  {t.startDate}
+                  <span className="material-symbols-outlined">location_on</span> {t.location}
+                  <span className="material-symbols-outlined">calendar_today</span> {t.startDate}
                 </div>
               </li>
             ))}
@@ -597,23 +548,9 @@ const AssociationsContent: React.FC<{
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
-}> = ({
-  associations,
-  onEdit,
-  onCreate,
-  onAssignPresident,
-  loading,
-  error,
-  onRefresh,
-}) => {
+}> = ({ associations, onEdit, onCreate, onAssignPresident, loading, error, onRefresh }) => {
   const handleToggleStatus = async (assoc: Association) => {
-    if (
-      !confirm(
-        `Deseja ${assoc.status ? "suspender" : "reactivar"} ${assoc.name}?`,
-      )
-    )
-      return;
-
+    if (!confirm(`Deseja ${assoc.status ? "suspender" : "reactivar"} ${assoc.name}?`)) return;
     try {
       await http.patch(`/fmx/associations/${assoc.id}/status`, {});
       onRefresh();
@@ -627,25 +564,17 @@ const AssociationsContent: React.FC<{
       <div className={styles.pageHeader}>
         <h2>Gestão de Associações Provinciais</h2>
         <button className={styles.primaryButton} onClick={onCreate}>
-          <span className="material-symbols-outlined">add</span>
-          Nova Associação
+          <span className="material-symbols-outlined">add</span> Nova Associação
         </button>
       </div>
-
       {loading && <div className={styles.loading}>Carregando...</div>}
       {error && <div className={styles.error}>{error}</div>}
-
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Nome</th>
-              <th>Email</th>
-              <th>Telefone</th>
-              <th>Endereço</th>
-              <th>Presidente</th>
-              <th>Estado</th>
-              <th>Acções</th>
+              <th>Nome</th><th>Email</th><th>Telefone</th><th>Endereço</th>
+              <th>Presidente</th><th>Estado</th><th>Acções</th>
             </tr>
           </thead>
           <tbody>
@@ -657,34 +586,16 @@ const AssociationsContent: React.FC<{
                 <td>{a.address || "—"}</td>
                 <td>{a.president?.name || "—"}</td>
                 <td>
-                  <span
-                    className={`${styles.status} ${
-                      a.status ? styles.active : styles.inactive
-                    }`}
-                  >
+                  <span className={`${styles.status} ${a.status ? styles.active : styles.inactive}`}>
                     {a.status ? "Activo" : "Inactivo"}
                   </span>
                 </td>
                 <td>
                   <div className={styles.actionButtons}>
-                    <button onClick={() => onEdit(a)} title="Editar">
-                      <span className="material-symbols-outlined">edit</span>
-                    </button>
-                    <button
-                      onClick={() => onAssignPresident(a)}
-                      title="Atribuir Presidente"
-                    >
-                      <span className="material-symbols-outlined">
-                        person_add
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => handleToggleStatus(a)}
-                      title={a.status ? "Suspender" : "Reactivar"}
-                    >
-                      <span className="material-symbols-outlined">
-                        {a.status ? "block" : "check_circle"}
-                      </span>
+                    <button onClick={() => onEdit(a)} title="Editar"><span className="material-symbols-outlined">edit</span></button>
+                    <button onClick={() => onAssignPresident(a)} title="Atribuir Presidente"><span className="material-symbols-outlined">person_add</span></button>
+                    <button onClick={() => handleToggleStatus(a)} title={a.status ? "Suspender" : "Reactivar"}>
+                      <span className="material-symbols-outlined">{a.status ? "block" : "check_circle"}</span>
                     </button>
                   </div>
                 </td>
@@ -692,9 +603,7 @@ const AssociationsContent: React.FC<{
             ))}
           </tbody>
         </table>
-        {associations.length === 0 && !loading && (
-          <div className={styles.empty}>Nenhuma associação cadastrada.</div>
-        )}
+        {associations.length === 0 && !loading && <div className={styles.empty}>Nenhuma associação cadastrada.</div>}
       </div>
     </div>
   );
@@ -708,7 +617,6 @@ const DatabaseContent: React.FC<{
 }> = ({ players, loading, error }) => {
   const [search, setSearch] = useState("");
   const [filterActive, setFilterActive] = useState<boolean | null>(null);
-
   const safePlayers = Array.isArray(players) ? players : [];
 
   const filtered = safePlayers.filter((p) => {
@@ -726,9 +634,7 @@ const DatabaseContent: React.FC<{
 
   const handleDownload = async () => {
     try {
-      const res = await http.get("/fmx/reports/players/national/pdf", {
-        responseType: "blob",
-      });
+      const res = await http.get("/fmx/reports/players/national/pdf", { responseType: "blob" });
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement("a");
       a.href = url;
@@ -748,87 +654,285 @@ const DatabaseContent: React.FC<{
       <div className={styles.pageHeader}>
         <h2>Lista de Jogadores</h2>
         <button className={styles.pdfButton} onClick={handleDownload}>
-          <span className="material-symbols-outlined">picture_as_pdf</span>{" "}
-          Baixar Lista
+          <span className="material-symbols-outlined">picture_as_pdf</span> Baixar Lista
         </button>
       </div>
-
       <div className={styles.filters}>
-        <input
-          type="text"
-          className={styles.searchInput}
-          placeholder="Pesquisar nome, email ou associação..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select
-          className={styles.filterSelect}
-          value={
-            filterActive === null ? "all" : filterActive ? "active" : "inactive"
-          }
-          onChange={(e) => {
-            const val = e.target.value;
-            setFilterActive(val === "all" ? null : val === "active");
-          }}
-        >
+        <input type="text" className={styles.searchInput} placeholder="Pesquisar nome, email ou associação..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <select className={styles.filterSelect} value={filterActive === null ? "all" : filterActive ? "active" : "inactive"} onChange={(e) => { const val = e.target.value; setFilterActive(val === "all" ? null : val === "active"); }}>
           <option value="all">Todos os estados</option>
           <option value="active">Activos</option>
           <option value="inactive">Inactivos</option>
         </select>
       </div>
-
       {loading && <div className={styles.loading}>Carregando...</div>}
       {error && <div className={styles.error}>{error}</div>}
-
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Nome</th>
-              <th>Email</th>
-              <th>Associação</th>
-              <th>Posição</th>
-              <th>FIDE ID</th>
-              <th>Rating</th>
-              <th>Activo</th>
-              <th>Ingresso</th>
-              <th>Anos</th>
-              <th>Meses</th>
-              <th>Dias</th>
+              <th>ID</th><th>Nome</th><th>Email</th><th>Associação</th><th>Posição</th>
+              <th>FIDE ID</th><th>Rating</th><th>Activo</th><th>Ingresso</th>
+              <th>Anos</th><th>Meses</th><th>Dias</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((p) => (
               <tr key={p.player_id}>
-                <td>{safe(p.player_id)}</td>
-                <td>{safe(p.name)}</td>
-                <td>{safe(p.email)}</td>
-                <td>{safe(p.association_name)}</td>
-                <td>{safe(p.position)}</td>
-                <td>{safe(p.fide_id)}</td>
-                <td>{safe(p.rating)}</td>
-                <td>{p.active ? "Sim" : "Não"}</td>
-                <td>{safe(p.joined_at)}</td>
-                <td>{safe(p.years_in_association)}</td>
-                <td>{safe(p.months_in_association)}</td>
+                <td>{safe(p.player_id)}</td><td>{safe(p.name)}</td><td>{safe(p.email)}</td>
+                <td>{safe(p.association_name)}</td><td>{safe(p.position)}</td>
+                <td>{safe(p.fide_id)}</td><td>{safe(p.rating)}</td>
+                <td>{p.active ? "Sim" : "Não"}</td><td>{safe(p.joined_at)}</td>
+                <td>{safe(p.years_in_association)}</td><td>{safe(p.months_in_association)}</td>
                 <td>{safe(p.days_in_association)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && !loading && (
-          <div className={styles.empty}>Nenhum jogador encontrado.</div>
-        )}
+        {filtered.length === 0 && !loading && <div className={styles.empty}>Nenhum jogador encontrado.</div>}
+      </div>
+    </div>
+  );
+};
+
+/* ==================== RELATÓRIOS ESTATÍSTICOS ==================== */
+const ReportsSection: React.FC = () => {
+  const [stats, setStats] = useState<ReportStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await http.get("/fmx/reports/player-stats");
+        setStats(res.data);
+      } catch (err: any) {
+        setError("Erro ao carregar estatísticas.");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  if (loading) return <div className={styles.loading}>Carregando relatório...</div>;
+  if (error) return <div className={styles.error}>{error}</div>;
+  if (!stats) return <div className={styles.empty}>Nenhum dado disponível.</div>;
+
+  // Cores do tema
+  const PRIMARY = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#e60023';
+  const TERTIARY = getComputedStyle(document.documentElement).getPropertyValue('--color-tertiary').trim() || '#6b6a69';
+  const ON_SURFACE_VARIANT = getComputedStyle(document.documentElement).getPropertyValue('--color-on-surface-variant').trim() || '#5a524c';
+  const SURFACE_CONTAINER = getComputedStyle(document.documentElement).getPropertyValue('--color-surface-container').trim() || '#eee9e2';
+
+  // Preparar dados para gráficos
+  const genderData = Object.entries(stats.gender_distribution).map(([name, value]) => ({
+    name: name === 'M' ? 'Masculino' : name === 'F' ? 'Feminino' : name,
+    value
+  }));
+
+  const membershipData = Object.entries(stats.membership_distribution).map(([name, value]) => {
+    const labels: Record<string, string> = {
+      fundador: 'Fundador', efetivo: 'Efectivo', atleta: 'Atleta',
+      de_mérito: 'De Mérito', honorário: 'Honorário', patrocinador: 'Patrocinador'
+    };
+    return { name: labels[name] || name, value };
+  });
+
+  const associationData = Object.entries(stats.association_distribution).map(([name, value]) => ({
+    name, value
+  }));
+
+  const ageData = Object.entries(stats.age_distribution).map(([name, value]) => ({
+    name, value
+  }));
+
+  const provinceData = Object.entries(stats.province_distribution).map(([name, value]) => ({
+    name, value
+  }));
+
+  const ratingData = Object.entries(stats.rating_distribution).map(([name, value]) => ({
+    name, value
+  }));
+
+  return (
+    <div className={styles.pageContainer}>
+      <h2 style={{ marginBottom: "1.5rem" }}>Relatórios Estatísticos</h2>
+
+      {/* Cartões de resumo */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
+        <div className={styles.metricCard} style={{ padding: "1.5rem", background: "var(--color-surface)", borderRadius: "1rem", border: "1px solid var(--color-outline-variant)", textAlign: "center" }}>
+          <p className={styles.metricLabel}>Total Jogadores</p>
+          <h3 className={styles.metricValue}>{stats.total_players}</h3>
+        </div>
+        <div className={styles.metricCard} style={{ padding: "1.5rem", background: "var(--color-surface)", borderRadius: "1rem", border: "1px solid var(--color-outline-variant)", textAlign: "center" }}>
+          <p className={styles.metricLabel}>Jogadores Activos</p>
+          <h3 className={styles.metricValue}>{stats.active_players}</h3>
+        </div>
+        <div className={styles.metricCard} style={{ padding: "1.5rem", background: "var(--color-surface)", borderRadius: "1rem", border: "1px solid var(--color-outline-variant)", textAlign: "center" }}>
+          <p className={styles.metricLabel}>Estudantes</p>
+          <h3 className={styles.metricValue}>{stats.student_count}</h3>
+        </div>
+        <div className={styles.metricCard} style={{ padding: "1.5rem", background: "var(--color-surface)", borderRadius: "1rem", border: "1px solid var(--color-outline-variant)", textAlign: "center" }}>
+          <p className={styles.metricLabel}>Associações</p>
+          <h3 className={styles.metricValue}>{Object.keys(stats.association_distribution).length}</h3>
+        </div>
+      </div>
+
+      {/* Gráficos em grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(500px, 1fr))", gap: "1.5rem" }}>
+        {/* Distribuição por Género (pizza) */}
+        <div style={{ background: "var(--color-surface)", borderRadius: "1rem", border: "1px solid var(--color-outline-variant)", padding: "1.5rem" }}>
+          <h3 style={{ marginBottom: "1rem" }}>Distribuição por Género</h3>
+          <ReactECharts
+            style={{ height: 320, width: '100%' }}
+            option={{
+              tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+              legend: { orient: 'horizontal', bottom: 0, textStyle: { color: ON_SURFACE_VARIANT } },
+              series: [{
+                type: 'pie',
+                radius: ['45%', '75%'],
+                avoidLabelOverlap: false,
+                label: { show: true, formatter: '{b}: {d}%', color: ON_SURFACE_VARIANT },
+                emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
+                data: genderData,
+                color: ['#3b82f6', '#ec4899', '#6b7280'],
+              }],
+              backgroundColor: 'transparent',
+            }}
+          />
+        </div>
+
+        {/* Distribuição por Tipo de Associado (barras) */}
+        <div style={{ background: "var(--color-surface)", borderRadius: "1rem", border: "1px solid var(--color-outline-variant)", padding: "1.5rem" }}>
+          <h3 style={{ marginBottom: "1rem" }}>Jogadores por Tipo de Associado</h3>
+          <ReactECharts
+            style={{ height: 320, width: '100%' }}
+            option={{
+              tooltip: { trigger: 'axis' },
+              xAxis: { type: 'category', data: membershipData.map(d => d.name), axisLabel: { rotate: 45, color: ON_SURFACE_VARIANT, fontSize: 11 } },
+              yAxis: { type: 'value', axisLabel: { color: ON_SURFACE_VARIANT } },
+              series: [{
+                data: membershipData.map(d => d.value),
+                type: 'bar',
+                barWidth: '50%',
+                itemStyle: {
+                  borderRadius: [6, 6, 0, 0],
+                  color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    { offset: 0, color: PRIMARY },
+                    { offset: 1, color: TERTIARY },
+                  ]),
+                },
+              }],
+              grid: { top: 10, bottom: 60, left: 40, right: 20 },
+              backgroundColor: 'transparent',
+            }}
+          />
+        </div>
+
+        {/* Distribuição por Faixa Etária (pizza) */}
+        <div style={{ background: "var(--color-surface)", borderRadius: "1rem", border: "1px solid var(--color-outline-variant)", padding: "1.5rem" }}>
+          <h3 style={{ marginBottom: "1rem" }}>Distribuição por Faixa Etária</h3>
+          <ReactECharts
+            style={{ height: 320, width: '100%' }}
+            option={{
+              tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+              legend: { orient: 'horizontal', bottom: 0, textStyle: { color: ON_SURFACE_VARIANT } },
+              series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                avoidLabelOverlap: false,
+                label: { show: true, formatter: '{b}: {d}%', color: ON_SURFACE_VARIANT },
+                data: ageData,
+                color: ['#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6'],
+              }],
+              backgroundColor: 'transparent',
+            }}
+          />
+        </div>
+
+        {/* Distribuição por Província (barras horizontais) */}
+        <div style={{ background: "var(--color-surface)", borderRadius: "1rem", border: "1px solid var(--color-outline-variant)", padding: "1.5rem" }}>
+          <h3 style={{ marginBottom: "1rem" }}>Jogadores por Província</h3>
+          <ReactECharts
+            style={{ height: 350, width: '100%' }}
+            option={{
+              tooltip: { trigger: 'axis' },
+              xAxis: { type: 'value', axisLabel: { color: ON_SURFACE_VARIANT } },
+              yAxis: { type: 'category', data: provinceData.map(d => d.name), axisLabel: { color: ON_SURFACE_VARIANT, fontSize: 11 } },
+              series: [{
+                data: provinceData.map(d => d.value),
+                type: 'bar',
+                barWidth: '60%',
+                itemStyle: {
+                  borderRadius: [0, 6, 6, 0],
+                  color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                    { offset: 0, color: PRIMARY },
+                    { offset: 1, color: TERTIARY },
+                  ]),
+                },
+              }],
+              grid: { top: 10, bottom: 30, left: 100, right: 20 },
+              backgroundColor: 'transparent',
+            }}
+          />
+        </div>
+
+        {/* Distribuição de Rating (pizza) */}
+        <div style={{ background: "var(--color-surface)", borderRadius: "1rem", border: "1px solid var(--color-outline-variant)", padding: "1.5rem" }}>
+          <h3 style={{ marginBottom: "1rem" }}>Distribuição por Rating</h3>
+          <ReactECharts
+            style={{ height: 320, width: '100%' }}
+            option={{
+              tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+              legend: { orient: 'horizontal', bottom: 0, textStyle: { color: ON_SURFACE_VARIANT } },
+              series: [{
+                type: 'pie',
+                radius: ['45%', '75%'],
+                avoidLabelOverlap: false,
+                label: { show: true, formatter: '{b}: {d}%', color: ON_SURFACE_VARIANT },
+                data: ratingData,
+                color: ['#6b7280', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444'],
+              }],
+              backgroundColor: 'transparent',
+            }}
+          />
+        </div>
+
+        {/* Lista de Associações (tabela) */}
+        <div style={{ background: "var(--color-surface)", borderRadius: "1rem", border: "1px solid var(--color-outline-variant)", padding: "1.5rem" }}>
+          <h3 style={{ marginBottom: "1rem" }}>Jogadores por Associação</h3>
+          <div className={styles.tableWrapper}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Associação</th>
+                  <th>Total</th>
+                  <th>Percentagem</th>
+                </tr>
+              </thead>
+              <tbody>
+                {associationData.map((item) => (
+                  <tr key={item.name}>
+                    <td>{item.name}</td>
+                    <td>{item.value}</td>
+                    <td>{((item.value / stats.total_players) * 100).toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
 /* ==================== TORNEIOS ==================== */
-const TournamentsContent: React.FC<{ tournaments: Tournament[] }> = ({
-  tournaments,
-}) => (
+const TournamentsContent: React.FC<{ tournaments: Tournament[] }> = ({ tournaments }) => (
   <div className={styles.pageContainer}>
     <div className={styles.pageHeader}>
       <h2>Torneios Nacionais</h2>
@@ -838,43 +942,19 @@ const TournamentsContent: React.FC<{ tournaments: Tournament[] }> = ({
     </div>
     <div className={styles.tableWrapper}>
       <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Local</th>
-            <th>Data</th>
-            <th>Estado</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Nome</th><th>Local</th><th>Data</th><th>Estado</th></tr></thead>
         <tbody>
           {tournaments.map((t) => (
             <tr key={t.id}>
-              <td>{t.name}</td>
-              <td>{t.location}</td>
-              <td>{t.startDate}</td>
-              <td>
-                <span className={`${styles.status} ${styles[t.status]}`}>
-                  {t.status === "open" ? "Aberto" : t.status === "ongoing" ? "Em curso" : "Agendado"}
-                </span>
-              </td>
+              <td>{t.name}</td><td>{t.location}</td><td>{t.startDate}</td>
+              <td><span className={`${styles.status} ${styles[t.status]}`}>
+                {t.status === "open" ? "Aberto" : t.status === "ongoing" ? "Em curso" : "Agendado"}
+              </span></td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
-  </div>
-);
-
-/* ==================== PLACEHOLDER ==================== */
-const PlaceholderPage: React.FC<{
-  icon: string;
-  title: string;
-  description: string;
-}> = ({ icon, title, description }) => (
-  <div className={styles.placeholderPage}>
-    <span className="material-symbols-outlined">{icon}</span>
-    <h2>{title}</h2>
-    <p>{description}</p>
   </div>
 );
 
@@ -885,13 +965,7 @@ const AssociationModal: React.FC<{
   onClose: () => void;
   onSuccess: () => void;
 }> = ({ isOpen, association, onClose, onSuccess }) => {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    status: true,
-  });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", status: true });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -932,73 +1006,19 @@ const AssociationModal: React.FC<{
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h3>{association ? "Editar Associação" : "Nova Associação"}</h3>
-          <button onClick={onClose} className={styles.modalClose}>
-            ×
-          </button>
+          <button onClick={onClose} className={styles.modalClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
-            <div className={styles.formGroup}>
-              <label>Nome *</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Telefone</label>
-              <input
-                type="text"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Endereço</label>
-              <input
-                type="text"
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={form.status}
-                  onChange={(e) =>
-                    setForm({ ...form, status: e.target.checked })
-                  }
-                />
-                Activo
-              </label>
-            </div>
+            <div className={styles.formGroup}><label>Nome *</label><input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
+            <div className={styles.formGroup}><label>Email</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            <div className={styles.formGroup}><label>Telefone</label><input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <div className={styles.formGroup}><label>Endereço</label><input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            <div className={styles.formGroup}><label><input type="checkbox" checked={form.status} onChange={(e) => setForm({ ...form, status: e.target.checked })} /> Activo</label></div>
           </div>
           <div className={styles.modalActions}>
-            <button
-              type="button"
-              onClick={onClose}
-              className={styles.cancelButton}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className={styles.submitButton}
-              disabled={loading}
-            >
-              {loading ? "Salvando..." : "Guardar"}
-            </button>
+            <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
+            <button type="submit" className={styles.submitButton} disabled={loading}>{loading ? "Salvando..." : "Guardar"}</button>
           </div>
         </form>
       </div>
@@ -1025,38 +1045,21 @@ const PresidentModal: React.FC<{
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <h3>Atribuir Presidente a {association.name}</h3>
-          <button onClick={onClose} className={styles.modalClose}>
-            ×
-          </button>
+          <button onClick={onClose} className={styles.modalClose}>×</button>
         </div>
         <div className={styles.modalBody}>
           <div className={styles.formGroup}>
             <label>Seleccionar Presidente</label>
-            <select
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(Number(e.target.value))}
-            >
+            <select value={selectedUserId} onChange={(e) => setSelectedUserId(Number(e.target.value))}>
               <option value="">-- Escolha um utilizador --</option>
               {candidates.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} ({u.email})
-                </option>
+                <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
               ))}
             </select>
           </div>
           <div className={styles.modalActions}>
-            <button
-              type="button"
-              onClick={onClose}
-              className={styles.cancelButton}
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleSubmit}
-              className={styles.submitButton}
-              disabled={!selectedUserId || submitting}
-            >
+            <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
+            <button onClick={handleSubmit} className={styles.submitButton} disabled={!selectedUserId || submitting}>
               {submitting ? "Salvando..." : "Atribuir"}
             </button>
           </div>

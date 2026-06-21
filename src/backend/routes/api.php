@@ -126,6 +126,9 @@ Route::middleware(['auth:sanctum', 'role:fmx|admin'])->prefix('fmx')->group(func
     Route::get('players', [PlayerController::class, 'indexNacional']);    // NOVO (reutiliza o PlayerController)
 
     Route::get('reports/players/national/pdf', [PlayerController::class, 'nationalReport']);  // NOVO
+
+    //Relatorios estatisticos
+    Route::get('reports/player-stats', [FmxController::class, 'playerStats']);
 });
 
 /*

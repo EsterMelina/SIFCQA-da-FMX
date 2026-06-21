@@ -155,4 +155,121 @@ public function toggleStaffStatus($staffId)
         'data' => $staff
     ]);
 }
+
+
+// FmxController.php
+//Buscar dados para graficos
+public function playerStats()
+{
+    // Total e ativos
+    $totalPlayers = Player::count();
+    $activePlayers = Player::where('active', true)->count();
+
+    // Trazer dados necessários com relações
+    $players = Player::with(['user', 'association'])->get();
+
+    // ======================
+    // Género
+    // ======================
+    $genderStats = $players
+        ->pluck('user.genero')
+        ->filter()
+        ->countBy();
+
+    // ======================
+    // Membership
+    // ======================
+    $membershipStats = $players
+        ->pluck('membership')
+        ->filter()
+        ->countBy();
+
+    // ======================
+    // Associação
+    // ======================
+    $associationStats = $players
+        ->pluck('association.name')
+        ->filter()
+        ->countBy();
+
+    // ======================
+    // Idade (sem SQL)
+    // ======================
+    $ageStats = $players
+        ->map(function ($player) {
+            if (!$player->user || !$player->user->dataNascimento) {
+                return null;
+            }
+
+            $age = \Carbon\Carbon::parse($player->user->dataNascimento)->age;
+
+            if ($age < 18) return 'Menor de 18';
+            if ($age <= 25) return '18-25';
+            if ($age <= 35) return '26-35';
+            if ($age <= 50) return '36-50';
+            return '51+';
+        })
+        ->filter()
+        ->countBy();
+
+    // ======================
+    // Província (baseada no nome da associação)
+    // ======================
+    $provinceStats = $players
+        ->pluck('association.name')
+        ->filter()
+        ->map(function ($name) {
+            return match (true) {
+                str_contains($name, 'Maputo') => 'Maputo',
+                str_contains($name, 'Gaza') => 'Gaza',
+                str_contains($name, 'Inhambane') => 'Inhambane',
+                str_contains($name, 'Sofala') => 'Sofala',
+                str_contains($name, 'Manica') => 'Manica',
+                str_contains($name, 'Tete') => 'Tete',
+                str_contains($name, 'Zambézia') => 'Zambézia',
+                str_contains($name, 'Nampula') => 'Nampula',
+                str_contains($name, 'Cabo Delgado') => 'Cabo Delgado',
+                str_contains($name, 'Niassa') => 'Niassa',
+                default => 'Outras',
+            };
+        })
+        ->countBy();
+
+    // ======================
+    // Estudantes
+    // ======================
+    $studentCount = $players
+        ->where('is_student', true)
+        ->count();
+
+    // ======================
+    // Rating
+    // ======================
+    $ratingStats = $players
+        ->pluck('rating')
+        ->map(function ($rating) {
+            if (is_null($rating)) return 'Sem Rating';
+            if ($rating < 1200) return '1000-1200';
+            if ($rating < 1500) return '1200-1500';
+            if ($rating < 1800) return '1500-1800';
+            if ($rating < 2000) return '1800-2000';
+            return '2000+';
+        })
+        ->countBy();
+
+    // ======================
+    // Response final
+    // ======================
+    return response()->json([
+        'total_players' => $totalPlayers,
+        'active_players' => $activePlayers,
+        'gender_distribution' => $genderStats,
+        'membership_distribution' => $membershipStats,
+        'association_distribution' => $associationStats,
+        'age_distribution' => $ageStats,
+        'province_distribution' => $provinceStats,
+        'student_count' => $studentCount,
+        'rating_distribution' => $ratingStats,
+    ]);
+}
 }
