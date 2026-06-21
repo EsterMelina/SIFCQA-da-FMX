@@ -6,6 +6,7 @@ import { useAuth } from "@/app/providers/AuthProvider";
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import styles from "./AssociationDashboard.module.css";
+import logo from "/assets/logo.png";  // <-- Importa o logo
 
 /* ==================== TIPOS ==================== */
 type TabType =
@@ -251,6 +252,8 @@ const AssociationDashboard: React.FC = () => {
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     localStorage.getItem("theme") === "dark" ? "dark" : "light",
   );
+  const isDark = theme === "dark";   // <-- helper para o tema
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
@@ -293,7 +296,7 @@ const AssociationDashboard: React.FC = () => {
   );
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.classList.toggle("dark", isDark);
     localStorage.setItem("theme", theme);
   }, [theme]);
 
@@ -525,10 +528,23 @@ const AssociationDashboard: React.FC = () => {
           <div className={styles.sidebarHeader}>
             <div className={styles.brand}>
               <div className={styles.logo}>
-                <span className="material-symbols-outlined">chess</span>
+                {/* Logo com fundo que alterna conforme o tema */}
+                <div style={{
+                  backgroundColor: isDark ? '#000000' : '#ffffff',
+                  borderRadius: '8px',
+                  padding: '4px',
+                  display: 'inline-block',
+                  lineHeight: 0,
+                }}>
+                  <img
+                    src={logo}
+                    alt="Logo"
+                    style={{ width: "48px", height: "auto" }}
+                  />
+                </div>
               </div>
               <div>
-                <h1>{oldSpelling("Associação")}</h1>
+                <h1>{oldSpelling("Gestão da Associação")}</h1>
                 <p>{role === "president" ? oldSpelling("Presidência") : oldSpelling("Secretaria")}</p>
               </div>
             </div>

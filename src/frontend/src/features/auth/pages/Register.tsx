@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { http } from "@/services/http";
 import styles from "./css/Register.module.css";
-import logo from "../../../assets/logo.png";
+import logo from "/assets/logo.png";
 import mozambiqueChess from "../../../assets/moz-chess-players.jpg"; // Imagem local
 
 // Se estiver a usar TypeScript e precisar de declarar o módulo para imagens,

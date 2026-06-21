@@ -1,9 +1,10 @@
 // FmxDashboard.tsx
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
 import { useAuth } from "@/app/providers/AuthProvider";
 import styles from "./FmxDashboard.module.css";
+import logo from "/assets/logo.png";  // importação da logo (caminho corrigido)
 
 /* ==================== TIPOS ==================== */
 type TabType =
@@ -103,8 +104,29 @@ const FmxDashboard: React.FC = () => {
   const [candidates, setCandidates] = useState<UserCandidate[]>([]);
   const [presidentSubmitting, setPresidentSubmitting] = useState(false);
 
+  // ============ AVATAR ============
+  const [showAvatarPopup, setShowAvatarPopup] = useState(false);
+  const avatarRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        avatarRef.current &&
+        !avatarRef.current.contains(e.target as Node)
+      ) {
+        setShowAvatarPopup(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const isDark = theme === "dark";
+  const avatarBg = isDark ? "#e60023" : "#1e3a5f";
+  const avatarBorder = isDark ? "#1e3a5f" : "#e60023";
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", isDark);
     localStorage.setItem("theme", theme);
   }, [theme]);
 
@@ -115,23 +137,15 @@ const FmxDashboard: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      // ============================
-      // ASSOCIAÇÕES
-      // ============================
       if (activeTab === "dashboard" || activeTab === "associations") {
         const res = await http.get("/fmx/associations");
         const data = res.data?.data || res.data || [];
         setAssociations(Array.isArray(data) ? data : []);
-      }
-      // ============================
-      // JOGADORES (BASE DE DADOS)
-      // ============================
-      else if (activeTab === "database") {
+      } else if (activeTab === "database") {
         const res = await http.get("/fmx/players");
-        // O backend devolve { total_players: N, players: [...] }
         const playersData =
-          res.data?.players || // caso directo: { players: [...] }
-          res.data?.data?.players || // caso encapsulado: { data: { players: [...] } }
+          res.data?.players ||
+          res.data?.data?.players ||
           [];
         setPlayers(Array.isArray(playersData) ? playersData : []);
       }
@@ -189,9 +203,7 @@ const FmxDashboard: React.FC = () => {
     try {
       await http.post(
         `/fmx/associations/${selectedAssocForPresident.id}/president`,
-        {
-          user_id: userId,
-        },
+        { user_id: userId },
       );
       setShowPresidentModal(false);
       fetchData();
@@ -258,7 +270,7 @@ const FmxDashboard: React.FC = () => {
 
   return (
     <div
-      className={`${styles.container} ${theme === "dark" ? styles.dark : ""}`}
+      className={`${styles.container} ${isDark ? styles.dark : ""}`}
     >
       <div className={styles.layout}>
         <div
@@ -271,17 +283,30 @@ const FmxDashboard: React.FC = () => {
           <div className={styles.sidebarHeader}>
             <div className={styles.brand}>
               <div className={styles.logo}>
-                <span className="material-symbols-outlined">chess</span>
+                {/* Logo com fundo que alterna conforme o tema */}
+                <div style={{
+                  backgroundColor: isDark ? '#000000' : '#ffffff',
+                  borderRadius: '8px',
+                  padding: '4px',
+                  display: 'inline-block',
+                  lineHeight: 0,
+                }}>
+                  <img
+                    src={logo}
+                    alt="Logo FMX"
+                    style={{ width: "48px", height: "auto" }}
+                  />
+                </div>
               </div>
               <div>
-                <h1>FMX Direction</h1>
-                <p>Institutional Management</p>
+                <h1>Gestão da FMX</h1>
+                <p>Painel de Administração</p>
               </div>
             </div>
           </div>
           <nav className={styles.nav}>
             {[
-              { key: "dashboard", label: "Dashboard", icon: "dashboard" },
+              { key: "dashboard", label: "Painel", icon: "dashboard" },
               {
                 key: "associations",
                 label: "Associações",
@@ -329,11 +354,95 @@ const FmxDashboard: React.FC = () => {
             <div className={styles.topbarRight}>
               <button className={styles.themeToggle} onClick={toggleTheme}>
                 <span className="material-symbols-outlined">
-                  {theme === "light" ? "dark_mode" : "light_mode"}
+                  {isDark ? "light_mode" : "dark_mode"}
                 </span>
               </button>
-              <div className={styles.avatar}>
-                <img src="https://via.placeholder.com/40" alt="User" />
+
+              {/* Avatar personalizado */}
+              <div
+                ref={avatarRef}
+                style={{ position: "relative" }}
+                onClick={() => setShowAvatarPopup((prev) => !prev)}
+              >
+                <div
+                  style={{
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "50%",
+                    border: `3px solid ${avatarBorder}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    backgroundColor: avatarBg,
+                    transition: "box-shadow 0.2s",
+                    boxShadow: isDark
+                      ? "0 0 0 2px rgba(30, 58, 95, 0.3)"
+                      : "0 0 0 2px rgba(230, 0, 35, 0.3)",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#ffffff",
+                      fontSize: "18px",
+                      fontWeight: 600,
+                      lineHeight: 1,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    FM
+                  </span>
+                </div>
+                {showAvatarPopup && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "110%",
+                      right: 0,
+                      width: "200px",
+                      backgroundColor: "var(--color-surface-container)",
+                      border: "1px solid var(--color-outline-variant)",
+                      borderRadius: "12px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      padding: "1rem",
+                      zIndex: 100,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <div style={{ textAlign: "center" }}>
+                      <strong style={{ display: "block", fontSize: "1rem" }}>
+                        Gestor da FMX
+                      </strong>
+                      <span
+                        style={{
+                          fontSize: "0.8rem",
+                          color: "var(--color-on-surface-variant)",
+                        }}
+                      >
+                        Federação Moçambicana de Xadrez
+                      </span>
+                    </div>
+                    <div style={{ borderTop: "1px solid var(--color-outline-variant)", paddingTop: "0.5rem" }}>
+                      <p
+                        style={{
+                          fontSize: "0.8rem",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                          color: "var(--color-on-surface-variant)",
+                          margin: 0,
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: "1.2rem" }}>
+                          admin_panel_settings
+                        </span>
+                        Acesso institucional
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </header>
@@ -409,7 +518,7 @@ const DashboardContent: React.FC<{
             </div>
             <div>
               <span>{stats.activeProvinces}</span>
-              <p>Províncias Ativas</p>
+              <p>Províncias Activas</p>
             </div>
             <div>
               <span>{stats.officialClubs}</span>
@@ -498,38 +607,25 @@ const AssociationsContent: React.FC<{
   onRefresh,
 }) => {
   const handleToggleStatus = async (assoc: Association) => {
-    console.log("🔎 Toggle status associação:", assoc);
-
     if (
       !confirm(
-        `Deseja ${assoc.status ? "suspender" : "reativar"} ${assoc.name}?`,
+        `Deseja ${assoc.status ? "suspender" : "reactivar"} ${assoc.name}?`,
       )
     )
       return;
 
     try {
-      const res = await http.patch(`/fmx/associations/${assoc.id}/status`, {});
-
-      console.log("📡 Response toggle status:", res);
-      console.log("📦 Data:", res.data);
-
+      await http.patch(`/fmx/associations/${assoc.id}/status`, {});
       onRefresh();
     } catch (err: any) {
-      console.error("❌ Erro toggle status:", err);
-      console.error("📄 Backend response:", err.response?.data);
-
       alert(err.response?.data?.message || "Erro");
     }
   };
-
-  console.log("📦 ASSOCIATIONS RECEBIDAS:", associations);
-  console.log("📏 TOTAL:", associations?.length);
 
   return (
     <div className={styles.pageContainer}>
       <div className={styles.pageHeader}>
         <h2>Gestão de Associações Provinciais</h2>
-
         <button className={styles.primaryButton} onClick={onCreate}>
           <span className="material-symbols-outlined">add</span>
           Nova Associação
@@ -548,64 +644,54 @@ const AssociationsContent: React.FC<{
               <th>Telefone</th>
               <th>Endereço</th>
               <th>Presidente</th>
-              <th>Status</th>
-              <th>Ações</th>
+              <th>Estado</th>
+              <th>Acções</th>
             </tr>
           </thead>
-
           <tbody>
-            {associations.map((a, index) => {
-              console.log(`🔎 ITEM [${index}]:`, a);
-
-              return (
-                <tr key={a.id}>
-                  <td>{a.name}</td>
-                  <td>{a.contact_email || "—"}</td>
-                  <td>{a.phone || "—"}</td>
-                  <td>{a.address || "—"}</td>
-                  <td>{a.president?.name || "—"}</td>
-
-                  <td>
-                    <span
-                      className={`${styles.status} ${
-                        a.status ? styles.active : styles.inactive
-                      }`}
+            {associations.map((a) => (
+              <tr key={a.id}>
+                <td>{a.name}</td>
+                <td>{a.contact_email || "—"}</td>
+                <td>{a.phone || "—"}</td>
+                <td>{a.address || "—"}</td>
+                <td>{a.president?.name || "—"}</td>
+                <td>
+                  <span
+                    className={`${styles.status} ${
+                      a.status ? styles.active : styles.inactive
+                    }`}
+                  >
+                    {a.status ? "Activo" : "Inactivo"}
+                  </span>
+                </td>
+                <td>
+                  <div className={styles.actionButtons}>
+                    <button onClick={() => onEdit(a)} title="Editar">
+                      <span className="material-symbols-outlined">edit</span>
+                    </button>
+                    <button
+                      onClick={() => onAssignPresident(a)}
+                      title="Atribuir Presidente"
                     >
-                      {a.status ? "Ativo" : "Inativo"}
-                    </span>
-                  </td>
-
-                  <td>
-                    <div className={styles.actionButtons}>
-                      <button onClick={() => onEdit(a)} title="Editar">
-                        <span className="material-symbols-outlined">edit</span>
-                      </button>
-
-                      <button
-                        onClick={() => onAssignPresident(a)}
-                        title="Atribuir Presidente"
-                      >
-                        <span className="material-symbols-outlined">
-                          person_add
-                        </span>
-                      </button>
-
-                      <button
-                        onClick={() => handleToggleStatus(a)}
-                        title={a.status ? "Suspender" : "Reativar"}
-                      >
-                        <span className="material-symbols-outlined">
-                          {a.status ? "block" : "check_circle"}
-                        </span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                      <span className="material-symbols-outlined">
+                        person_add
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => handleToggleStatus(a)}
+                      title={a.status ? "Suspender" : "Reactivar"}
+                    >
+                      <span className="material-symbols-outlined">
+                        {a.status ? "block" : "check_circle"}
+                      </span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
-
         {associations.length === 0 && !loading && (
           <div className={styles.empty}>Nenhuma associação cadastrada.</div>
         )}
@@ -614,7 +700,7 @@ const AssociationsContent: React.FC<{
   );
 };
 
-/* ==================== BASE DE DADOS (JOGADORES) – CORRIGIDA + SAFE ==================== */
+/* ==================== BASE DE DADOS (JOGADORES) ==================== */
 const DatabaseContent: React.FC<{
   players: PlayerData[];
   loading: boolean;
@@ -623,7 +709,6 @@ const DatabaseContent: React.FC<{
   const [search, setSearch] = useState("");
   const [filterActive, setFilterActive] = useState<boolean | null>(null);
 
-  // Garante que é sempre um array
   const safePlayers = Array.isArray(players) ? players : [];
 
   const filtered = safePlayers.filter((p) => {
@@ -637,108 +722,23 @@ const DatabaseContent: React.FC<{
     return matchesSearch && matchesActive;
   });
 
-  // Função auxiliar para evitar "null" ou "undefined" na UI
   const safe = (value: any, fallback = "—") => value ?? fallback;
 
-  // const handleDownload = async () => {
-  //   try {
-  //     const res = await http.get("/reports/players/national/pdf", {
-  //       responseType: "blob",
-  //     });
-  //     const url = window.URL.createObjectURL(new Blob([res.data]));
-  //     const a = document.createElement("a");
-  //     a.href = url;
-  //     a.download = "base_dados_nacional_jogadores.pdf";
-  //     document.body.appendChild(a);
-  //     a.click();
-  //     a.remove();
-  //     window.URL.revokeObjectURL(url);
-  //   } catch (err) {
-  //     console.error("Erro ao descarregar o relatório", err);
-  //     alert("Não foi possível gerar o PDF. Tente novamente.");
-  //   }
-  // };
-
   const handleDownload = async () => {
-    console.log("=== INÍCIO DOWNLOAD PDF ===");
-
     try {
-      console.log("A enviar request para /fmx/reports/players/national/pdf");
-
       const res = await http.get("/fmx/reports/players/national/pdf", {
         responseType: "blob",
       });
-
-      // =========================================
-      // RESPONSE COMPLETA
-      // =========================================
-      console.log("RESPONSE COMPLETA:", res);
-
-      // =========================================
-      // STATUS
-      // =========================================
-      console.log("STATUS:", res.status);
-
-      // =========================================
-      // HEADERS
-      // =========================================
-      console.log("HEADERS:", res.headers);
-
-      // =========================================
-      // DATA / BLOB
-      // =========================================
-      console.log("DATA:", res.data);
-
-      console.log("TIPO DA DATA:", typeof res.data);
-
-      console.log("É BLOB?", res.data instanceof Blob);
-
-      console.log("TAMANHO BLOB:", res.data.size);
-
-      console.log("TIPO MIME:", res.data.type);
-
-      // =========================================
-      // URL GERADA
-      // =========================================
       const url = window.URL.createObjectURL(new Blob([res.data]));
-
-      console.log("URL GERADA:", url);
-
-      // =========================================
-      // DOWNLOAD
-      // =========================================
       const a = document.createElement("a");
-
       a.href = url;
-
       a.download = "base_dados_nacional_jogadores.pdf";
-
-      console.log("NOME DOWNLOAD:", a.download);
-
       document.body.appendChild(a);
-
-      console.log("A iniciar clique automático...");
-
       a.click();
-
       a.remove();
-
       window.URL.revokeObjectURL(url);
-
-      console.log("DOWNLOAD FINALIZADO");
-    } catch (err: any) {
-      console.log("=== ERRO DOWNLOAD PDF ===");
-
-      console.error(err);
-
-      console.log("ERR RESPONSE:", err.response);
-
-      console.log("ERR DATA:", err.response?.data);
-
-      console.log("ERR STATUS:", err.response?.status);
-
-      console.log("ERR HEADERS:", err.response?.headers);
-
+    } catch (err) {
+      console.error("Erro ao descarregar o relatório", err);
       alert("Não foi possível gerar o PDF. Tente novamente.");
     }
   };
@@ -772,8 +772,8 @@ const DatabaseContent: React.FC<{
           }}
         >
           <option value="all">Todos os estados</option>
-          <option value="active">Ativos</option>
-          <option value="inactive">Inativos</option>
+          <option value="active">Activos</option>
+          <option value="inactive">Inactivos</option>
         </select>
       </div>
 
@@ -791,7 +791,7 @@ const DatabaseContent: React.FC<{
               <th>Posição</th>
               <th>FIDE ID</th>
               <th>Rating</th>
-              <th>Ativo</th>
+              <th>Activo</th>
               <th>Ingresso</th>
               <th>Anos</th>
               <th>Meses</th>
@@ -843,7 +843,7 @@ const TournamentsContent: React.FC<{ tournaments: Tournament[] }> = ({
             <th>Nome</th>
             <th>Local</th>
             <th>Data</th>
-            <th>Status</th>
+            <th>Estado</th>
           </tr>
         </thead>
         <tbody>
@@ -854,7 +854,7 @@ const TournamentsContent: React.FC<{ tournaments: Tournament[] }> = ({
               <td>{t.startDate}</td>
               <td>
                 <span className={`${styles.status} ${styles[t.status]}`}>
-                  {t.status}
+                  {t.status === "open" ? "Aberto" : t.status === "ongoing" ? "Em curso" : "Agendado"}
                 </span>
               </td>
             </tr>
@@ -898,7 +898,7 @@ const AssociationModal: React.FC<{
     if (association) {
       setForm({
         name: association.name,
-        email: association.email || "",
+        email: association.contact_email || "",
         phone: association.phone || "",
         address: association.address || "",
         status: association.status,
@@ -980,7 +980,7 @@ const AssociationModal: React.FC<{
                     setForm({ ...form, status: e.target.checked })
                   }
                 />
-                Ativo
+                Activo
               </label>
             </div>
           </div>
@@ -1031,7 +1031,7 @@ const PresidentModal: React.FC<{
         </div>
         <div className={styles.modalBody}>
           <div className={styles.formGroup}>
-            <label>Selecionar Presidente</label>
+            <label>Seleccionar Presidente</label>
             <select
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(Number(e.target.value))}

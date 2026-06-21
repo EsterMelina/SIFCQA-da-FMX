@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
 import { useAuth } from "@/app/providers/AuthProvider";
@@ -29,8 +29,8 @@ interface User {
   email: string;
   status?: string;
   roles?: Role[];
-  genero?: string;        // adicionado
-  dataNascimento?: string; // adicionado
+  genero?: string;
+  dataNascimento?: string;
 }
 
 interface PresidentData {
@@ -64,15 +64,12 @@ const AdminDashboard: React.FC = () => {
 
   const [activeMain, setActiveMain] = useState<MainMenu>("dashboard");
 
-  // Dados globais de utilizadores
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [errorUsers, setErrorUsers] = useState<string | null>(null);
 
-  // Chave para forçar refresh da secção do presidente
   const [presidentRefreshKey, setPresidentRefreshKey] = useState(0);
 
-  // Função partilhada para buscar utilizadores
   const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
     setErrorUsers(null);
@@ -86,12 +83,10 @@ const AdminDashboard: React.FC = () => {
     }
   }, []);
 
-  // Carrega utilizadores na montagem
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Modais
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showPresidentModal, setShowPresidentModal] = useState(false);
@@ -124,6 +119,23 @@ const AdminDashboard: React.FC = () => {
     },
     [],
   );
+
+  // ==================== AVATAR COM POPUP ====================
+  const [showAvatarPopup, setShowAvatarPopup] = useState(false);
+  const avatarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        avatarRef.current &&
+        !avatarRef.current.contains(e.target as Node)
+      ) {
+        setShowAvatarPopup(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // ==================== HANDLERS MENU ====================
   const handleMainClick = (key: MainMenu) => {
@@ -199,7 +211,7 @@ const AdminDashboard: React.FC = () => {
           className={`${styles.overlay} ${isSidebarOpen ? styles.overlayVisible : ""}`}
           onClick={() => setIsSidebarOpen(false)}
         />
-        {/* Sidebar simples */}
+        {/* Sidebar */}
         <aside
           className={`${styles.sidebar} ${isSidebarOpen ? styles.sidebarOpen : ""}`}
         >
@@ -280,8 +292,90 @@ const AdminDashboard: React.FC = () => {
                       : "routine"}
                 </span>
               </button>
-              <div className={styles.avatar}>
-                <img src="https://via.placeholder.com/40" alt="Admin" />
+
+              {/* Avatar com contorno vermelho e popup */}
+              <div
+                ref={avatarRef}
+                style={{ position: "relative" }}
+                onClick={() => setShowAvatarPopup((prev) => !prev)}
+              >
+                <div
+                  style={{
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "50%",
+                    border: "3px solid #e60023",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    backgroundColor: "#1e3a5f",
+                    transition: "box-shadow 0.2s",
+                    boxShadow: "0 0 0 2px rgba(230, 0, 35, 0.3)",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#ffffff",
+                      fontSize: "18px",
+                      fontWeight: 600,
+                      lineHeight: 1,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    AD
+                  </span>
+                </div>
+                {showAvatarPopup && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "110%",
+                      right: 0,
+                      width: "200px",
+                      backgroundColor: "var(--color-surface-container)",
+                      border: "1px solid var(--color-outline-variant)",
+                      borderRadius: "12px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      padding: "1rem",
+                      zIndex: 100,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <div style={{ textAlign: "center" }}>
+                      <strong style={{ display: "block", fontSize: "1rem" }}>
+                        Admin
+                      </strong>
+                      <span
+                        style={{
+                          fontSize: "0.8rem",
+                          color: "var(--color-on-surface-variant)",
+                        }}
+                      >
+                        Administrador do Sistema
+                      </span>
+                    </div>
+                    <div style={{ borderTop: "1px solid var(--color-outline-variant)", paddingTop: "0.5rem" }}>
+                      <p
+                        style={{
+                          fontSize: "0.8rem",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                          color: "var(--color-on-surface-variant)",
+                          margin: 0,
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: "1.2rem" }}>
+                          admin_panel_settings
+                        </span>
+                        Acesso total
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </header>
@@ -548,11 +642,10 @@ const DashboardContent: React.FC = () => {
   );
 };
 
-/* ==================== SEÇÕES (mantidas, sem alterações) ==================== */
+/* ==================== SEÇÕES ==================== */
 const FmxSection: React.FC<{
   addToast: (type: ToastMessage["type"], msg: string) => void;
 }> = ({ addToast }) => {
-  /* ... código inalterado ... */
   const [fmxData, setFmxData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
@@ -659,7 +752,6 @@ const PresidenteSection: React.FC<{
   onOpenCreate: () => void;
   onOpenEdit: (president: PresidentData) => void;
 }> = ({ addToast, refreshKey, onOpenCreate, onOpenEdit }) => {
-  /* ... código inalterado ... */
   const [president, setPresident] = useState<PresidentData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -835,7 +927,6 @@ const PermissoesSection: React.FC<{
   users: User[];
   fetchUsers: () => void;
 }> = ({ addToast, users, fetchUsers }) => {
-  /* ... código inalterado ... */
   const availableRoles = ["admin", "fmx", "association", "player"];
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("");
@@ -953,7 +1044,6 @@ const PermissoesSection: React.FC<{
 };
 
 const AuditoriaSection: React.FC = () => {
-  /* ... código inalterado ... */
   const logs = [
     { id: 1, timestamp: "2024-08-10 10:20", user: "admin", action: "Login", entity: "Sistema", status: "success" },
     { id: 2, timestamp: "2024-08-10 09:55", user: "presidente", action: "Criou jogador", entity: "Jogador #44", status: "success" },
@@ -999,7 +1089,7 @@ const SistemaSection: React.FC = () => (
   </div>
 );
 
-/* ==================== MODAIS (ATUALIZADOS) ==================== */
+/* ==================== MODAIS CORRIGIDOS ==================== */
 const UserModal: React.FC<{
   isOpen: boolean;
   user: User | null;
@@ -1012,8 +1102,8 @@ const UserModal: React.FC<{
     name: "",
     email: "",
     role: "association",
-    genero: "M",                // novo
-    dataNascimento: "2000-01-01", // novo
+    genero: "M",
+    dataNascimento: "2000-01-01",
   });
   const [associationId, setAssociationId] = useState<number | "">("");
   const [position, setPosition] = useState<string>("Secretário");
@@ -1090,14 +1180,32 @@ const UserModal: React.FC<{
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={styles.modal}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          maxHeight: "90vh",
+        }}
+      >
         <div className={styles.modalHeader}>
           <h3>{isEdit ? "Editar Utilizador" : "Novo Utilizador"}</h3>
           <button onClick={onClose} className={styles.modalClose}>×</button>
         </div>
-        <form onSubmit={handleSubmit}>
-          {/* ADICIONADO maxHeight e overflowY para scroll quando necessário */}
-          <div className={styles.modalBody} style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            flex: 1,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            className={styles.modalBody}
+            style={{ flex: 1, overflowY: "auto", padding: "1.5rem" }}
+          >
             <div className={styles.formGroup}>
               <label>Nome</label>
               <input
@@ -1131,7 +1239,7 @@ const UserModal: React.FC<{
               />
             </div>
             <div className={styles.formGroup}>
-              <label>Função</label>
+              <label>Tipo de Utilizador</label>
               <select
                 value={form.role}
                 onChange={(e) => {
@@ -1143,8 +1251,8 @@ const UserModal: React.FC<{
                 }}
                 required
               >
-                <option value="association">Associação</option>
-                <option value="fmx">FMX</option>
+                <option value="association">Gestor de Associação</option>
+                <option value="fmx">Gestor da FMX</option>
               </select>
             </div>
 
@@ -1182,7 +1290,6 @@ const UserModal: React.FC<{
               </div>
             )}
           </div>
-
           <div className={styles.modalActions}>
             <button type="button" onClick={onClose} className={styles.cancelButton}>Cancelar</button>
             <button type="submit" className={styles.submitButton} disabled={loading}>
@@ -1202,7 +1309,6 @@ const PresidentModal: React.FC<{
   onClose: () => void;
   onSuccess: () => void;
 }> = ({ isOpen, mode, currentPresident, onClose, onSuccess }) => {
-  /* ... código inalterado (não necessita de novos campos) ... */
   const [form, setForm] = useState({ user_id: "", position: "Presidente", active: true });
   const [loading, setLoading] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
@@ -1265,13 +1371,32 @@ const PresidentModal: React.FC<{
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={styles.modal}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          maxHeight: "90vh",
+        }}
+      >
         <div className={styles.modalHeader}>
           <h3>{mode === "create" ? "Criar Presidente" : "Alterar Presidente"}</h3>
           <button onClick={onClose} className={styles.modalClose}>×</button>
         </div>
-        <form onSubmit={handleSubmit}>
-          <div className={styles.modalBody}>
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            flex: 1,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            className={styles.modalBody}
+            style={{ flex: 1, overflowY: "auto", padding: "1.5rem" }}
+          >
             <div className={styles.formGroup}>
               <label>Utilizador</label>
               <select value={form.user_id} onChange={(e) => setForm({ ...form, user_id: e.target.value })} required>

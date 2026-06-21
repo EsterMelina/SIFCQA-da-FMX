@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/app/providers/AuthProvider";
 import styles from "./css/Login.module.css";
-import logo from "../../../assets/logo.png";
+import logo from "/assets/logo.png";
 
 const Login: React.FC = () => {
   const { login, isLoading } = useAuth();
