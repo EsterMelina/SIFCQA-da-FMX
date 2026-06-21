@@ -9,8 +9,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Player extends Model
 {
     use HasFactory,SoftDeletes;
-
-  protected $fillable = ['user_id', 'association_id', 'position', 'active', 'fide-id', 'rating'];
+protected $casts = [
+    'active' => 'boolean',
+    'is_student' => 'boolean',   // opcional
+];
+  protected $fillable = ['user_id', 'association_id', 'position', 'active', 'fide-id', 'rating',  'membership', 'is_student' ];
 
     public function user()
     {

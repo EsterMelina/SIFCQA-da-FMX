@@ -85,7 +85,8 @@ class PlayerService
 
         return Player::create([
             'user_id' => $userId,
-            'association_id' => $associationId
+            'association_id' => $associationId,
+            'active' => true,
         ]);
     }
 

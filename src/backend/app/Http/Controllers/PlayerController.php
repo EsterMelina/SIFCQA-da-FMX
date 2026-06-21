@@ -33,19 +33,21 @@ public function update(Request $request, Player $player)
         'payload'   => $request->all(),
     ]);
 
-    $data = $request->validate([
-        // USER
-        'name'            => 'sometimes|string|max:255',
-        'email'           => 'sometimes|email|unique:users,email,' . $player->user_id,
-        'genero'          => 'sometimes|in:M,F',
-        'dataNascimento'  => 'sometimes|date|before:today',
+   $data = $request->validate([
+    // USER
+    'name'            => 'sometimes|string|max:255',
+    'email'           => 'sometimes|email|unique:users,email,' . $player->user_id,
+    'genero'          => 'sometimes|in:M,F',
+    'dataNascimento'  => 'sometimes|date|before:today',
 
-        // PLAYER
-        'association_id'  => 'sometimes|exists:associations,id',
-        'fide-id'         => 'nullable|string|max:15',
-        'rating'          => 'nullable|integer|min:0',
-        'active'          => 'sometimes|boolean',
-    ]);
+    // PLAYER
+    'association_id'  => 'sometimes|exists:associations,id',
+    'fide-id'         => 'sometimes|nullable|string|max:15',          // ← adiciona sometimes
+    'rating'          => 'sometimes|nullable|integer|min:0',          // ← adiciona sometimes
+    'active'          => 'sometimes|boolean',
+    'membership'      => 'sometimes|nullable|in:fundador,efetivo,atleta,de_mérito,honorário,patrocinador',
+    'is_student'      => 'sometimes|boolean',
+]);
 
     DB::transaction(function () use ($player, $data) {
 
@@ -72,7 +74,9 @@ public function update(Request $request, Player $player)
             'association_id',
             'fide-id',
             'rating',
-            'active'
+            'active',
+            'membership',
+            'is_student'
         ]);
 
         if (!empty($playerData)) {

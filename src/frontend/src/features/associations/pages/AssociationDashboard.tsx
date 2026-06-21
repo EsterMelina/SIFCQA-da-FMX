@@ -1,4 +1,4 @@
-// AssociationDashboard.tsx (versão final – sem toggle de notificações)
+// AssociationDashboard.tsx (versão completa e atualizada)
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { http } from "@/services/http";
 import { endpoints } from "@/services/endpoints";
@@ -6,7 +6,7 @@ import { useAuth } from "@/app/providers/AuthProvider";
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import styles from "./AssociationDashboard.module.css";
-import logo from "/assets/logo.png";  // <-- Importa o logo
+import logo from "/assets/logo.png";
 
 /* ==================== TIPOS ==================== */
 type TabType =
@@ -51,6 +51,8 @@ interface Player {
   updated_at?: string;
   "fide-id"?: string;
   rating?: number;
+  membership?: string;
+  is_student?: boolean;
   user?: {
     id?: number;
     name: string;
@@ -252,7 +254,7 @@ const AssociationDashboard: React.FC = () => {
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     localStorage.getItem("theme") === "dark" ? "dark" : "light",
   );
-  const isDark = theme === "dark";   // <-- helper para o tema
+  const isDark = theme === "dark";
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -528,7 +530,6 @@ const AssociationDashboard: React.FC = () => {
           <div className={styles.sidebarHeader}>
             <div className={styles.brand}>
               <div className={styles.logo}>
-                {/* Logo com fundo que alterna conforme o tema */}
                 <div style={{
                   backgroundColor: isDark ? '#000000' : '#ffffff',
                   borderRadius: '8px',
@@ -998,6 +999,19 @@ const PlayersSection: React.FC<{
       p.association?.name?.toLowerCase().includes(search.toLowerCase()),
   );
 
+  const formatMembership = (membership?: string): string => {
+    if (!membership) return "—";
+    const labels: Record<string, string> = {
+      fundador: "Fundador",
+      efetivo: "Efectivo",
+      atleta: "Atleta",
+      de_mérito: "De Mérito",
+      honorário: "Honorário",
+      patrocinador: "Patrocinador",
+    };
+    return oldSpelling(labels[membership] || membership.replace(/_/g, ' '));
+  };
+
   if (loading) return <div className={styles.loading}>{oldSpelling("Carregando...")}</div>;
 
   return (
@@ -1024,6 +1038,10 @@ const PlayersSection: React.FC<{
               <th>{oldSpelling("Nome")}</th>
               <th>{oldSpelling("Email")}</th>
               <th>{oldSpelling("Associação")}</th>
+              <th>{oldSpelling("Tipo de Associado")}</th>
+              <th>{oldSpelling("Estudante")}</th>
+              <th>FIDE ID</th>
+              <th>Rating</th>
               <th>{oldSpelling("Estado")}</th>
               <th>{oldSpelling("Acções")}</th>
             </tr>
@@ -1043,6 +1061,10 @@ const PlayersSection: React.FC<{
                 </td>
                 <td>{p.user?.email || "—"}</td>
                 <td>{p.association?.name || "—"}</td>
+                <td>{formatMembership(p.membership)}</td>
+                <td>{p.is_student ? "Sim" : "Não"}</td>
+                <td>{p["fide-id"] || "—"}</td>
+                <td>{p.rating || "—"}</td>
                 <td>
                   <span
                     className={`${styles.statusBadge} ${p.active ? styles.active : styles.inactive}`}
@@ -2474,7 +2496,7 @@ const ReportsSection: React.FC<{ associationId: number }> = ({ associationId }) 
   );
 };
 
-/* ==================== PLAYER MODAL (sem FIDE ID e Rating no registo) ==================== */
+/* ==================== PLAYER MODAL (COM MEMBERSHIP E ESTUDANTE) ==================== */
 interface PlayerModalProps {
   isOpen: boolean;
   player: Player | null;
@@ -2497,6 +2519,8 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
   const [rating, setRating] = useState("");
   const [genero, setGenero] = useState("M");
   const [dataNascimento, setDataNascimento] = useState("2000-01-01");
+  const [membership, setMembership] = useState("");
+  const [isStudent, setIsStudent] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const isEditing = !!player;
@@ -2514,6 +2538,8 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
           ? player.user.dataNascimento.split("T")[0]
           : "2000-01-01",
       );
+      setMembership(player.membership || "");
+      setIsStudent(player.is_student || false);
     } else {
       setName("");
       setEmail("");
@@ -2522,6 +2548,8 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
       setRating("");
       setGenero("M");
       setDataNascimento("2000-01-01");
+      setMembership("");
+      setIsStudent(false);
     }
   }, [player]);
 
@@ -2535,6 +2563,8 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
         genero,
         dataNascimento,
         active,
+        membership: membership || null,
+        is_student: isStudent,
       };
 
       if (isEditing) {
@@ -2616,6 +2646,34 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
                 required
               />
             </div>
+
+            <div className={styles.formGroup}>
+              <label>{oldSpelling("Tipo de Associado")}</label>
+              <select
+                value={membership}
+                onChange={(e) => setMembership(e.target.value)}
+              >
+                <option value="">{oldSpelling("Seleccione...")}</option>
+                <option value="fundador">{oldSpelling("Fundador")}</option>
+                <option value="efetivo">{oldSpelling("Efectivo")}</option>
+                <option value="atleta">{oldSpelling("Atleta")}</option>
+                <option value="de_mérito">{oldSpelling("De Mérito")}</option>
+                <option value="honorário">{oldSpelling("Honorário")}</option>
+                <option value="patrocinador">{oldSpelling("Patrocinador")}</option>
+              </select>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={isStudent}
+                  onChange={(e) => setIsStudent(e.target.checked)}
+                />{" "}
+                {oldSpelling("Estudante")}
+              </label>
+            </div>
+
             <div className={styles.formGroup}>
               <label className={styles.checkboxLabel}>
                 <input
@@ -2627,7 +2685,6 @@ const PlayerModal: React.FC<PlayerModalProps> = ({
               </label>
             </div>
 
-            {/* Campos exclusivos para edição */}
             {isEditing && (
               <>
                 <div className={styles.formGroup}>
