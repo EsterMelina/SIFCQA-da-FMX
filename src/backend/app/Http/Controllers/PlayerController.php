@@ -249,6 +249,12 @@ Log::info('REQUEST COMPLETA', [
         'license' => $player->license,
         'license_status' => $player->license_status,
         'license_valid_until' => $player->license_valid_until,
+
+         // NOVOS CAMPOS
+        'membership' => $player->membership,
+        'is_student' => $player->is_student,
+        'fide_id' => $player->{'fide-id'},   // campo com hífen na BD
+        'rating' => $player->rating,
     ]);
 }
 
