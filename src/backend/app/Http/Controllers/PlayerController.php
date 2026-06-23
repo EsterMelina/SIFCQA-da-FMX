@@ -134,20 +134,24 @@ public function update(Request $request, Player $player)
 public function nationalReport()
 {
     try {
-
         $now = now();
 
         $players = Player::with(['user', 'association'])->get()->map(function ($player) use ($now) {
-
             return [
-                'player_id' => $player->id ?? '-',
-                'name' => $player->user?->name ?? '-',
-                'email' => $player->user?->email ?? '-',
-                'association_name' => $player->association?->name ?? '-',
-                'position' => $player->position ?? '-',
-                'active' => $player->active ? 'Sim' : 'Não',
-                'joined_at' => optional($player->created_at)->format('Y-m-d') ?? '-',
+                'player_id'          => $player->id ?? '-',
+                'name'               => $player->user?->name ?? '-',
+                'email'              => $player->user?->email ?? '-',
+                'genero'             => $player->user?->genero === 'M' ? 'Masculino' : ($player->user?->genero === 'F' ? 'Feminino' : '-'),
+                'data_nascimento'    => $player->user?->dataNascimento?->format('Y-m-d') ?? '-',
+                'association_name'   => $player->association?->name ?? '-',
+                'membership'         => $this->formatMembership($player->membership),
+                'is_student'         => $player->is_student ? 'Sim' : 'Não',
+                'fide_id'            => $player->{'fide-id'} ?? '-',
+                'rating'             => $player->rating ?? '-',
+                'active'             => $player->active ? 'Sim' : 'Não',
+                'joined_at'          => optional($player->created_at)->format('Y-m-d') ?? '-',
                 'years_in_association' => $player->created_at?->diffInYears($now) ?? 0,
+                'months_in_association' => $player->created_at?->diffInMonths($now) % 12 ?? 0,
             ];
         });
 
@@ -158,10 +162,10 @@ public function nationalReport()
             : null;
 
         $pdf = Pdf::loadView('reports.players-national', [
-            'players' => $players,
-            'logo' => $logo,
+            'players'      => $players,
+            'logo'         => $logo,
             'generated_at' => $now->format('Y-m-d H:i:s'),
-            'total' => $players->count(),
+            'total'        => $players->count(),
         ]);
 
         return $pdf->download('relatorio-nacional-jogadores.pdf');
@@ -169,37 +173,60 @@ public function nationalReport()
     } catch (\Throwable $e) {
         Log::error('PDF ERROR', [
             'message' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'trace' => $e->getTraceAsString(),
+            'file'    => $e->getFile(),
+            'line'    => $e->getLine(),
+            'trace'   => $e->getTraceAsString(),
         ]);
         return response()->json([
             'message' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->line ?? null,
+            'file'    => $e->getFile(),
+            'line'    => $e->line ?? null,
         ], 500);
     }
 }
 
+/**
+ * Formatar membership para exibição
+ */
+private function formatMembership(?string $membership): string
+{
+    if (!$membership) return '-';
+
+    return match ($membership) {
+        'fundador'     => 'Fundador',
+        'efetivo'      => 'Efectivo',
+        'atleta'       => 'Atleta',
+        'de_mérito'    => 'De Mérito',
+        'honorário'    => 'Honorário',
+        'patrocinador' => 'Patrocinador',
+        default        => $membership,
+    };
+}
 public function indexNacional()
 {
-
     $players = Player::with(['user', 'association'])
         ->get()
         ->map(function ($player) {
-
             $joinedAt = $player->created_at;
 
             return [
-                'player_id' => $player->id,
-                'user_id' => $player->user->id,
-                'name' => $player->user->name,
-                'email' => $player->user->email,
+                'player_id'   => $player->id,
+                'user_id'     => $player->user->id,
+                'name'        => $player->user->name,
+                'email'       => $player->user->email,
+                'genero'      => $player->user->genero,           // 👈 novo
+                'data_nascimento' => $player->user->dataNascimento?->format('Y-m-d'), // 👈 novo
                 'association_name' => $player->association->name ?? null,
-                'position' => $player->position,
-                'active' => $player->active,
-                'joined_at' => $joinedAt->format('Y-m-d'),
+                'position'    => $player->position,
+                'active'      => $player->active,
+                'fide_id'     => $player->{'fide-id'},
+                'rating'      => $player->rating,
+                'membership'  => $player->membership,              // 👈 novo
+                'is_student'  => $player->is_student,              // 👈 novo
+                'joined_at'   => $joinedAt->format('Y-m-d'),
                 'years_in_association' => $joinedAt->diffInYears(now()),
+                'months_in_association' => $joinedAt->diffInMonths(now()) % 12,
+                'days_in_association' => $joinedAt->diffInDays(now()),
             ];
         });
 
@@ -208,7 +235,6 @@ public function indexNacional()
         'players' => $players,
     ]);
 }
-
     public function myProfile()
 {
 

@@ -13,8 +13,10 @@
 <body>
 
 <div class="header">
-    <img src="{{ $logo }}" class="logo">
-    <h2>Federação Nacional de Xadrez</h2>
+    @if($logo)
+        <img src="{{ $logo }}" class="logo">
+    @endif
+    <h2>Federação Moçambicana de Xadrez</h2>
     <p>Relatório Nacional de Jogadores</p>
     <p>Total: {{ $total }}</p>
     <p>Gerado em: {{ $generated_at }}</p>
@@ -26,11 +28,17 @@
             <th>ID</th>
             <th>Nome</th>
             <th>Email</th>
+            <th>Género</th>
+            <th>Nascimento</th>
             <th>Associação</th>
-            <th>Posição</th>
+            <th>Tipo</th>
+            <th>Estudante</th>
+            <th>FIDE ID</th>
+            <th>Rating</th>
             <th>Activo</th>
-            <th>Entrada</th>
+            <th>Ingresso</th>
             <th>Anos</th>
+            <th>Meses</th>
         </tr>
     </thead>
     <tbody>
@@ -39,11 +47,17 @@
             <td>{{ $p['player_id'] }}</td>
             <td>{{ $p['name'] }}</td>
             <td>{{ $p['email'] }}</td>
+            <td>{{ $p['genero'] }}</td>
+            <td>{{ $p['data_nascimento'] }}</td>
             <td>{{ $p['association_name'] }}</td>
-            <td>{{ $p['position'] }}</td>
-            <td>{{ $p['active'] ? 'Sim' : 'Não' }}</td>
+            <td>{{ $p['membership'] }}</td>
+            <td>{{ $p['is_student'] }}</td>
+            <td>{{ $p['fide_id'] }}</td>
+            <td>{{ $p['rating'] }}</td>
+            <td>{{ $p['active'] }}</td>
             <td>{{ $p['joined_at'] }}</td>
             <td>{{ $p['years_in_association'] }}</td>
+            <td>{{ $p['months_in_association'] }}</td>
         </tr>
         @endforeach
     </tbody>
