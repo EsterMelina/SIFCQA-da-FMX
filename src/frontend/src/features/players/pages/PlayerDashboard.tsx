@@ -9,12 +9,13 @@ import logo from "/assets/logo.png";
 
 type TabType = "profile" | "quotas" | "history" | "notifications" | "transfer";
 
-// ---- Tipos (mantidos) ----
+// ---- Tipos ----
 interface QuotaInstallment {
   number: number;
   label: string;
   amount: number;
   status: "not_submitted" | "pending" | "confirmed" | "rejected";
+  can_pay: boolean;
   payment?: any;
 }
 
@@ -22,15 +23,15 @@ interface PlayerQuota {
   id: number;
   title: string;
   total_amount: number;
+  paid_amount?: number;
+  remaining?: number;
   status: string;
   due_date?: string;
-  installments?: {
-    total: number;
-    amount_each: number;
-    next_number?: number;
-    can_pay: boolean;
-    detail: QuotaInstallment[];
-  };
+  total_installments?: number;
+  installment_amount?: number;
+  installments?: QuotaInstallment[];
+  next_installment?: number | null;
+  can_pay?: boolean;
   player?: { name: string };
   association?: { id: number; name: string };
 }
@@ -99,6 +100,8 @@ const statusTranslationMap: Record<string, string> = {
   not_submitted: "não submetida",
   paid: "paga",
   Paid: "Paga",
+  partially_paid: "parcial",
+  expired: "expirado",
 };
 
 const translateStatus = (status: string | undefined): string => {
@@ -566,7 +569,7 @@ const PlayerDashboard: React.FC = () => {
   );
 };
 
-// ---- ProfileContent com o logo oficial ----
+// ---- ProfileContent ----
 const ProfileContent: React.FC<{ player: any; stats: any }> = ({ player, stats }) => {
   const formatMembership = (value: string) => {
     const map: Record<string, string> = {
@@ -593,34 +596,18 @@ const ProfileContent: React.FC<{ player: any; stats: any }> = ({ player, stats }
         <div className={styles.profileInfo}>
           <span className={styles.badge}>Atleta Federado</span>
           <h3>{player.name}</h3>
-          <p>
-            Nascido em {player.birthDate} — {player.birthPlace}
-          </p>
+          <p>Nascido em {player.birthDate} — {player.birthPlace}</p>
           <div className={styles.profileDetails}>
-            <div>
-              <span>Associação</span>
-              <span>{player.association}</span>
-            </div>
-            <div>
-              <span>Tipo de Associado</span>
-              <span>{formatMembership(player.membership)}</span>
-            </div>
-            <div>
-              <span>Rating</span>
-              <span>{player.rating ?? "—"}</span>
-            </div>
-            <div>
-              <span>FIDE ID</span>
-              <span>{player.fideId || "—"}</span>
-            </div>
+            <div><span>Associação</span><span>{player.association}</span></div>
+            <div><span>Tipo de Associado</span><span>{formatMembership(player.membership)}</span></div>
+            <div><span>Rating</span><span>{player.rating ?? "—"}</span></div>
+            <div><span>FIDE ID</span><span>{player.fideId || "—"}</span></div>
           </div>
         </div>
       </div>
       <div className={styles.licenseCard}>
         <div className={styles.licenseHeader}>
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-            verified_user
-          </span>
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>verified_user</span>
           <span className={styles.season}>Época 2024</span>
         </div>
         <div className={styles.licenseBody}>
@@ -628,30 +615,19 @@ const ProfileContent: React.FC<{ player: any; stats: any }> = ({ player, stats }
           <h4>{player.licenseStatus}</h4>
           <p>Válida até {player.licenseValidUntil}</p>
         </div>
-        <button onClick={() => console.log("Ver Cartão Digital")}>
-          Ver Cartão Digital
-        </button>
+        <button onClick={() => console.log("Ver Cartão Digital")}>Ver Cartão Digital</button>
       </div>
       <div className={styles.statsCard}>
         <h4>Estatísticas Institucionais</h4>
-        <div>
-          <span>{stats.yearsAffiliated}</span>
-          <span>Anos de Filiação</span>
-        </div>
-        <div>
-          <span>{stats.nationalTitles.toString().padStart(2, "0")}</span>
-          <span>Títulos Nacionais</span>
-        </div>
-        <div>
-          <span>{stats.financialAttendance}</span>
-          <span>Assiduidade Financeira</span>
-        </div>
+        <div><span>{stats.yearsAffiliated}</span><span>Anos de Filiação</span></div>
+        <div><span>{stats.nationalTitles.toString().padStart(2, "0")}</span><span>Títulos Nacionais</span></div>
+        <div><span>{stats.financialAttendance}</span><span>Assiduidade Financeira</span></div>
       </div>
     </div>
   );
 };
 
-// ---- QuotasContent (mantido igual) ----
+// ---- QuotasContent ----
 const QuotasContent: React.FC = () => {
   const [quotas, setQuotas] = useState<PlayerQuota[]>([]);
   const [loading, setLoading] = useState(true);
@@ -670,9 +646,7 @@ const QuotasContent: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchQuotas();
-  }, []);
+  useEffect(() => { fetchQuotas(); }, []);
 
   const [selectedQuota, setSelectedQuota] = useState<PlayerQuota | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -718,7 +692,9 @@ const QuotasContent: React.FC = () => {
                 <p>Valor total: <strong>{q.total_amount} MT</strong></p>
                 <p>Estado: <span className={`${styles.statusBadge} ${q.status === "paid" ? styles.validated : styles.pending}`}>{translateStatus(q.status)}</span></p>
                 {q.due_date && <p>Vence: {q.due_date}</p>}
-                {q.installments && <p>Prestações: {q.installments.total}x de {q.installments.amount_each} MT</p>}
+                {q.installments && q.installments.length > 0 && (
+                  <p>Prestações: {q.installments.length}x de {q.installments[0].amount} MT</p>
+                )}
               </div>
               <button className={styles.secondaryButton} onClick={() => handleViewDetails(q.id)}>Ver detalhes</button>
             </div>
@@ -736,6 +712,7 @@ const QuotasContent: React.FC = () => {
   );
 };
 
+// ---- QuotaDetailModal ----
 const QuotaDetailModal: React.FC<{ quota: PlayerQuota; onClose: () => void; onPayInstallment: (inst: QuotaInstallment) => void }> = ({ quota, onClose, onPayInstallment }) => {
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -751,25 +728,22 @@ const QuotaDetailModal: React.FC<{ quota: PlayerQuota; onClose: () => void; onPa
           {quota.installments && (
             <div className={styles.installmentList}>
               <h4>Prestações</h4>
-              {quota.installments.detail.map((inst) => {
-                const canPay = inst.number === quota.installments?.next_number && quota.installments.can_pay;
-                return (
-                  <div key={inst.number} className={styles.installmentItem}>
-                    <div>
-                      <span>{inst.label}</span>
-                      <span> – {inst.amount} MT</span>
-                    </div>
-                    <div>
-                      <span className={`${styles.statusBadge} ${
-                        inst.status === "confirmed" ? styles.validated : inst.status === "pending" ? styles.pending : inst.status === "rejected" ? styles.rejected : styles.inactive
-                      }`}>{translateStatus(inst.status)}</span>
-                      {canPay && (
-                        <button className={styles.payButton} onClick={() => onPayInstallment(inst)}>Pagar</button>
-                      )}
-                    </div>
+              {quota.installments.map((inst) => (
+                <div key={inst.number} className={styles.installmentItem}>
+                  <div>
+                    <span>{inst.label}</span>
+                    <span> – {inst.amount} MT</span>
                   </div>
-                );
-              })}
+                  <div>
+                    <span className={`${styles.statusBadge} ${
+                      inst.status === "confirmed" ? styles.validated : inst.status === "pending" ? styles.pending : inst.status === "rejected" ? styles.rejected : styles.inactive
+                    }`}>{translateStatus(inst.status)}</span>
+                    {inst.can_pay && (
+                      <button className={styles.payButton} onClick={() => onPayInstallment(inst)}>Pagar</button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
           <div className={styles.modalActions}>
@@ -781,6 +755,7 @@ const QuotaDetailModal: React.FC<{ quota: PlayerQuota; onClose: () => void; onPa
   );
 };
 
+// ---- PayInstallmentModal ----
 const PayInstallmentModal: React.FC<{ quotaId: number; installment: QuotaInstallment; onClose: () => void; onSuccess: () => void }> = ({ quotaId, installment, onClose, onSuccess }) => {
   const [method, setMethod] = useState("mpesa");
   const [reference, setReference] = useState("");
@@ -796,6 +771,7 @@ const PayInstallmentModal: React.FC<{ quotaId: number; installment: QuotaInstall
       await http.post(`/player/quotas/${quotaId}/pay`, {
         amount: installment.amount,
         method,
+        installment_number: installment.number,
         reference: reference || undefined,
       });
       onSuccess();
@@ -845,6 +821,7 @@ const PayInstallmentModal: React.FC<{ quotaId: number; installment: QuotaInstall
   );
 };
 
+// ---- HistoryContent ----
 const HistoryContent: React.FC = () => {
   const [payments, setPayments] = useState<PlayerPayment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -920,6 +897,7 @@ const HistoryContent: React.FC = () => {
   );
 };
 
+// ---- NotificationsContent ----
 const NotificationsContent: React.FC = () => {
   const notifications: Notification[] = [
     { id: 1, title: "Convocatória para Treinos Provinciais", message: "A Federação Moçambicana convoca todos os atletas da categoria Sénior para a sessão de treinos no dia 12 de Junho.", time: "Há 2 horas", icon: "calendar_month", iconColor: "primary", highlight: true },
@@ -946,6 +924,7 @@ const NotificationsContent: React.FC = () => {
   );
 };
 
+// ---- TransferContent ----
 const TransferContent: React.FC<{
   onOpenModal: () => void;
   activeTransfer: Transfer | null;
@@ -983,10 +962,7 @@ const TransferContent: React.FC<{
             <div className={styles.transferDetail}><span>Motivo</span><p>{activeTransfer.reason}</p></div>
             <div className={styles.transferDetail}><span>Data do pedido</span><span>{new Date(activeTransfer.created_at).toLocaleDateString()}</span></div>
             {activeTransfer.documents && activeTransfer.documents.length > 0 && (
-              <div className={styles.transferDetail}>
-                <span>Documentos</span>
-                <TransferDocuments documents={activeTransfer.documents} onView={onViewDocument} />
-              </div>
+              <div className={styles.transferDetail}><span>Documentos</span><TransferDocuments documents={activeTransfer.documents} onView={onViewDocument} /></div>
             )}
           </div>
           <p className={styles.infoText}>Você já possui uma solicitação em andamento. Aguarde a conclusão antes de abrir uma nova.</p>
@@ -995,8 +971,8 @@ const TransferContent: React.FC<{
         <div className={styles.transferInfo}>
           <p>Para solicitar uma transferência entre clubes/associações, você precisa fornecer:</p>
           <ul>
-            <li><strong>Carta de Saída</strong> – documento do clube actual autorizando a transferência (será anexado pela associação de origem).</li>
-            <li><strong>Carta de Aceitação</strong> – documento do novo clube confirmando a recepção (será anexado pela associação de destino).</li>
+            <li><strong>Carta de Saída</strong> – documento do clube actual autorizando a transferência.</li>
+            <li><strong>Carta de Aceitação</strong> – documento do novo clube confirmando a recepção.</li>
           </ul>
           <p>O motivo deve descrever claramente a razão do pedido (mínimo 10 caracteres).</p>
           <button className={styles.primaryButton} onClick={onOpenModal}><span className="material-symbols-outlined">upload</span> Iniciar Solicitação</button>
@@ -1009,14 +985,7 @@ const TransferContent: React.FC<{
         ) : (
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Destino</th>
-                  <th>Status</th>
-                  <th>Data</th>
-                  <th>Documentos</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Destino</th><th>Status</th><th>Data</th><th>Documentos</th></tr></thead>
               <tbody>
                 {transfers.map((t) => (
                   <tr key={t.id}>
@@ -1035,77 +1004,37 @@ const TransferContent: React.FC<{
   );
 };
 
+// ---- TransferDocuments ----
 const TransferDocuments: React.FC<{ documents: TransferDoc[]; onView: (doc: TransferDoc) => void }> = ({ documents, onView }) => (
   <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
     {documents.map((doc) => (
       <li key={doc.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-        <button
-          type="button"
-          onClick={() => onView(doc)}
-          title="Visualizar documento"
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: 0,
-            display: "flex",
-            alignItems: "center",
-            color: "var(--color-primary)",
-          }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: "1.2rem", color: "inherit" }}>
-            visibility
-          </span>
+        <button type="button" onClick={() => onView(doc)} title="Visualizar documento" style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", color: "var(--color-primary)" }}>
+          <span className="material-symbols-outlined" style={{ fontSize: "1.2rem", color: "inherit" }}>visibility</span>
         </button>
-        <a
-          href={doc.url}
-          download={doc.original_name || undefined}
-          title="Baixar documento"
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            color: "var(--color-primary)",
-          }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: "1.2rem", color: "inherit" }}>
-            download
-          </span>
+        <a href={doc.url} download={doc.original_name || undefined} title="Baixar documento" style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", color: "var(--color-primary)" }}>
+          <span className="material-symbols-outlined" style={{ fontSize: "1.2rem", color: "inherit" }}>download</span>
         </a>
         <span style={{ fontSize: "0.9rem" }}>{doc.original_name || doc.type}</span>
-        <span style={{ marginLeft: "0.5rem", color: "#666", fontSize: "0.8rem" }}>
-          — {doc.type === "origin_approval" ? "Doc. origem" : "Doc. destino"}
-        </span>
+        <span style={{ marginLeft: "0.5rem", color: "#666", fontSize: "0.8rem" }}>— {doc.type === "origin_approval" ? "Doc. origem" : "Doc. destino"}</span>
       </li>
     ))}
   </ul>
 );
 
+// ---- DocumentViewerModal ----
 const DocumentViewerModal: React.FC<{ url: string; originalName: string; mimeType: string; onClose: () => void }> = ({ url, originalName, mimeType, onClose }) => {
   const isPDF = mimeType === "application/pdf";
   const isImage = mimeType.startsWith("image/");
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} style={{ maxWidth: "90vw", width: "auto" }} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h3>{originalName}</h3>
-          <button onClick={onClose} className={styles.modalClose}>&times;</button>
-        </div>
+        <div className={styles.modalHeader}><h3>{originalName}</h3><button onClick={onClose} className={styles.modalClose}>&times;</button></div>
         <div className={styles.modalBody} style={{ padding: "1rem", textAlign: "center" }}>
-          {isPDF ? (
-            <iframe src={url} title={originalName} style={{ width: "100%", height: "70vh", border: "none" }} />
-          ) : isImage ? (
-            <img src={url} alt={originalName} style={{ maxWidth: "100%", maxHeight: "70vh" }} />
-          ) : (
-            <p>O formato deste documento não permite pré‑visualização. Pode baixá‑lo usando o ícone de download.</p>
-          )}
+          {isPDF ? <iframe src={url} title={originalName} style={{ width: "100%", height: "70vh", border: "none" }} /> : isImage ? <img src={url} alt={originalName} style={{ maxWidth: "100%", maxHeight: "70vh" }} /> : <p>O formato deste documento não permite pré‑visualização.</p>}
         </div>
         <div className={styles.modalActions} style={{ justifyContent: "center" }}>
-          <a href={url} download={originalName} className={styles.submitButton} style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-            <span className="material-symbols-outlined">download</span> Baixar
-          </a>
+          <a href={url} download={originalName} className={styles.submitButton} style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}><span className="material-symbols-outlined">download</span> Baixar</a>
           <button onClick={onClose} className={styles.cancelButton}>Fechar</button>
         </div>
       </div>
@@ -1113,68 +1042,39 @@ const DocumentViewerModal: React.FC<{ url: string; originalName: string; mimeTyp
   );
 };
 
+// ---- NotificationsModal ----
 const NotificationsModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={`${styles.modal} ${styles.notificationsModal}`} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h3>Notificações</h3>
-          <button onClick={onClose} className={styles.modalClose}>&times;</button>
-        </div>
-        <div className={styles.modalBody}>
-          <p>Funcionalidade em breve.</p>
-        </div>
+        <div className={styles.modalHeader}><h3>Notificações</h3><button onClick={onClose} className={styles.modalClose}>&times;</button></div>
+        <div className={styles.modalBody}><p>Funcionalidade em breve.</p></div>
       </div>
     </div>
   );
 };
 
+// ---- ProfileModal ----
 const ProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; player: any; onLogout: () => void }> = ({ isOpen, onClose, player, onLogout }) => {
   const getInitials = (name: string) => {
     if (!name) return "P";
     const parts = name.trim().split(" ");
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     return name.substring(0, 2).toUpperCase();
   };
-
   const isDark = localStorage.getItem("theme") === "dark";
   const avatarBg = isDark ? "#e60023" : "#1e3a5f";
   const avatarBorder = isDark ? "#1e3a5f" : "#e60023";
-
   if (!isOpen) return null;
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={`${styles.modal} ${styles.profileModal}`} onClick={(e) => e.stopPropagation()}>
         <div className={styles.profileHeader}>
-          <div
-            style={{
-              width: "48px",
-              height: "48px",
-              borderRadius: "50%",
-              backgroundColor: avatarBg,
-              border: `3px solid ${avatarBorder}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: isDark
-                ? "0 2px 8px rgba(30, 58, 95, 0.3)"
-                : "0 2px 8px rgba(230, 0, 35, 0.3)",
-              marginRight: "0.75rem",
-            }}
-          >
-            <span style={{ color: "#ffffff", fontSize: "22px", fontWeight: 700, lineHeight: 1 }}>
-              {getInitials(player.name)}
-            </span>
+          <div style={{ width: "48px", height: "48px", borderRadius: "50%", backgroundColor: avatarBg, border: `3px solid ${avatarBorder}`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: isDark ? "0 2px 8px rgba(30, 58, 95, 0.3)" : "0 2px 8px rgba(230, 0, 35, 0.3)", marginRight: "0.75rem" }}>
+            <span style={{ color: "#ffffff", fontSize: "22px", fontWeight: 700, lineHeight: 1 }}>{getInitials(player.name)}</span>
           </div>
-          <div>
-            <h4>{player.name}</h4>
-            <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--color-on-surface-variant)" }}>
-              {player.playerId}
-            </p>
-          </div>
+          <div><h4>{player.name}</h4><p style={{ margin: 0, fontSize: "0.8rem", color: "var(--color-on-surface-variant)" }}>{player.playerId}</p></div>
         </div>
         <div className={styles.profileMenu}>
           <button><span className="material-symbols-outlined">person</span>Perfil</button>
@@ -1186,6 +1086,7 @@ const ProfileModal: React.FC<{ isOpen: boolean; onClose: () => void; player: any
   );
 };
 
+// ---- TransferModal ----
 const TransferModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -1197,58 +1098,35 @@ const TransferModal: React.FC<{
 }> = ({ isOpen, onClose, form, setForm, onSubmit, profileLoaded, disabled = false }) => {
   const [associations, setAssociations] = useState<{ id: number | string; name: string }[]>([]);
   const [loadingAssociations, setLoadingAssociations] = useState(false);
-
   useEffect(() => {
     if (!isOpen) return;
     const fetchAssociations = async () => {
       setLoadingAssociations(true);
-      try {
-        const { data } = await http.get("/associations/get");
-        setAssociations(data);
-      } catch (err) {
-        console.error("Erro ao carregar associações", err);
-      } finally {
-        setLoadingAssociations(false);
-      }
+      try { const { data } = await http.get("/associations/get"); setAssociations(data); }
+      catch (err) { console.error("Erro ao carregar associações", err); }
+      finally { setLoadingAssociations(false); }
     };
     fetchAssociations();
   }, [isOpen]);
-
   if (!isOpen || disabled) return null;
-
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={`${styles.modal} ${styles.transferModal}`} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h3>Nova Solicitação de Transferência</h3>
-          <button onClick={onClose} className={styles.modalClose}>&times;</button>
-        </div>
-        {!profileLoaded ? (
-          <div className={styles.modalBody}><p>A carregar o seu perfil…</p></div>
-        ) : (
+        <div className={styles.modalHeader}><h3>Nova Solicitação de Transferência</h3><button onClick={onClose} className={styles.modalClose}>&times;</button></div>
+        {!profileLoaded ? <div className={styles.modalBody}><p>A carregar o seu perfil…</p></div> : (
           <form onSubmit={onSubmit}>
             <div className={styles.modalBody}>
               <div className={styles.formGroup}>
                 <label>Associação de Destino</label>
-                {loadingAssociations ? (
-                  <p>A carregar lista de associações…</p>
-                ) : (
+                {loadingAssociations ? <p>A carregar lista de associações…</p> : (
                   <select value={form.targetAssociation} onChange={(e) => setForm({ ...form, targetAssociation: e.target.value })} required>
                     <option value="">Seleccione...</option>
-                    {associations.map((assoc) => (
-                      <option key={assoc.id} value={assoc.id}>{assoc.name}</option>
-                    ))}
+                    {associations.map((assoc) => (<option key={assoc.id} value={assoc.id}>{assoc.name}</option>))}
                   </select>
                 )}
               </div>
-              <div className={styles.formGroup}>
-                <label>Motivo da Transferência</label>
-                <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Explique o motivo do pedido (mín. 10 caracteres)" rows={3} minLength={10} required />
-              </div>
-              <div className={styles.modalActions}>
-                <button type="button" className={styles.cancelButton} onClick={onClose}>Cancelar</button>
-                <button type="submit" className={styles.submitButton}>Enviar Solicitação</button>
-              </div>
+              <div className={styles.formGroup}><label>Motivo da Transferência</label><textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Explique o motivo do pedido (mín. 10 caracteres)" rows={3} minLength={10} required /></div>
+              <div className={styles.modalActions}><button type="button" className={styles.cancelButton} onClick={onClose}>Cancelar</button><button type="submit" className={styles.submitButton}>Enviar Solicitação</button></div>
             </div>
           </form>
         )}

@@ -284,21 +284,31 @@ Route::middleware(['auth:sanctum','role:player|association'])->group(function ()
 */
 
 // ═══════════════════════════════════════════════════════
-//  ASSOCIAÇÃO — Gestão de quotas e aprovação de pagamentos
+//  ASSOCIAÇÃO — Gestão de quotas e templates
 // ═══════════════════════════════════════════════════════
 Route::middleware(['auth:sanctum', 'role:association'])->prefix('association')->name('association.')->group(function () {
 
-    // Quotas
+    // Templates de quotas (quotas gerais)
+    Route::get('quota-templates', [QuotaController::class, 'templates'])->name('templates.index');
+    Route::post('quota-templates', [QuotaController::class, 'storeTemplate'])->name('templates.store');
+    Route::get('quota-templates/{quota}', [QuotaController::class, 'showTemplate'])->name('templates.show');
+    Route::put('quota-templates/{quota}', [QuotaController::class, 'updateTemplate'])->name('templates.update');
+    Route::patch('quota-templates/{quota}/cancel', [QuotaController::class, 'cancelTemplate'])->name('templates.cancel');
+    Route::post('quota-templates/{quota}/generate', [QuotaController::class, 'generateFromTemplate'])->name('templates.generate');
+
+    // Quotas individuais
     Route::post('quotas', [QuotaController::class, 'store'])->name('quotas.store');
     Route::get('quotas', [QuotaController::class, 'associationIndex'])->name('quotas.index');
     Route::get('quotas/{quota}', [QuotaController::class, 'associationShow'])->name('quotas.show');
+    Route::put('quotas/{quota}', [QuotaController::class, 'updateQuota'])->name('quotas.update');
+    Route::patch('quotas/{quota}/cancel', [QuotaController::class, 'cancelQuota'])->name('quotas.cancel');
 
     // Aprovação de pagamentos
     Route::get('payments', [QuotaController::class, 'pendingPayments'])->name('payments.pending');
     Route::post('payments/{payment}/confirm', [QuotaController::class, 'confirm'])->name('payments.confirm');
     Route::post('payments/{payment}/reject', [QuotaController::class, 'reject'])->name('payments.reject');
 
-    // Configuração global de quotas
+    // Configuração global
     Route::get ('quota-config',               [QuotaController::class, 'getConfig']);
     Route::put ('quota-config',               [QuotaController::class, 'updateConfig']);
     Route::post('quota-config/generate-now',  [QuotaController::class, 'generateNow']);

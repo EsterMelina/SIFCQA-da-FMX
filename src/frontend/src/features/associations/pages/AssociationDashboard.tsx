@@ -1100,116 +1100,84 @@ const PlayersSection: React.FC<{
     </div>
   );
 };
-
-/* ==================== QUOTAS (COM CONFIGURAÇÃO GLOBAL) ==================== */
+/* ==================== QUOTAS (SECÇÃO PRINCIPAL) ==================== */
 const QuotasSection: React.FC<{
   addToast: (type: ToastMessage["type"], msg: string) => void;
   role: string;
   associationId: number;
 }> = ({ addToast, associationId }) => {
+  const [templates, setTemplates] = useState<any[]>([]);
   const [quotas, setQuotas] = useState<Quota[]>([]);
   const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [quotaView, setQuotaView] = useState<"templates" | "individuals" | "payments">("templates");
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showConfigModal, setShowConfigModal] = useState(false);
-  const [config, setConfig] = useState<QuotaConfig | null>(null);
+  const [editingQuota, setEditingQuota] = useState<Quota | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [quotasRes, paymentsRes, configRes] = await Promise.all([
+      const [templatesRes, quotasRes, paymentsRes] = await Promise.all([
+        http.get("/association/quota-templates"),
         http.get("/association/quotas"),
         http.get("/association/payments"),
-        http.get("/association/quota-config"),
       ]);
+      setTemplates(templatesRes.data.data || []);
       setQuotas(quotasRes.data.data || quotasRes.data);
       const payments = paymentsRes.data.data || paymentsRes.data;
       payments.sort((a: PendingPayment, b: PendingPayment) => b.id - a.id);
       setPendingPayments(payments);
-      setConfig(configRes.data.data || configRes.data);
-    } catch (err: any) {
-      addToast("error", oldSpelling("Erro ao carregar dados"));
-    } finally {
-      setLoading(false);
-    }
+    } catch (err: any) { addToast("error", oldSpelling("Erro ao carregar dados")); }
+    finally { setLoading(false); }
   }, [addToast]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleGenerateNow = async () => {
-    if (!confirm(oldSpelling(`Gerar quotas automáticas para ${new Date().getFullYear()}?`)))
-      return;
-    try {
-      const { data } = await http.post(
-        "/association/quota-config/generate-now",
-        {},
-      );
-      addToast(
-        "success",
-        oldSpelling(`Criadas: ${data.data.created}, já existiam: ${data.data.skipped}`),
-      );
-      fetchData();
-    } catch (err: any) {
-      addToast("error", err.response?.data?.message || oldSpelling("Erro ao gerar"));
-    }
+  const handleCancelTemplate = async (templateId: number) => {
+    if (!confirm(oldSpelling("Anular este template e todas as quotas geradas?"))) return;
+    try { await http.patch(`/association/quota-templates/${templateId}/cancel`, { cancel_generated: true }); addToast("success", oldSpelling("Template anulado!")); fetchData(); }
+    catch (err: any) { addToast("error", err.response?.data?.message || oldSpelling("Erro ao anular")); }
+  };
+
+  const handleCancelQuota = async (quotaId: number) => {
+    if (!confirm(oldSpelling("Anular esta quota?"))) return;
+    try { await http.patch(`/association/quotas/${quotaId}/cancel`); addToast("success", oldSpelling("Quota anulada!")); fetchData(); }
+    catch (err: any) { addToast("error", err.response?.data?.message || oldSpelling("Erro ao anular")); }
   };
 
   const handleConfirm = async (paymentId: number) => {
-    try {
-      await http.post(`/association/payments/${paymentId}/confirm`);
-      addToast("success", oldSpelling("Pagamento confirmado!"));
-      fetchData();
-    } catch (err: any) {
-      addToast("error", err.response?.data?.message || oldSpelling("Erro ao confirmar"));
-    }
+    try { await http.post(`/association/payments/${paymentId}/confirm`); addToast("success", oldSpelling("Pagamento confirmado!")); fetchData(); }
+    catch (err: any) { addToast("error", err.response?.data?.message || oldSpelling("Erro ao confirmar")); }
   };
 
   const handleReject = async (paymentId: number) => {
     const reason = prompt(oldSpelling("Motivo da rejeição (opcional):"));
-    try {
-      await http.post(`/association/payments/${paymentId}/reject`, { reason });
-      addToast("success", oldSpelling("Pagamento rejeitado."));
-      fetchData();
-    } catch (err: any) {
-      addToast("error", err.response?.data?.message || oldSpelling("Erro ao rejeitar"));
-    }
+    try { await http.post(`/association/payments/${paymentId}/reject`, { reason }); addToast("success", oldSpelling("Pagamento rejeitado.")); fetchData(); }
+    catch (err: any) { addToast("error", err.response?.data?.message || oldSpelling("Erro ao rejeitar")); }
   };
-
-  const filteredQuotas =
-    statusFilter === "all"
-      ? quotas
-      : quotas.filter((q) => q.status === statusFilter);
 
   const statusClass = (status: string) => {
     switch (status) {
-      case "paid":
-        return styles.statusPaid;
-      case "pending":
-        return styles.statusPending;
-      case "rejected":
-        return styles.statusRejected;
-      case "expired":
-        return styles.statusExpired;
-      default:
-        return "";
+      case "paid": return styles.statusPaid;
+      case "pending": case "partially_paid": return styles.statusPending;
+      case "rejected": case "cancelled": return styles.statusRejected;
+      case "expired": return styles.statusExpired;
+      default: return "";
     }
   };
 
   const statusLabel = (status: string) => {
     switch (status) {
-      case "paid":
-        return oldSpelling("Pago");
-      case "pending":
-        return oldSpelling("Pendente");
-      case "rejected":
-        return oldSpelling("Rejeitado");
-      case "expired":
-        return oldSpelling("Expirado");
-      default:
-        return status;
+      case "paid": return oldSpelling("Pago");
+      case "pending": return oldSpelling("Pendente");
+      case "partially_paid": return oldSpelling("Parcial");
+      case "rejected": return oldSpelling("Rejeitado");
+      case "expired": return oldSpelling("Expirado");
+      case "cancelled": return oldSpelling("Anulado");
+      case "active": return oldSpelling("Activo");
+      default: return status;
     }
   };
 
@@ -1217,165 +1185,543 @@ const QuotasSection: React.FC<{
 
   return (
     <div className={styles.pageContainer}>
-      <div className={styles.pageHeader}>
-        <h2>{oldSpelling("Quotizações")}</h2>
-        <div className={styles.headerActions}>
-          {config && (
-            <div className={styles.quotaConfigBadge}>
-              <span>
-                {oldSpelling("Quota global:")}{" "}
-                <strong>
-                  {config.annual_amount > 0
-                    ? `${config.annual_amount} MT`
-                    : oldSpelling("não definida")}
-                </strong>
-              </span>
-              {config.auto_generate && (
-                <span className={styles.autoBadge}>{oldSpelling("Auto")}</span>
-              )}
+      <div className={styles.pageHeader}><h2>{oldSpelling("Quotizações")}</h2></div>
+
+      {/* Abas */}
+      <div className={styles.transferTabs} style={{ marginBottom: "1.5rem" }}>
+        <button className={`${styles.transferTab} ${quotaView === "templates" ? styles.activeTab : ""}`} onClick={() => setQuotaView("templates")}>
+          {oldSpelling("Quotas Gerais")}
+        </button>
+        <button className={`${styles.transferTab} ${quotaView === "individuals" ? styles.activeTab : ""}`} onClick={() => setQuotaView("individuals")}>
+          {oldSpelling("Quotas Individuais")}
+        </button>
+        <button className={`${styles.transferTab} ${quotaView === "payments" ? styles.activeTab : ""}`} onClick={() => setQuotaView("payments")}>
+          {oldSpelling("Pagamentos")}
+          {pendingPayments.length > 0 && (
+            <span style={{ background: "var(--color-primary)", color: "#fff", borderRadius: "50%", padding: "0.1rem 0.4rem", fontSize: "0.7rem", marginLeft: "0.3rem" }}>
+              {pendingPayments.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ========== VISTA: TEMPLATES ========== */}
+      {quotaView === "templates" && (
+        <>
+          <div style={{ marginBottom: "1.5rem" }}>
+            <button className={styles.primaryButton} onClick={() => { setEditingTemplate(null); setShowTemplateModal(true); }}>
+              <span className="material-symbols-outlined">add</span> {oldSpelling("Nova Quota Geral")}
+            </button>
+          </div>
+          {templates.length === 0 ? (
+            <div className={styles.emptyState}><span className="material-symbols-outlined">receipt_long</span><p>{oldSpelling("Nenhuma quota geral criada.")}</p></div>
+          ) : (
+            <div className={styles.tableWrapper}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>{oldSpelling("Título")}</th><th>{oldSpelling("Valor")}</th><th>{oldSpelling("Prestações")}</th>
+                    <th>{oldSpelling("Tipos")}</th><th>{oldSpelling("Geradas")}</th><th>{oldSpelling("Vencimento")}</th>
+                    <th>{oldSpelling("Estado")}</th><th>{oldSpelling("Acções")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {templates.map((t: any) => (
+                    <tr key={t.id}>
+                      <td><strong>{t.title}</strong></td>
+                      <td>{t.total_amount} MT</td>
+                      <td>{t.total_installments}x de {t.installment_amount} MT</td>
+                      <td><span style={{ fontSize: "0.75rem" }}>{t.target_labels}</span></td>
+                      <td>{t.generated_count}</td>
+                      <td>{t.due_date || "—"}</td>
+                      <td><span className={`${styles.statusBadge} ${statusClass(t.status)}`}>{statusLabel(t.status)}</span></td>
+                      <td>
+                        <div className={styles.actionButtons}>
+                          <button onClick={() => { setEditingTemplate(t); setShowTemplateModal(true); }} title={oldSpelling("Editar")}>
+                            <span className="material-symbols-outlined">edit</span>
+                          </button>
+                          <button onClick={() => handleCancelTemplate(t.id)} title={oldSpelling("Anular")} style={{ color: "var(--color-error)" }}>
+                            <span className="material-symbols-outlined">cancel</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
-          <button
-            className={styles.secondaryButton}
-            onClick={() => setShowConfigModal(true)}
-          >
-            <span className="material-symbols-outlined">settings</span>
-            {oldSpelling("Configurar Quota Global")}
-          </button>
-          {config?.auto_generate && config.annual_amount > 0 && (
-            <button
-              className={styles.secondaryButton}
-              onClick={handleGenerateNow}
-            >
-              <span className="material-symbols-outlined">bolt</span>
-              {oldSpelling("Gerar Agora")}
+        </>
+      )}
+
+      {/* ========== VISTA: QUOTAS INDIVIDUAIS ========== */}
+      {quotaView === "individuals" && (
+        <>
+          <div style={{ marginBottom: "1.5rem" }}>
+            <button className={styles.primaryButton} onClick={() => { setEditingQuota(null); setShowCreateModal(true); }}>
+              <span className="material-symbols-outlined">add</span> {oldSpelling("Nova Quota Manual")}
             </button>
+          </div>
+          {quotas.length === 0 ? (
+            <div className={styles.emptyState}><span className="material-symbols-outlined">person</span><p>{oldSpelling("Nenhuma quota individual.")}</p></div>
+          ) : (
+            <div className={styles.tableWrapper}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>{oldSpelling("Jogador")}</th><th>{oldSpelling("Título")}</th><th>{oldSpelling("Valor")}</th>
+                    <th>{oldSpelling("Pago")}</th><th>{oldSpelling("Estado")}</th><th>{oldSpelling("Vencimento")}</th>
+                    <th>{oldSpelling("Acções")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quotas.map((q) => (
+                    <tr key={q.id}>
+                      <td>{q.player?.name || `#${q.player_id}`}</td>
+                      <td>{q.title || "—"}</td>
+                      <td>{q.total_amount} MT</td>
+                      <td>{q.paid_amount || 0} MT</td>
+                      <td><span className={`${styles.statusBadge} ${statusClass(q.status)}`}>{statusLabel(q.status)}</span></td>
+                      <td>{q.due_date || "—"}</td>
+                      <td>
+                        <div className={styles.actionButtons}>
+                          <button onClick={() => { setEditingQuota(q); setShowCreateModal(true); }} title={oldSpelling("Editar")}>
+                            <span className="material-symbols-outlined">edit</span>
+                          </button>
+                          <button onClick={() => handleCancelQuota(q.id)} title={oldSpelling("Anular")} style={{ color: "var(--color-error)" }}>
+                            <span className="material-symbols-outlined">cancel</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className={styles.filterSelect}
-          >
-            <option value="all">{oldSpelling("Todos")}</option>
-            <option value="pending">{oldSpelling("Pendente")}</option>
-            <option value="paid">{oldSpelling("Pago")}</option>
-            <option value="rejected">{oldSpelling("Rejeitado")}</option>
-            <option value="expired">{oldSpelling("Expirado")}</option>
-          </select>
-          <button
-            className={styles.primaryButton}
-            onClick={() => setShowCreateModal(true)}
-          >
-            <span className="material-symbols-outlined">add</span> {oldSpelling("Nova Quota Manual")}
-          </button>
-        </div>
-      </div>
+        </>
+      )}
 
-      <div className={styles.tableWrapper}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>{oldSpelling("Jogador")}</th>
-              <th>{oldSpelling("Título")}</th>
-              <th>{oldSpelling("Valor")}</th>
-              <th>{oldSpelling("Prestações")}</th>
-              <th>{oldSpelling("Estado")}</th>
-              <th>{oldSpelling("Vencimento")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredQuotas.map((q) => (
-              <tr key={q.id}>
-                <td>{q.player?.name || `#${q.player_id}`}</td>
-                <td>{q.title || "—"}</td>
-                <td>{q.total_amount} MT</td>
-                <td>
-                  {q.installments?.total
-                    ? `${q.installments.total}x de ${q.installments.amount_each} MT`
-                    : "—"}
-                </td>
-                <td>
-                  <span
-                    className={`${styles.statusBadge} ${statusClass(q.status)}`}
-                  >
-                    {statusLabel(q.status)}
-                  </span>
-                </td>
-                <td>{q.due_date || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {pendingPayments.length > 0 && (
-        <div className={styles.pendingPaymentsSection}>
-          <h3>{oldSpelling("Pagamentos por confirmar")}</h3>
+      {/* ========== VISTA: PAGAMENTOS ========== */}
+      {quotaView === "payments" && (
+        pendingPayments.length === 0 ? (
+          <div className={styles.emptyState}><span className="material-symbols-outlined">check_circle</span><p>{oldSpelling("Nenhum pagamento pendente.")}</p></div>
+        ) : (
           <div className={styles.pendingPaymentsList}>
             {pendingPayments.map((payment) => (
               <div key={payment.id} className={styles.paymentCard}>
                 <div className={styles.paymentInfo}>
                   <strong>{payment.player_name}</strong>
-                  <span>
-                    {oldSpelling("Quota:")} {payment.quota_title || `#${payment.quota_id}`}
-                  </span>
-                  <span>
-                    {oldSpelling("Prestação")} {payment.installment_number} – {payment.amount} MT
-                  </span>
-                  <span className={styles.paymentMethod}>
-                    {payment.method}{" "}
-                    {payment.reference ? `(ref: ${payment.reference})` : ""}
-                  </span>
+                  <span>{oldSpelling("Quota:")} {payment.quota_title || `#${payment.quota_id}`}</span>
+                  <span>{oldSpelling("Prestação")} {payment.installment_number} – {payment.amount} MT</span>
+                  <span className={styles.paymentMethod}>{payment.method} {payment.reference ? `(ref: ${payment.reference})` : ""}</span>
                 </div>
                 <div className={styles.paymentActions}>
-                  <button
-                    className={styles.approveButton}
-                    onClick={() => handleConfirm(payment.id)}
-                  >
-                    {oldSpelling("Confirmar")}
-                  </button>
-                  <button
-                    className={styles.rejectButton}
-                    onClick={() => handleReject(payment.id)}
-                  >
-                    {oldSpelling("Rejeitar")}
-                  </button>
+                  <button className={styles.approveButton} onClick={() => handleConfirm(payment.id)}>{oldSpelling("Confirmar")}</button>
+                  <button className={styles.rejectButton} onClick={() => handleReject(payment.id)}>{oldSpelling("Rejeitar")}</button>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        )
       )}
 
-      {showConfigModal && config && (
-        <QuotaConfigModal
-          config={config}
+      {/* Modais */}
+      {showTemplateModal && (
+        <QuotaTemplateModal
+          isOpen={showTemplateModal}
+          template={editingTemplate}
           addToast={addToast}
-          onClose={() => setShowConfigModal(false)}
-          onSuccess={(updated) => {
-            setConfig(updated);
-            setShowConfigModal(false);
-            addToast("success", oldSpelling("Configuração guardada!"));
-          }}
+          onClose={() => setShowTemplateModal(false)}
+          onSuccess={() => { setShowTemplateModal(false); fetchData(); }}
         />
       )}
       {showCreateModal && (
-        <CreateQuotaModal
+        <CreateEditQuotaModal
+          isOpen={showCreateModal}
+          quota={editingQuota}
           associationId={associationId}
           addToast={addToast}
           onClose={() => setShowCreateModal(false)}
-          onSuccess={() => {
-            setShowCreateModal(false);
-            addToast("success", oldSpelling("Quota criada!"));
-            fetchData();
-          }}
+          onSuccess={() => { setShowCreateModal(false); fetchData(); }}
         />
       )}
     </div>
   );
 };
+/* ==================== MODAL: TEMPLATE DE QUOTA GERAL ==================== */
+const QuotaTemplateModal: React.FC<{
+  isOpen: boolean;
+  template: any | null;
+  onClose: () => void;
+  onSuccess: () => void;
+  addToast: (type: ToastMessage["type"], msg: string) => void;
+}> = ({ isOpen, template, onClose, onSuccess, addToast }) => {
+  const currentYear = new Date().getFullYear();
+  const [form, setForm] = useState({
+    title: "",
+    total_amount: "",
+    total_installments: 2,
+    due_date: new Date().toISOString().split("T")[0],
+    memberships: [] as string[],
+    propagate_to_existing: false,
+  });
+  const [loading, setLoading] = useState(false);
+  const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
 
-/* ---- Modal de Configuração da Quota Global ---- */
+  const membershipOptions = [
+    { value: "fundador", label: "Fundador" },
+    { value: "efetivo", label: "Efectivo" },
+    { value: "atleta", label: "Atleta" },
+    { value: "patrocinador", label: "Patrocinador" },
+  ];
+
+  const generateSuggestions = (partial: string) => {
+    const trimmed = partial.trim();
+    if (!trimmed) {
+      return [
+        `Quota Anual ${currentYear}`,
+        `Quota Semestral ${currentYear}`,
+        `Quota Trimestral ${currentYear}`,
+        `Quota Mensal ${currentYear}`,
+      ];
+    }
+    const suggestions = [
+      trimmed,
+      `Quota ${trimmed}`,
+      `${trimmed} ${currentYear}`,
+      `Quota ${trimmed} ${currentYear}`,
+      `Quota Anual ${trimmed}`,
+      `Quota Anual ${currentYear} - ${trimmed}`,
+    ];
+    if (/\d{4}/.test(trimmed)) {
+      suggestions.push(`${trimmed} - 1ª Prestação`, `${trimmed} - 2ª Prestação`);
+    }
+    return [...new Set(suggestions)].slice(0, 6);
+  };
+
+  useEffect(() => {
+    if (template) {
+      setForm({
+        title: template.title || "",
+        total_amount: String(template.total_amount || ""),
+        total_installments: template.total_installments || 2,
+        due_date: template.due_date || new Date().toISOString().split("T")[0],
+        memberships: template.target_memberships || [],
+        propagate_to_existing: false,
+      });
+    } else {
+      setForm({
+        title: "", total_amount: "", total_installments: 2,
+        due_date: new Date().toISOString().split("T")[0],
+        memberships: [], propagate_to_existing: false,
+      });
+    }
+  }, [template]);
+
+  useEffect(() => { setTitleSuggestions(generateSuggestions(form.title)); }, [form.title]);
+
+  const toggleMembership = (value: string) => {
+    setForm(prev => ({
+      ...prev,
+      memberships: prev.memberships.includes(value)
+        ? prev.memberships.filter(m => m !== value)
+        : [...prev.memberships, value]
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (form.memberships.length === 0) { alert(oldSpelling("Seleccione pelo menos um tipo de associado.")); return; }
+    setLoading(true);
+    try {
+      const payload = {
+        title: form.title,
+        total_amount: Number(form.total_amount),
+        total_installments: form.total_installments,
+        due_date: form.due_date,
+        memberships: form.memberships,
+      };
+
+      let templateId: number;
+
+      if (template) {
+        const res = await http.put(`/association/quota-templates/${template.id}`, {
+          ...payload,
+          propagate_to_existing: form.propagate_to_existing,
+        });
+        templateId = template.id;
+      } else {
+        const res = await http.post("/association/quota-templates", payload);
+        templateId = res.data.data.id;
+      }
+
+      // Gerar quotas automaticamente
+      if (templateId) {
+        try {
+          const genRes = await http.post(`/association/quota-templates/${templateId}/generate`);
+          addToast("success", genRes.data.message);
+        } catch (genErr: any) {
+          addToast("info", oldSpelling("Template guardado. Gere as quotas manualmente."));
+        }
+      }
+
+      onSuccess();
+    } catch (err: any) {
+      alert(err.response?.data?.message || oldSpelling("Erro ao guardar"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+  const isDark = localStorage.getItem("theme") === "dark";
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "550px", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+        <div className={styles.modalHeader}>
+          <h3>{template ? oldSpelling("Editar Quota Geral") : oldSpelling("Nova Quota Geral")}</h3>
+          <button onClick={onClose} className={styles.modalClose}>×</button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+          <div className={styles.modalBody} style={{ flex: 1, overflowY: "auto" }}>
+            {/* Título com sugestões */}
+            <div className={styles.formGroup} style={{ position: "relative" }}>
+              <label>{oldSpelling("Título *")}</label>
+              <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required placeholder={oldSpelling("Ex: Quota Anual 2025")} />
+              {titleSuggestions.length > 0 && form.title.length > 0 && (
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--color-surface)", border: "1px solid var(--color-outline-variant)", borderRadius: "0.5rem", zIndex: 10, maxHeight: "150px", overflowY: "auto", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+                  {titleSuggestions.map((s, i) => (
+                    <div key={i} onClick={() => { setForm({ ...form, title: s }); setTitleSuggestions([]); }} style={{ padding: "0.5rem 0.75rem", cursor: "pointer", fontSize: "0.85rem", borderBottom: "1px solid var(--color-outline-variant)" }}>{s}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className={styles.formRow}>
+              <div className={styles.formGroup} style={{ flex: 1 }}><label>{oldSpelling("Valor Total (MT) *")}</label><input type="number" step="0.01" min="0" value={form.total_amount} onChange={(e) => setForm({ ...form, total_amount: e.target.value })} required /></div>
+              <div className={styles.formGroup} style={{ flex: 1 }}><label>{oldSpelling("Nº Prestações")}</label><input type="number" min="1" max="12" value={form.total_installments} onChange={(e) => setForm({ ...form, total_installments: Number(e.target.value) })} /></div>
+            </div>
+            <div className={styles.formGroup}><label>{oldSpelling("Data de Vencimento *")}</label><input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} required /></div>
+            <div className={styles.formGroup}>
+              <label>{oldSpelling("Tipos de Associados *")}</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "0.5rem" }}>
+                {membershipOptions.map(opt => (
+                  <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", padding: "0.5rem 0.75rem", borderRadius: "0.5rem", background: form.memberships.includes(opt.value) ? (isDark ? "rgba(230,0,35,0.2)" : "rgba(230,0,35,0.1)") : "var(--color-surface-container)", border: form.memberships.includes(opt.value) ? "1px solid var(--color-primary)" : "1px solid var(--color-outline-variant)", fontSize: "0.85rem" }}>
+                    <input type="checkbox" checked={form.memberships.includes(opt.value)} onChange={() => toggleMembership(opt.value)} style={{ accentColor: "var(--color-primary)" }} />{opt.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className={styles.formGroup}>
+              <div style={{ background: "var(--color-surface-container)", borderRadius: "0.75rem", padding: "1rem", fontSize: "0.8rem", color: "var(--color-on-surface-variant)" }}>
+                <p><strong>{oldSpelling("Regras:")}</strong></p>
+                <p>• {oldSpelling("Estudantes: 50% de desconto")}</p>
+                <p>• {oldSpelling("Valor por prestação:")} {form.total_amount && form.total_installments ? `${(Number(form.total_amount) / form.total_installments).toFixed(2)} MT` : "—"}</p>
+              </div>
+            </div>
+            {template && (
+              <div className={styles.formGroup}>
+                <label className={styles.checkboxLabel}><input type="checkbox" checked={form.propagate_to_existing} onChange={(e) => setForm({ ...form, propagate_to_existing: e.target.checked })} />{oldSpelling("Propagar para quotas existentes")}</label>
+              </div>
+            )}
+          </div>
+          <div className={styles.modalActions}>
+            <button type="button" onClick={onClose} className={styles.cancelButton}>{oldSpelling("Cancelar")}</button>
+            <button type="submit" className={styles.submitButton} disabled={loading}>
+              {loading ? oldSpelling("Salvando...") : template ? oldSpelling("Actualizar e Gerar") : oldSpelling("Criar e Gerar")}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+/* ==================== MODAL: CRIAR/EDITAR QUOTA INDIVIDUAL ==================== */
+/* ==================== MODAL: CRIAR/EDITAR QUOTA INDIVIDUAL ==================== */
+const CreateEditQuotaModal: React.FC<{
+  isOpen: boolean;
+  quota: Quota | null;
+  associationId: number;
+  addToast: (type: ToastMessage["type"], msg: string) => void;
+  onClose: () => void;
+  onSuccess: () => void;
+}> = ({ isOpen, quota, associationId, addToast, onClose, onSuccess }) => {
+  const currentYear = new Date().getFullYear();
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [loadingPlayers, setLoadingPlayers] = useState(false);
+  const [form, setForm] = useState({
+    player_id: "", title: "", total_amount: "",
+    total_installments: 2,
+    due_date: new Date().toISOString().split("T")[0],
+  });
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
+  const isEditing = !!quota;
+
+  const generateSuggestions = (partial: string, playerName?: string) => {
+    const base = partial.trim() || `Quota ${currentYear}`;
+    const suggestions = [
+      base,
+      `${base} - 1ª Prestação`,
+      `${base} - 2ª Prestação`,
+      `Quota Anual ${currentYear}`,
+    ];
+    if (playerName) {
+      suggestions.push(`Quota ${playerName} ${currentYear}`, `${playerName} - Anual ${currentYear}`);
+    }
+    return [...new Set(suggestions)];
+  };
+
+  useEffect(() => {
+    if (!isEditing) {
+      (async () => {
+        setLoadingPlayers(true);
+        try { const res = await http.get(endpoints.associations.associationPlayers(associationId)); setPlayers(res.data.data || res.data); }
+        catch { addToast("error", oldSpelling("Erro ao carregar jogadores")); }
+        finally { setLoadingPlayers(false); }
+      })();
+    }
+  }, [associationId, addToast, isEditing]);
+
+  useEffect(() => {
+    if (quota) {
+      setForm({
+        player_id: String(quota.player_id || ""),
+        title: quota.title || "",
+        total_amount: String(quota.total_amount || ""),
+        total_installments: quota.total_installments || 2,
+        due_date: quota.due_date || new Date().toISOString().split("T")[0],
+      });
+    } else {
+      setForm({
+        player_id: "", title: "", total_amount: "",
+        total_installments: 2,
+        due_date: new Date().toISOString().split("T")[0],
+      });
+    }
+  }, [quota]);
+
+  // Atualizar sugestões quando título ou jogador mudam
+  useEffect(() => {
+    const selectedPlayer = players.find(p => String(p.id) === form.player_id);
+    setTitleSuggestions(generateSuggestions(form.title, selectedPlayer?.user?.name));
+  }, [form.title, form.player_id, players]);
+
+  const validate = () => {
+    const newErrors: Record<string, string> = {};
+    if (!isEditing && !form.player_id) newErrors.player_id = oldSpelling("Seleccione um jogador.");
+    if (!form.title.trim()) newErrors.title = oldSpelling("Título obrigatório.");
+    if (!form.total_amount || isNaN(Number(form.total_amount)) || Number(form.total_amount) <= 0) newErrors.total_amount = oldSpelling("Valor inválido.");
+    if (!form.due_date) newErrors.due_date = oldSpelling("Data obrigatória.");
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      const payload = {
+        title: form.title.trim(),
+        total_amount: Number(form.total_amount),
+        total_installments: form.total_installments,
+        due_date: form.due_date,
+        ...(isEditing ? {} : { player_id: Number(form.player_id) }),
+      };
+      if (isEditing) await http.put(`/association/quotas/${quota!.id}`, payload);
+      else await http.post("/association/quotas", payload);
+      onSuccess();
+    } catch (err: any) { alert(err.response?.data?.message || oldSpelling("Erro ao guardar quota")); }
+    finally { setLoading(false); }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+        <div className={styles.modalHeader}>
+          <h3>{isEditing ? oldSpelling("Editar Quota") : oldSpelling("Nova Quota Manual")}</h3>
+          <button onClick={onClose} className={styles.modalClose}>×</button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ overflow: "hidden", display: "flex", flexDirection: "column", flex: 1 }}>
+          <div className={styles.modalBody} style={{ overflowY: "auto", flex: 1 }}>
+            {/* Jogador (apenas na criação) */}
+            {!isEditing && (
+              <div className={styles.formGroup}>
+                <label>{oldSpelling("Jogador *")}</label>
+                {loadingPlayers ? <p>{oldSpelling("Carregando...")}</p> : (
+                  <select value={form.player_id} onChange={(e) => setForm({ ...form, player_id: e.target.value })} required>
+                    <option value="">{oldSpelling("Seleccione...")}</option>
+                    {players.map((p) => (
+                      <option key={p.id} value={p.id}>{p.user?.name || `#${p.id}`} ({p.membership || "—"})</option>
+                    ))}
+                  </select>
+                )}
+                {errors.player_id && <span className={styles.fieldError}>{errors.player_id}</span>}
+              </div>
+            )}
+
+            {/* Título com sugestões */}
+            <div className={styles.formGroup} style={{ position: "relative" }}>
+              <label>{oldSpelling("Título *")}</label>
+              <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required placeholder={oldSpelling("Ex: Quota Anual 2025")} />
+              {titleSuggestions.length > 0 && form.title.length > 0 && (
+                <div style={{
+                  position: "absolute", top: "100%", left: 0, right: 0,
+                  background: "var(--color-surface)", border: "1px solid var(--color-outline-variant)",
+                  borderRadius: "0.5rem", zIndex: 10, maxHeight: "150px", overflowY: "auto",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                }}>
+                  {titleSuggestions.map((s, i) => (
+                    <div
+                      key={i}
+                      onClick={() => { setForm({ ...form, title: s }); setTitleSuggestions([]); }}
+                      style={{ padding: "0.5rem 0.75rem", cursor: "pointer", fontSize: "0.85rem", borderBottom: "1px solid var(--color-outline-variant)" }}
+                    >
+                      {s}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {errors.title && <span className={styles.fieldError}>{errors.title}</span>}
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formGroup} style={{ flex: 1 }}>
+                <label>{oldSpelling("Valor Total (MT) *")}</label>
+                <input type="number" step="0.01" min="0.01" value={form.total_amount} onChange={(e) => setForm({ ...form, total_amount: e.target.value })} required />
+                {errors.total_amount && <span className={styles.fieldError}>{errors.total_amount}</span>}
+              </div>
+              <div className={styles.formGroup} style={{ flex: 1 }}>
+                <label>{oldSpelling("Nº Prestações")}</label>
+                <input type="number" min="1" max="12" value={form.total_installments} onChange={(e) => setForm({ ...form, total_installments: Number(e.target.value) })} />
+              </div>
+            </div>
+
+            {/* Data com view calendar */}
+            <div className={styles.formGroup}>
+              <label>{oldSpelling("Data de Vencimento *")}</label>
+              <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} required />
+              {errors.due_date && <span className={styles.fieldError}>{errors.due_date}</span>}
+            </div>
+          </div>
+          <div className={styles.modalActions}>
+            <button type="button" onClick={onClose} className={styles.cancelButton}>{oldSpelling("Cancelar")}</button>
+            <button type="submit" className={styles.submitButton} disabled={loading}>
+              {loading ? oldSpelling("Salvando...") : oldSpelling("Guardar")}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+/* ==================== MODAL DE CONFIGURAÇÃO GLOBAL (mantido igual) ==================== */
 const QuotaConfigModal: React.FC<{
   config: QuotaConfig;
   addToast: (type: ToastMessage["type"], msg: string) => void;
@@ -1398,282 +1744,29 @@ const QuotaConfigModal: React.FC<{
     }
   };
 
-  const months = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-  ];
+  const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h3>{oldSpelling("Configuração de Quota Global")}</h3>
-          <button onClick={onClose} className={styles.modalClose}>
-            ×
-          </button>
-        </div>
+        <div className={styles.modalHeader}><h3>{oldSpelling("Configuração de Quota Global")}</h3><button onClick={onClose} className={styles.modalClose}>×</button></div>
         <form onSubmit={handleSubmit}>
           <div className={styles.modalBody}>
-            <div className={styles.formGroup}>
-              <label>{oldSpelling("Valor Anual (MT) *")}</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.annual_amount}
-                onChange={(e) =>
-                  setForm({ ...form, annual_amount: Number(e.target.value) })
-                }
-                required
-              />
-              <small>
-                {oldSpelling("Será dividido em 2 prestações de")}{" "}
-                {form.annual_amount > 0
-                  ? (form.annual_amount / 2).toFixed(2)
-                  : "—"}{" "}
-                MT
-              </small>
-            </div>
-            <div className={styles.formGroup}>
-              <label>{oldSpelling(`Título (use {"{year}"} para o ano)`)}</label>
-              <input
-                value={form.title_template}
-                onChange={(e) =>
-                  setForm({ ...form, title_template: e.target.value })
-                }
-                placeholder={oldSpelling("Quota Anual {year}")}
-              />
-              <small>{oldSpelling("Exemplo: \"Quota Anual 2025\"")}</small>
-            </div>
-            <div className={styles.formGroup}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={form.auto_generate}
-                  onChange={(e) =>
-                    setForm({ ...form, auto_generate: e.target.checked })
-                  }
-                />
-                {oldSpelling("Geração automática anual (1 de Janeiro)")}
-              </label>
-            </div>
+            <div className={styles.formGroup}><label>{oldSpelling("Valor Anual (MT) *")}</label><input type="number" step="0.01" min="0" value={form.annual_amount} onChange={(e) => setForm({ ...form, annual_amount: Number(e.target.value) })} required /><small>{oldSpelling("Será dividido em 2 prestações de")} {form.annual_amount > 0 ? (form.annual_amount / 2).toFixed(2) : "—"} MT</small></div>
+            <div className={styles.formGroup}><label>{oldSpelling(`Título (use {"{year}"} para o ano)`)}</label><input value={form.title_template} onChange={(e) => setForm({ ...form, title_template: e.target.value })} placeholder={oldSpelling("Quota Anual {year}")} /><small>{oldSpelling("Exemplo: \"Quota Anual 2025\"")}</small></div>
+            <div className={styles.formGroup}><label className={styles.checkboxLabel}><input type="checkbox" checked={form.auto_generate} onChange={(e) => setForm({ ...form, auto_generate: e.target.checked })} />{oldSpelling("Geração automática anual (1 de Janeiro)")}</label></div>
             <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label>{oldSpelling("Mês de vencimento")}</label>
-                <select
-                  value={form.due_month}
-                  onChange={(e) =>
-                    setForm({ ...form, due_month: Number(e.target.value) })
-                  }
-                >
-                  {months.map((m, i) => (
-                    <option key={i + 1} value={i + 1}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className={styles.formGroup}>
-                <label>{oldSpelling("Dia de vencimento")}</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={form.due_day}
-                  onChange={(e) =>
-                    setForm({ ...form, due_day: Number(e.target.value) })
-                  }
-                />
-              </div>
+              <div className={styles.formGroup}><label>{oldSpelling("Mês de vencimento")}</label><select value={form.due_month} onChange={(e) => setForm({ ...form, due_month: Number(e.target.value) })}>{months.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}</select></div>
+              <div className={styles.formGroup}><label>{oldSpelling("Dia de vencimento")}</label><input type="number" min="1" max="31" value={form.due_day} onChange={(e) => setForm({ ...form, due_day: Number(e.target.value) })} /></div>
             </div>
           </div>
-          <div className={styles.modalActions}>
-            <button
-              type="button"
-              onClick={onClose}
-              className={styles.cancelButton}
-            >
-              {oldSpelling("Cancelar")}
-            </button>
-            <button
-              type="submit"
-              className={styles.submitButton}
-              disabled={loading}
-            >
-              {loading ? oldSpelling("A guardar...") : oldSpelling("Guardar Configuração")}
-            </button>
-          </div>
+          <div className={styles.modalActions}><button type="button" onClick={onClose} className={styles.cancelButton}>{oldSpelling("Cancelar")}</button><button type="submit" className={styles.submitButton} disabled={loading}>{loading ? oldSpelling("A guardar...") : oldSpelling("Guardar Configuração")}</button></div>
         </form>
       </div>
     </div>
   );
 };
 
-/* ---- Modal de Criação de Quota Manual ---- */
-const CreateQuotaModal: React.FC<{
-  associationId: number;
-  addToast: (type: ToastMessage["type"], msg: string) => void;
-  onClose: () => void;
-  onSuccess: () => void;
-}> = ({ associationId, addToast, onClose, onSuccess }) => {
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [loadingPlayers, setLoadingPlayers] = useState(false);
-  const [form, setForm] = useState({
-    player_id: "",
-    title: "",
-    total_amount: "",
-    due_date: new Date().toISOString().split("T")[0],
-  });
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const fetchPlayers = async () => {
-      setLoadingPlayers(true);
-      try {
-        const res = await http.get(
-          endpoints.associations.associationPlayers(associationId),
-        );
-        setPlayers(res.data.data || res.data);
-      } catch {
-        addToast("error", oldSpelling("Erro ao carregar jogadores"));
-      } finally {
-        setLoadingPlayers(false);
-      }
-    };
-    fetchPlayers();
-  }, [associationId, addToast]);
-
-  const validate = () => {
-    const newErrors: Record<string, string> = {};
-    if (!form.player_id) newErrors.player_id = oldSpelling("Seleccione um jogador.");
-    if (!form.title.trim()) newErrors.title = oldSpelling("Título obrigatório.");
-    if (
-      !form.total_amount ||
-      isNaN(Number(form.total_amount)) ||
-      Number(form.total_amount) <= 0
-    )
-      newErrors.total_amount = oldSpelling("Valor inválido.");
-    if (!form.due_date) newErrors.due_date = oldSpelling("Data obrigatória.");
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-    setLoading(true);
-    try {
-      await http.post("/association/quotas", {
-        player_id: Number(form.player_id),
-        title: form.title.trim(),
-        total_amount: Number(form.total_amount),
-        due_date: form.due_date,
-      });
-      onSuccess();
-    } catch (err: any) {
-      addToast("error", err.response?.data?.message || oldSpelling("Erro ao criar quota"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h3>{oldSpelling("Nova Quota")}</h3>
-          <button onClick={onClose} className={styles.modalClose}>
-            ×
-          </button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className={styles.modalBody}>
-            <div className={styles.formGroup}>
-              <label>{oldSpelling("Jogador *")}</label>
-              {loadingPlayers ? (
-                <p>{oldSpelling("Carregando...")}</p>
-              ) : (
-                <select
-                  value={form.player_id}
-                  onChange={(e) =>
-                    setForm({ ...form, player_id: e.target.value })
-                  }
-                  required
-                >
-                  <option value="">{oldSpelling("Seleccione...")}</option>
-                  {players.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.user?.name || `#${p.id}`}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {errors.player_id && (
-                <span className={styles.fieldError}>{errors.player_id}</span>
-              )}
-            </div>
-            <div className={styles.formGroup}>
-              <label>{oldSpelling("Título *")}</label>
-              <input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                required
-              />
-              {errors.title && (
-                <span className={styles.fieldError}>{errors.title}</span>
-              )}
-            </div>
-            <div className={styles.formGroup}>
-              <label>{oldSpelling("Valor Total (MT) *")}</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                value={form.total_amount}
-                onChange={(e) =>
-                  setForm({ ...form, total_amount: e.target.value })
-                }
-                required
-              />
-              {errors.total_amount && (
-                <span className={styles.fieldError}>{errors.total_amount}</span>
-              )}
-            </div>
-            <div className={styles.formGroup}>
-              <label>{oldSpelling("Data de Vencimento *")}</label>
-              <input
-                type="date"
-                value={form.due_date}
-                onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-                required
-              />
-              {errors.due_date && (
-                <span className={styles.fieldError}>{errors.due_date}</span>
-              )}
-            </div>
-          </div>
-          <div className={styles.modalActions}>
-            <button
-              type="button"
-              onClick={onClose}
-              className={styles.cancelButton}
-            >
-              {oldSpelling("Cancelar")}
-            </button>
-            <button
-              type="submit"
-              className={styles.submitButton}
-              disabled={loading}
-            >
-              {loading ? oldSpelling("Criando...") : oldSpelling("Criar Quota")}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
 
 /* ==================== TRANSFERÊNCIAS ==================== */
 const TransfersSection: React.FC<{

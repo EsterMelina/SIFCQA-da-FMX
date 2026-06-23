@@ -3,102 +3,226 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
 
 class Quota extends Model
 {
+    use HasFactory, SoftDeletes;
+
     protected $fillable = [
         'association_id',
         'player_id',
         'created_by',
         'title',
         'total_amount',
-        'installment_amount', // sempre total / 2
+        'installment_amount',
+        'total_installments',
         'paid_amount',
         'status',
         'due_date',
+        'is_global_template',
+        'target_memberships',
+        'template_id',
     ];
 
     protected $casts = [
-        'total_amount'       => 'decimal:2',
-        'installment_amount' => 'decimal:2',
-        'paid_amount'        => 'decimal:2',
-        'due_date'           => 'date',
+        'due_date' => 'date',
+        'total_amount' => 'float',
+        'installment_amount' => 'float',
+        'paid_amount' => 'float',
+        'is_global_template' => 'boolean',
+        'target_memberships' => 'array',
+        'total_installments' => 'integer',
     ];
 
-    // ─────────────────────────────────────────
-    // Relações
-    // ─────────────────────────────────────────
+    // ═══════════════════════════════════════════
+    //  RELATIONSHIPS
+    // ═══════════════════════════════════════════
 
-    public function association(): BelongsTo
-    {
-        return $this->belongsTo(Association::class);
-    }
-
-    public function player(): BelongsTo
+    public function player()
     {
         return $this->belongsTo(Player::class);
     }
 
-    public function createdBy(): BelongsTo
+    public function association()
+    {
+        return $this->belongsTo(Association::class);
+    }
+
+    public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function payments(): HasMany
+    public function payments()
     {
-        return $this->hasMany(QuotaPayment::class)->orderBy('installment_number');
+        return $this->hasMany(QuotaPayment::class);
     }
 
-    public function confirmedPayments(): HasMany
+    public function confirmedPayments()
     {
         return $this->hasMany(QuotaPayment::class)->where('status', 'confirmed');
     }
 
-    // ─────────────────────────────────────────
-    // Accessors calculados
-    // ─────────────────────────────────────────
+    public function pendingPayments()
+    {
+        return $this->hasMany(QuotaPayment::class)->where('status', 'pending');
+    }
 
     /**
-     * Quanto falta pagar.
+     * Template pai (se for quota individual gerada)
+     */
+    public function template()
+    {
+        return $this->belongsTo(Quota::class, 'template_id');
+    }
+
+    /**
+     * Quotas geradas por este template
+     */
+    public function generatedQuotas()
+    {
+        return $this->hasMany(Quota::class, 'template_id');
+    }
+
+    // ═══════════════════════════════════════════
+    //  SCOPES
+    // ═══════════════════════════════════════════
+
+    /**
+     * Apenas templates globais
+     */
+    public function scopeTemplates(Builder $query): Builder
+    {
+        return $query->where('is_global_template', true);
+    }
+
+    /**
+     * Apenas quotas individuais
+     */
+    public function scopeIndividual(Builder $query): Builder
+    {
+        return $query->where('is_global_template', false);
+    }
+
+    /**
+     * Quotas ativas (não canceladas)
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNotIn('status', ['cancelled']);
+    }
+
+    // ═══════════════════════════════════════════
+    //  ACCESSORS
+    // ═══════════════════════════════════════════
+
+    /**
+     * Valor restante a pagar
      */
     public function getRemainingAttribute(): float
     {
-        return (float) $this->total_amount - (float) $this->paid_amount;
+        return max(0, $this->total_amount - $this->paid_amount);
     }
 
     /**
-     * Número de pagamentos já submetidos (confirmados ou não).
+     * Número da próxima prestação a pagar
      */
-    public function getSubmittedInstallmentsCountAttribute(): int
+    public function getNextInstallmentNumberAttribute(): ?int
     {
-        return $this->payments()->whereIn('status', ['pending', 'confirmed'])->count();
+        if (!$this->canReceivePayment()) {
+            return null;
+        }
+
+        $paidNumbers = $this->confirmedPayments()
+            ->pluck('installment_number')
+            ->toArray();
+
+        for ($i = 1; $i <= $this->total_installments; $i++) {
+            if (!in_array($i, $paidNumbers)) {
+                return $i;
+            }
+        }
+
+        return null;
     }
 
     /**
-     * Número máximo de prestações = 2 (sempre).
+     * Prestações já pagas (confirmadas)
      */
-    public function getMaxInstallmentsAttribute(): int
+    public function getPaidInstallmentsAttribute(): array
     {
-        return 2;
+        return $this->confirmedPayments()
+            ->pluck('installment_number')
+            ->toArray();
     }
 
     /**
-     * Ainda é possível registar mais pagamentos?
+     * Prestações pendentes
+     */
+    public function getPendingInstallmentsAttribute(): array
+    {
+        return $this->pendingPayments()
+            ->pluck('installment_number')
+            ->toArray();
+    }
+
+    // ═══════════════════════════════════════════
+    //  HELPERS
+    // ═══════════════════════════════════════════
+
+    /**
+     * Pode receber pagamentos?
      */
     public function canReceivePayment(): bool
     {
-        return $this->status !== 'paid'
-            && $this->status !== 'expired'
-            && $this->submitted_installments_count < $this->max_installments;
+        return in_array($this->status, ['pending', 'partially_paid']);
     }
 
     /**
-     * Qual a próxima prestação a pagar (1 ou 2)?
+     * Verifica se uma prestação específica está disponível para pagamento
      */
-    public function getNextInstallmentNumberAttribute(): int
+    public function isInstallmentAvailable(int $number): bool
     {
-        return $this->submitted_installments_count + 1;
+        if ($number < 1 || $number > $this->total_installments) {
+            return false;
+        }
+
+        // Verificar se já foi confirmada
+        $confirmed = $this->confirmedPayments()
+            ->where('installment_number', $number)
+            ->exists();
+
+        if ($confirmed) return false;
+
+        // Verificar se já está pendente
+        $pending = $this->pendingPayments()
+            ->where('installment_number', $number)
+            ->exists();
+
+        return !$pending;
+    }
+
+    /**
+     * Tipo de associados afetados (para templates)
+     */
+    public function getTargetMembershipsLabelAttribute(): string
+    {
+        if (!$this->target_memberships) return '—';
+
+        $labels = [
+            'fundador' => 'Fundador',
+            'efetivo' => 'Efectivo',
+            'atleta' => 'Atleta',
+            'de_mérito' => 'De Mérito',
+            'honorário' => 'Honorário',
+            'patrocinador' => 'Patrocinador',
+        ];
+
+        return collect($this->target_memberships)
+            ->map(fn($m) => $labels[$m] ?? $m)
+            ->join(', ');
     }
 }

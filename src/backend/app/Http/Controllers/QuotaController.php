@@ -71,40 +71,42 @@ class QuotaController extends Controller
      *
      * Lista todas as quotas da associação do utilizador autenticado.
      */
-    public function associationIndex(Request $request): JsonResponse
-    {
-        $user = $request->user();
+public function associationIndex(Request $request): JsonResponse
+{
+    $user = $request->user();
+    $associationId = $user->associationMember?->association_id;
 
-        $associationId = $user->associationMember?->association_id;
-
-        if (! $associationId) {
-            abort(403, 'Utilizador sem associação.');
-        }
-
-        $quotas = Quota::with(['player.user', 'payments'])
-            ->where('association_id', $associationId)
-            ->latest()
-            ->paginate(15);
-
-        return response()->json($quotas->through(fn($q) => [
-            'id'             => $q->id,
-            'title'          => $q->title,
-            'total_amount'   => (float) $q->total_amount,
-            'paid_amount'    => (float) $q->paid_amount,
-            'remaining'      => $q->remaining,
-            'status'         => $q->status,
-            'due_date'       => $q->due_date?->toDateString(),
-            'installments'   => [
-                'total'       => 2,
-                'amount_each' => (float) $q->installment_amount,
-            ],
-            'player'         => [
-                'id'   => $q->player->id,
-                'name' => $q->player->user->name,
-            ],
-            'payments_count' => $q->payments->count(),
-        ]));
+    if (! $associationId) {
+        abort(403, 'Utilizador sem associação.');
     }
+
+    $quotas = Quota::with(['player.user', 'payments'])
+        ->where('association_id', $associationId)
+        ->where('is_global_template', false) // apenas quotas individuais, não templates
+        ->latest()
+        ->get();
+
+    $data = $quotas->map(function ($q) {
+        return [
+            'id'                 => $q->id,
+            'title'              => $q->title,
+            'total_amount'       => (float) $q->total_amount,
+            'paid_amount'        => (float) $q->paid_amount,
+            'remaining'          => $q->remaining,
+            'status'             => $q->status,
+            'due_date'           => $q->due_date?->toDateString(),
+            'total_installments' => $q->total_installments ?? 2,
+            'installment_amount' => (float) $q->installment_amount,
+            'player'             => [
+                'id'   => $q->player_id,
+                'name' => $q->player?->user?->name ?? "Jogador #{$q->player_id}",
+            ],
+            'payments_count'     => $q->payments->count(),
+        ];
+    });
+
+    return response()->json(['data' => $data]);
+}
 
     /**
      * GET /api/association/quotas/{quota}
@@ -444,5 +446,180 @@ private function formatConfig(AssociationQuotaConfig $config): array
         'due_month'      => $config->due_month,
         'due_day'        => $config->due_day,
     ];
+}
+
+/**
+ * GET /api/association/quota-templates
+ * Listar templates da associação
+ */
+public function templates(Request $request): JsonResponse
+{
+    $association = $this->resolveAssociation($request->user());
+    $templates = $this->quotaService->getTemplates($association);
+    
+    return response()->json(['data' => $templates]);
+}
+
+/**
+ * POST /api/association/quota-templates
+ * Criar template de quota global
+ */
+public function storeTemplate(Request $request): JsonResponse
+{
+    $data = $request->validate([
+        'title'              => 'required|string|max:255',
+        'total_amount'       => 'required|numeric|min:0',
+        'total_installments' => 'integer|min:1|max:12',
+        'due_date'           => 'required|date|after:today',
+        'memberships'        => 'required|array|min:1',
+        'memberships.*'      => 'in:fundador,efetivo,atleta,de_mérito,honorário,patrocinador',
+    ]);
+
+    $association = $this->resolveAssociation($request->user());
+    $template = $this->quotaService->createGlobalTemplate($association, $data);
+
+    return response()->json([
+        'message' => 'Template criado com sucesso.',
+        'data'    => $this->quotaService->formatTemplateForAdmin($template),
+    ], 201);
+}
+
+/**
+ * GET /api/association/quota-templates/{quota}
+ */
+public function showTemplate(Quota $quota): JsonResponse
+{
+    if (!$quota->is_global_template) {
+        abort(404, 'Template não encontrado.');
+    }
+
+    $quota->loadCount('generatedQuotas');
+    $quota->load(['generatedQuotas' => function ($query) {
+        $query->with('player.user')->latest()->limit(50);
+    }]);
+
+    return response()->json([
+        'data' => array_merge(
+            $this->quotaService->formatTemplateForAdmin($quota),
+            ['generated_quotas' => $quota->generatedQuotas->map(fn($q) => [
+                'id'            => $q->id,
+                'player_name'   => $q->player?->user?->name,
+                'total_amount'  => (float) $q->total_amount,
+                'status'        => $q->status,
+                'paid_amount'   => (float) $q->paid_amount,
+                'membership'    => $q->player?->membership,
+                'is_student'    => $q->player?->is_student,
+            ])]
+        ),
+    ]);
+}
+
+/**
+ * PUT /api/association/quota-templates/{quota}
+ * Atualizar template
+ */
+public function updateTemplate(Request $request, Quota $quota): JsonResponse
+{
+    if (!$quota->is_global_template) {
+        abort(404, 'Template não encontrado.');
+    }
+
+    $data = $request->validate([
+        'title'                => 'sometimes|string|max:255',
+        'total_amount'         => 'sometimes|numeric|min:0',
+        'total_installments'   => 'sometimes|integer|min:1|max:12',
+        'due_date'             => 'sometimes|date|after:today',
+        'memberships'          => 'sometimes|array|min:1',
+        'memberships.*'        => 'in:fundador,efetivo,atleta,de_mérito,honorário,patrocinador',
+        'propagate_to_existing' => 'sometimes|boolean',
+    ]);
+
+    $propagate = $request->boolean('propagate_to_existing', false);
+    $template = $this->quotaService->updateTemplate($quota, $data, $propagate);
+
+    $action = $propagate ? 'Template actualizado e propagado.' : 'Template actualizado.';
+
+    return response()->json([
+        'message' => $action,
+        'data'    => $this->quotaService->formatTemplateForAdmin($template),
+    ]);
+}
+
+/**
+ * PATCH /api/association/quota-templates/{quota}/cancel
+ * Anular template e quotas geradas
+ */
+public function cancelTemplate(Request $request, Quota $quota): JsonResponse
+{
+    if (!$quota->is_global_template) {
+        abort(404, 'Template não encontrado.');
+    }
+
+    $cancelGenerated = $request->boolean('cancel_generated', true);
+    $this->quotaService->cancelTemplate($quota, $cancelGenerated);
+
+    $message = $cancelGenerated 
+        ? 'Template e quotas geradas foram anulados.'
+        : 'Template anulado (quotas existentes mantidas).';
+
+    return response()->json(['message' => $message]);
+}
+
+/**
+ * POST /api/association/quota-templates/{quota}/generate
+ * Gerar quotas individuais do template
+ */
+public function generateFromTemplate(Quota $quota): JsonResponse
+{
+    if (!$quota->is_global_template) {
+        abort(404, 'Template não encontrado.');
+    }
+
+    $result = $this->quotaService->generateFromTemplate($quota);
+
+    return response()->json([
+        'message' => "Geradas {$result['created']} quotas. {$result['skipped']} já existiam.",
+        'data'    => $result,
+    ]);
+}
+
+/**
+ * PUT /api/association/quotas/{quota}
+ * Atualizar quota individual
+ */
+public function updateQuota(Request $request, Quota $quota): JsonResponse
+{
+    if ($quota->is_global_template) {
+        abort(400, 'Use o endpoint de templates para editar quotas gerais.');
+    }
+
+    $data = $request->validate([
+        'title'              => 'sometimes|string|max:255',
+        'total_amount'       => 'sometimes|numeric|min:0',
+        'total_installments' => 'sometimes|integer|min:1|max:12',
+        'due_date'           => 'sometimes|date|after:today',
+    ]);
+
+    $quota = $this->quotaService->updateQuota($quota, $data);
+
+    return response()->json([
+        'message' => 'Quota actualizada.',
+        'data'    => $this->quotaService->formatQuotaForPlayer($quota),
+    ]);
+}
+
+/**
+ * PATCH /api/association/quotas/{quota}/cancel
+ * Anular quota individual
+ */
+public function cancelQuota(Quota $quota): JsonResponse
+{
+    if ($quota->is_global_template) {
+        abort(400, 'Use o endpoint de templates para anular quotas gerais.');
+    }
+
+    $this->quotaService->cancelQuota($quota);
+
+    return response()->json(['message' => 'Quota anulada.']);
 }
 }

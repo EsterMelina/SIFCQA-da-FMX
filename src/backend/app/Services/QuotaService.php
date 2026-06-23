@@ -6,153 +6,329 @@ use App\Models\Quota;
 use App\Models\QuotaPayment;
 use App\Models\Player;
 use App\Models\User;
-
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use App\Models\Association;
 use App\Models\AssociationQuotaConfig;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Hash;
 
 class QuotaService
 {
     // ═══════════════════════════════════════════════════════
-    //  ASSOCIAÇÃO — Criar quota para um jogador
+    //  TEMPLATES GLOBAIS (Quotas Gerais)
     // ═══════════════════════════════════════════════════════
 
     /**
-     * Cria uma quota para um jogador.
-     * installment_amount é SEMPRE total_amount / 2.
+     * Criar template de quota global
      */
-public function createQuota(array $data, User $createdBy): Quota
+   /**
+ * Criar template de quota global
+ */
+public function createGlobalTemplate(Association $association, array $data): Quota
 {
-    // Buscar associação ativa do utilizador
-    $membership = $createdBy->associationMemberships()
-        ->where('active', true)
-        ->first();
+    // Verificar se já existe um template activo/pendente
+    $existingTemplate = Quota::where('association_id', $association->id)
+        ->where('is_global_template', true)
+        ->whereIn('status', ['active', 'pending'])
+        ->exists();
 
-    $associationId = $membership?->association_id;
-
-    // segurança: não deixar avançar sem associação
-    if (!$associationId) {
-        abort(403, 'Utilizador não pertence a uma associação ativa.');
-    }
-
-    // validação de segurança de associação
-    $this->ensureUserBelongsToAssociation($createdBy, $associationId);
-
-    $total = (float) $data['total_amount'];
-
-    if ($total <= 0) {
+    if ($existingTemplate) {
         throw ValidationException::withMessages([
-            'total_amount' => 'O valor total deve ser maior que zero.',
+            'template' => 'Já existe uma quota geral activa. Anule-a ou conclua-a antes de criar uma nova.',
         ]);
     }
 
+    $totalInstallments = (int) ($data['total_installments'] ?? 2);
+    $totalAmount = (float) $data['total_amount'];
+
     return Quota::create([
-        'association_id'     => $associationId,
-        'player_id'          => $data['player_id'],
-        'created_by'         => $createdBy->id,
+        'association_id'     => $association->id,
+        'created_by'         => auth()->id(),
         'title'              => $data['title'],
-        'total_amount'       => $total,
-        'installment_amount' => round($total / 2, 2),
+        'total_amount'       => $totalAmount,
+        'total_installments' => $totalInstallments,
+        'installment_amount' => round($totalAmount / $totalInstallments, 2),
         'paid_amount'        => 0,
-        'status'             => 'pending',
+        'status'             => 'active',
         'due_date'           => $data['due_date'],
+        'target_memberships' => $data['memberships'] ?? [],
+        'is_global_template' => true,
     ]);
 }
 
-    // ═══════════════════════════════════════════════════════
-    //  JOGADOR — Ver as suas quotas com prestações
-    // ═══════════════════════════════════════════════════════
-
     /**
-     * Retorna as quotas do jogador com informação completa de prestações.
+     * Atualizar template e propagar para quotas existentes
      */
-    public function getPlayerQuotas(Player $player): array
+    public function updateTemplate(Quota $template, array $data, bool $propagateToExisting = false): Quota
     {
-        $quotas = Quota::with(['association', 'payments.confirmedBy'])
-            ->where('player_id', $player->id)
-            ->latest()
-            ->get();
+        if (!$template->is_global_template) {
+            throw new \Exception('Apenas templates podem ser editados desta forma.');
+        }
 
-        return $quotas->map(fn($quota) => $this->formatQuotaForPlayer($quota))->all();
+        $updates = [];
+
+        if (isset($data['title'])) {
+            $updates['title'] = $data['title'];
+        }
+        if (isset($data['total_amount'])) {
+            $totalAmount = (float) $data['total_amount'];
+            $totalInstallments = $data['total_installments'] ?? $template->total_installments;
+            $updates['total_amount'] = $totalAmount;
+            $updates['total_installments'] = $totalInstallments;
+            $updates['installment_amount'] = round($totalAmount / $totalInstallments, 2);
+        }
+        if (isset($data['total_installments'])) {
+            $updates['total_installments'] = (int) $data['total_installments'];
+            $totalAmount = $data['total_amount'] ?? $template->total_amount;
+            $updates['installment_amount'] = round($totalAmount / (int) $data['total_installments'], 2);
+        }
+        if (isset($data['due_date'])) {
+            $updates['due_date'] = $data['due_date'];
+        }
+        if (isset($data['memberships'])) {
+            $updates['target_memberships'] = $data['memberships'];
+        }
+
+        DB::transaction(function () use ($template, $updates, $propagateToExisting) {
+            // Atualizar o template
+            $template->update($updates);
+
+            // Propagar para quotas existentes se solicitado
+            if ($propagateToExisting) {
+                $propagationData = [];
+                if (isset($updates['title'])) $propagationData['title'] = $updates['title'];
+                if (isset($updates['total_amount'])) {
+                    $propagationData['total_amount'] = $updates['total_amount'];
+                    $propagationData['installment_amount'] = $updates['installment_amount'];
+                    $propagationData['total_installments'] = $updates['total_installments'];
+                }
+                if (isset($updates['due_date'])) $propagationData['due_date'] = $updates['due_date'];
+
+                if (!empty($propagationData)) {
+                    $template->generatedQuotas()
+                        ->whereNotIn('status', ['paid', 'cancelled'])
+                        ->update($propagationData);
+                }
+            }
+        });
+
+        return $template->fresh();
     }
 
     /**
-     * Formata uma quota com o detalhe das prestações para o frontend.
+     * Anular template e todas as quotas geradas
      */
-    public function formatQuotaForPlayer(Quota $quota): array
+    public function cancelTemplate(Quota $template, bool $cancelGenerated = true): void
     {
-        $quota->loadMissing(['association', 'payments.confirmedBy']);
+        if (!$template->is_global_template) {
+            throw new \Exception('Apenas templates podem ser anulados.');
+        }
 
-        // Prestações fixas: sempre 2, sempre total/2
-        $installments = $this->buildInstallmentsSummary($quota);
+        DB::transaction(function () use ($template, $cancelGenerated) {
+            $template->update(['status' => 'cancelled']);
+
+            if ($cancelGenerated) {
+                $template->generatedQuotas()
+                    ->whereNotIn('status', ['paid'])
+                    ->update(['status' => 'cancelled']);
+            }
+        });
+    }
+
+    /**
+     * Gerar quotas individuais a partir do template
+     */
+    public function generateFromTemplate(Quota $template): array
+    {
+        if (!$template->is_global_template) {
+            throw new \Exception('Esta quota não é um template.');
+        }
+
+        $association = $template->association;
+        $memberships = $template->target_memberships ?? [];
+
+        if (empty($memberships)) {
+            throw new \Exception('Nenhum tipo de associado selecionado.');
+        }
+
+        $players = Player::where('association_id', $association->id)
+            ->whereIn('membership', $memberships)
+            ->where('active', true)
+            ->get();
+
+        $created = 0;
+        $skipped = 0;
+
+        foreach ($players as $player) {
+            // Verificar se já existe
+            $exists = Quota::where('player_id', $player->id)
+                ->where('title', $template->title)
+                ->where('template_id', $template->id)
+                ->exists();
+
+            if ($exists) {
+                $skipped++;
+                continue;
+            }
+
+            // Calcular valor com desconto
+            $amount = $this->calculateDiscountedAmount($template->total_amount, $player);
+            $status = $amount === 0 ? 'paid' : 'pending';
+
+            Quota::create([
+                'association_id'     => $association->id,
+                'player_id'          => $player->id,
+                'created_by'         => auth()->id(),
+                'template_id'        => $template->id,
+                'title'              => $template->title,
+                'total_amount'       => $amount,
+                'total_installments' => $template->total_installments,
+                'installment_amount' => $amount > 0 ? round($amount / $template->total_installments, 2) : 0,
+                'paid_amount'        => 0,
+                'status'             => $status,
+                'due_date'           => $template->due_date,
+                'is_global_template' => false,
+            ]);
+
+            $created++;
+        }
 
         return [
-            'id'             => $quota->id,
-            'title'          => $quota->title,
-            'total_amount'   => (float) $quota->total_amount,
-            'paid_amount'    => (float) $quota->paid_amount,
-            'remaining'      => $quota->remaining,
-            'status'         => $quota->status,
-
-            'installments' => [
-                'total'        => 2,
-                'amount_each'  => (float) $quota->installment_amount,
-                'next_number'  => $quota->canReceivePayment() ? $quota->next_installment_number : null,
-                'can_pay'      => $quota->canReceivePayment(),
-                'detail'       => $installments,
-            ],
-
-            'due_date' => $quota->due_date?->toDateString(),
-
-            'association' => [
-                'id'   => $quota->association->id,
-                'name' => $quota->association->name,
-            ],
-
-            'payments' => $quota->payments->map(fn($p) => [
-                'id'                 => $p->id,
-                'installment_number' => $p->installment_number,
-                'amount'             => (float) $p->amount,
-                'method'             => $p->method,
-                'status'             => $p->status,
-                'reference'          => $p->reference,
-                'confirmed_at'       => $p->confirmed_at?->toDateTimeString(),
-                'confirmed_by'       => $p->confirmedBy ? [
-                    'id'   => $p->confirmedBy->id,
-                    'name' => $p->confirmedBy->name,
-                ] : null,
-                'created_at' => $p->created_at->toDateTimeString(),
-            ]),
+            'created'        => $created,
+            'skipped'        => $skipped,
+            'total_players'  => $players->count(),
         ];
     }
 
     // ═══════════════════════════════════════════════════════
-    //  JOGADOR — Submeter pagamento (primeira vez: escolhe; depois: automático)
+    //  QUOTAS INDIVIDUAIS
     // ═══════════════════════════════════════════════════════
 
     /**
-     * Regista a intenção de pagamento de uma prestação.
-     *
-     * Na PRIMEIRA prestação → o jogador escolhe o método e confirma o valor (sempre installment_amount).
-     * Na SEGUNDA prestação  → o sistema usa o valor restante automaticamente, sem escolha.
+     * Criar quota manual para um jogador
+     */
+    public function createQuota(array $data, User $createdBy): Quota
+    {
+        $membership = $createdBy->associationMemberships()
+            ->where('active', true)
+            ->first();
+
+        $associationId = $membership?->association_id;
+
+        if (!$associationId) {
+            abort(403, 'Utilizador não pertence a uma associação ativa.');
+        }
+
+        $total = (float) $data['total_amount'];
+        $totalInstallments = (int) ($data['total_installments'] ?? 2);
+
+        if ($total <= 0) {
+            throw ValidationException::withMessages([
+                'total_amount' => 'O valor total deve ser maior que zero.',
+            ]);
+        }
+
+        $player = Player::findOrFail($data['player_id']);
+        $finalAmount = $this->calculateDiscountedAmount($total, $player);
+
+        return Quota::create([
+            'association_id'     => $associationId,
+            'player_id'          => $data['player_id'],
+            'created_by'         => $createdBy->id,
+            'title'              => $data['title'],
+            'total_amount'       => $finalAmount,
+            'total_installments' => $totalInstallments,
+            'installment_amount' => $finalAmount > 0 ? round($finalAmount / $totalInstallments, 2) : 0,
+            'paid_amount'        => 0,
+            'status'             => $finalAmount === 0 ? 'paid' : 'pending',
+            'due_date'           => $data['due_date'],
+        ]);
+    }
+
+    /**
+     * Atualizar quota individual
+     */
+    public function updateQuota(Quota $quota, array $data): Quota
+    {
+        if ($quota->is_global_template) {
+            throw new \Exception('Use updateTemplate() para templates.');
+        }
+
+        if ($quota->status === 'paid') {
+            throw new \Exception('Não é possível editar uma quota já paga.');
+        }
+
+        $updates = [];
+
+        if (isset($data['title'])) $updates['title'] = $data['title'];
+        if (isset($data['total_amount'])) {
+            $updates['total_amount'] = (float) $data['total_amount'];
+            $updates['installment_amount'] = round((float) $data['total_amount'] / $quota->total_installments, 2);
+        }
+        if (isset($data['total_installments'])) {
+            $updates['total_installments'] = (int) $data['total_installments'];
+            $amount = $data['total_amount'] ?? $quota->total_amount;
+            $updates['installment_amount'] = round($amount / (int) $data['total_installments'], 2);
+        }
+        if (isset($data['due_date'])) $updates['due_date'] = $data['due_date'];
+
+        $quota->update($updates);
+
+        return $quota->fresh();
+    }
+
+    /**
+     * Anular quota individual
+     */
+    public function cancelQuota(Quota $quota): void
+    {
+        if ($quota->is_global_template) {
+            throw new \Exception('Use cancelTemplate() para templates.');
+        }
+
+        if ($quota->status === 'paid') {
+            throw new \Exception('Não é possível anular uma quota já paga.');
+        }
+
+        $quota->update(['status' => 'cancelled']);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  PAGAMENTOS
+    // ═══════════════════════════════════════════════════════
+
+    /**
+     * Submeter pagamento (jogador escolhe a prestação)
      */
     public function submitPayment(Quota $quota, Player $player, array $data): QuotaPayment
     {
-        // Segurança: confirmar que o jogador é dono desta quota
         if ($quota->player_id !== $player->id) {
             abort(403, 'Não autorizado.');
         }
 
-        if (! $quota->canReceivePayment()) {
+        if (!$quota->canReceivePayment()) {
             throw ValidationException::withMessages([
-                'quota' => 'Esta quota não aceita mais pagamentos (paga ou expirada).',
+                'quota' => 'Esta quota não aceita mais pagamentos.',
             ]);
         }
 
-        $installmentNumber = $quota->next_installment_number;
-        $amount = $this->resolveAmount($quota, $installmentNumber, $data);
+        $installmentNumber = (int) ($data['installment_number'] ?? $quota->next_installment_number);
+
+        // Validar número da prestação
+        if ($installmentNumber < 1 || $installmentNumber > $quota->total_installments) {
+            throw ValidationException::withMessages([
+                'installment_number' => 'Número de prestação inválido.',
+            ]);
+        }
+
+        // Verificar disponibilidade
+        if (!$quota->isInstallmentAvailable($installmentNumber)) {
+            throw ValidationException::withMessages([
+                'installment_number' => 'Esta prestação não está disponível para pagamento.',
+            ]);
+        }
+
+        $amount = (float) ($data['amount'] ?? $quota->installment_amount);
 
         return DB::transaction(function () use ($quota, $player, $installmentNumber, $amount, $data) {
             return QuotaPayment::create([
@@ -168,37 +344,36 @@ public function createQuota(array $data, User $createdBy): Quota
         });
     }
 
-    // ═══════════════════════════════════════════════════════
-    //  ASSOCIAÇÃO — Confirmar pagamento
-    // ═══════════════════════════════════════════════════════
-
+    /**
+     * Confirmar pagamento (associação)
+     */
     public function confirmPayment(QuotaPayment $payment, User $confirmedBy): array
     {
         $quota = $payment->quota;
 
         $this->ensureUserBelongsToAssociation($confirmedBy, $quota->association_id);
 
-        if (! $payment->isPending()) {
+        if (!$payment->isPending()) {
             throw ValidationException::withMessages([
                 'payment' => "Pagamento já foi {$payment->status}.",
             ]);
         }
 
         return DB::transaction(function () use ($payment, $quota, $confirmedBy) {
-            // 1. Confirmar o pagamento
             $payment->update([
                 'status'       => 'confirmed',
                 'confirmed_by' => $confirmedBy->id,
                 'confirmed_at' => now(),
             ]);
 
-            // 2. Recalcular valor pago na quota
             $totalConfirmed = $quota->confirmedPayments()->sum('amount');
+            $confirmedCount = $quota->confirmedPayments()->count();
 
             $newStatus = match (true) {
                 $totalConfirmed >= $quota->total_amount => 'paid',
-                $totalConfirmed > 0                    => 'partially_paid',
-                default                                => 'pending',
+                $confirmedCount >= $quota->total_installments => 'paid',
+                $totalConfirmed > 0 => 'partially_paid',
+                default => 'pending',
             };
 
             $quota->update([
@@ -206,26 +381,22 @@ public function createQuota(array $data, User $createdBy): Quota
                 'status'      => $newStatus,
             ]);
 
-            $quota->refresh();
-
             return [
                 'payment' => $payment->fresh(['confirmedBy']),
-                'quota'   => $quota,
+                'quota'   => $quota->fresh(),
             ];
         });
     }
 
-    // ═══════════════════════════════════════════════════════
-    //  ASSOCIAÇÃO — Rejeitar pagamento
-    // ═══════════════════════════════════════════════════════
-
+    /**
+     * Rejeitar pagamento
+     */
     public function rejectPayment(QuotaPayment $payment, User $rejectedBy, ?string $reason = null): QuotaPayment
     {
         $quota = $payment->quota;
-
         $this->ensureUserBelongsToAssociation($rejectedBy, $quota->association_id);
 
-        if (! $payment->isPending()) {
+        if (!$payment->isPending()) {
             throw ValidationException::withMessages([
                 'payment' => "Não é possível rejeitar um pagamento com estado '{$payment->status}'.",
             ]);
@@ -240,58 +411,61 @@ public function createQuota(array $data, User $createdBy): Quota
     }
 
     // ═══════════════════════════════════════════════════════
-    //  PRIVADOS — Lógica interna
+    //  LISTAGENS
     // ═══════════════════════════════════════════════════════
 
     /**
-     * Resolve o valor do pagamento.
-     *
-     * Prestação 1 → DEVE ser installment_amount (total/2).
-     * Prestação 2 → é sempre o restante da quota.
+     * Listar templates da associação
      */
-    private function resolveAmount(Quota $quota, int $installmentNumber, array $data): float
+    public function getTemplates(Association $association): array
     {
-        if ($installmentNumber === 1) {
-            // Primeira prestação: valor fixo = installment_amount
-            // Recebemos o valor do frontend mas validamos que bate certo.
-            $submitted = isset($data['amount']) ? (float) $data['amount'] : null;
-
-            if ($submitted !== null && abs($submitted - (float) $quota->installment_amount) > 0.01) {
-                throw ValidationException::withMessages([
-                    'amount' => "A primeira prestação deve ser exatamente " . number_format($quota->installment_amount, 2) . " MZN.",
-                ]);
-            }
-
-            return (float) $quota->installment_amount;
-        }
-
-        // Prestação 2: valor = restante (pode diferir ligeiramente por arredondamento)
-        $remaining = $quota->remaining;
-
-        if ($remaining <= 0) {
-            throw ValidationException::withMessages([
-                'quota' => 'A quota já está paga.',
-            ]);
-        }
-
-        return $remaining;
+        return Quota::templates()
+            ->where('association_id', $association->id)
+            ->withCount('generatedQuotas')
+            ->latest()
+            ->get()
+            ->map(fn($t) => $this->formatTemplateForAdmin($t))
+            ->all();
     }
 
     /**
-     * Constrói o resumo visual das 2 prestações para o frontend.
+     * Formatar template para resposta API
      */
-    private function buildInstallmentsSummary(Quota $quota): array
+    public function formatTemplateForAdmin(Quota $template): array
     {
-        $payments = $quota->payments->keyBy('installment_number');
+        return [
+            'id'                  => $template->id,
+            'title'               => $template->title,
+            'total_amount'        => (float) $template->total_amount,
+            'total_installments'  => $template->total_installments,
+            'installment_amount'  => (float) $template->installment_amount,
+            'status'              => $template->status,
+            'due_date'            => $template->due_date?->toDateString(),
+            'target_memberships'  => $template->target_memberships,
+            'target_labels'       => $template->target_memberships_label,
+            'generated_count'     => $template->generated_quotas_count,
+            'created_at'          => $template->created_at->toDateTimeString(),
+            'is_global_template'  => true,
+        ];
+    }
 
-        return collect([1, 2])->map(function ($number) use ($quota, $payments) {
-            $payment = $payments->get($number);
+    /**
+     * Formatar quota para jogador
+     */
+    public function formatQuotaForPlayer(Quota $quota): array
+    {
+        $quota->loadMissing(['association', 'payments.confirmedBy']);
 
-            return [
-                'number'    => $number,
-                'label'     => "Prestação {$number}",
+        // Construir prestações
+        $installments = [];
+        for ($i = 1; $i <= $quota->total_installments; $i++) {
+            $payment = $quota->payments->firstWhere('installment_number', $i);
+            $installments[] = [
+                'number'    => $i,
+                'label'     => "Prestação {$i}",
                 'amount'    => (float) $quota->installment_amount,
                 'status'    => $payment ? $payment->status : 'not_submitted',
+                'can_pay'   => $quota->isInstallmentAvailable($i),
                 'payment'   => $payment ? [
                     'id'           => $payment->id,
                     'method'       => $payment->method,
@@ -299,12 +473,74 @@ public function createQuota(array $data, User $createdBy): Quota
                     'confirmed_at' => $payment->confirmed_at?->toDateString(),
                 ] : null,
             ];
-        })->values()->all();
+        }
+
+        return [
+            'id'                 => $quota->id,
+            'title'              => $quota->title,
+            'total_amount'       => (float) $quota->total_amount,
+            'paid_amount'        => (float) $quota->paid_amount,
+            'remaining'          => $quota->remaining,
+            'status'             => $quota->status,
+            'total_installments' => $quota->total_installments,
+            'installment_amount' => (float) $quota->installment_amount,
+            'installments'       => $installments,
+            'next_installment'   => $quota->next_installment_number,
+            'can_pay'            => $quota->canReceivePayment(),
+            'due_date'           => $quota->due_date?->toDateString(),
+            'association'        => [
+                'id'   => $quota->association->id,
+                'name' => $quota->association->name,
+            ],
+            'has_template'       => !is_null($quota->template_id),
+            'template_id'        => $quota->template_id,
+        ];
     }
 
     /**
-     * Garante que o utilizador pertence à associação (é membro activo).
+     * Quotas do jogador
      */
+    public function getPlayerQuotas(Player $player): array
+    {
+        return Quota::individual()
+            ->where('player_id', $player->id)
+            ->active()
+            ->latest()
+            ->get()
+            ->map(fn($q) => $this->formatQuotaForPlayer($q))
+            ->all();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  HELPERS
+    // ═══════════════════════════════════════════════════════
+
+    /**
+     * Calcular valor com desconto baseado no tipo de associado
+     */
+    private function calculateDiscountedAmount(float $baseAmount, Player $player): float
+    {
+        // Isentos
+        if (in_array($player->membership, ['de_mérito', 'honorário'])) {
+            return 0;
+        }
+
+        // 50% desconto para estudantes
+        if ($player->is_student) {
+            return round($baseAmount * 0.5, 2);
+        }
+
+        return $baseAmount;
+    }
+
+    private function systemUserId(): int
+    {
+        return User::firstOrCreate(
+            ['email' => 'system@fmx.local'],
+            ['name' => 'System', 'password' => Hash::make('password123')]
+        )->id;
+    }
+
     private function ensureUserBelongsToAssociation(User $user, int $associationId): void
     {
         $isMember = $user->associationMemberships()
@@ -312,147 +548,80 @@ public function createQuota(array $data, User $createdBy): Quota
             ->where('active', true)
             ->exists();
 
-        if (! $isMember) {
+        if (!$isMember) {
             abort(403, 'Sem permissão para esta associação.');
         }
     }
 
+    // ═══════════════════════════════════════════════════════
+    //  CONFIGURAÇÃO GLOBAL (mantido igual)
+    // ═══════════════════════════════════════════════════════
 
-    // app/Services/QuotaService.php  — ADICIONAR estes métodos à classe existente
-
-/*
-|--------------------------------------------------------------------------
-| CONFIGURAÇÃO GLOBAL DA ASSOCIAÇÃO
-|--------------------------------------------------------------------------
-*/
-
-public function getOrCreateConfig(Association $association): AssociationQuotaConfig
-{
-    return AssociationQuotaConfig::firstOrCreate(
-        ['association_id' => $association->id],
-        [
-            'annual_amount'    => 0,
-            'installments'     => 2,
-            'title_template'   => 'Quota Anual {year}',
-            'auto_generate'    => false, // inactivo até a associação configurar
-            'issue_month'      => 1,
-            'issue_day'        => 1,
-            'due_month'        => 3,
-            'due_day'          => 31,
-        ]
-    );
-}
-
-public function updateConfig(Association $association, array $data): AssociationQuotaConfig
-{
-    $config = $this->getOrCreateConfig($association);
-
-    $config->update([
-        'annual_amount'  => $data['annual_amount'],
-        'title_template' => $data['title_template'] ?? $config->title_template,
-        'auto_generate'  => $data['auto_generate'] ?? $config->auto_generate,
-        'issue_month'    => $data['issue_month']    ?? $config->issue_month,
-        'issue_day'      => $data['issue_day']      ?? $config->issue_day,
-        'due_month'      => $data['due_month']      ?? $config->due_month,
-        'due_day'        => $data['due_day']         ?? $config->due_day,
-    ]);
-
-    return $config->fresh();
-}
-
-/*
-|--------------------------------------------------------------------------
-| GERAÇÃO AUTOMÁTICA — chamado pelo Artisan Command / scheduler
-|--------------------------------------------------------------------------
-*/
-
-/**
- * Gera quotas para todos os jogadores activos de uma associação.
- * Idempotente: não duplica se já existir quota para o mesmo título/jogador/ano.
- */
-private function systemUserId(): int
-{
-    return User::firstOrCreate(
-        ['email' => 'system@fmx.local'],
-        [
-            'name' => 'System',
-            'password' => Hash::make('password123'),
-        ]
-    )->id;
-}
-
-public function generateAnnualQuotas(Association $association, int $year): array
-{
-    $config = $this->getOrCreateConfig($association);
-
-    if (! $config->auto_generate || $config->annual_amount <= 0) {
-        return ['skipped' => true, 'reason' => 'auto_generate desactivado ou valor zero'];
+    public function getOrCreateConfig(Association $association): AssociationQuotaConfig
+    {
+        return AssociationQuotaConfig::firstOrCreate(
+            ['association_id' => $association->id],
+            [
+                'annual_amount'  => 0,
+                'installments'   => 2,
+                'title_template' => 'Quota Anual {year}',
+                'auto_generate'  => false,
+                'issue_month'    => 1,
+                'issue_day'      => 1,
+                'due_month'      => 3,
+                'due_day'        => 31,
+            ]
+        );
     }
 
-    $title   = $config->resolveTitle($year);
-    $dueDate = $config->resolveDueDate($year);
-
-    $players = $association->players()->where('active', true)->get();
-
-    $created  = 0;
-    $skipped  = 0;
-
-    foreach ($players as $player) {
-        $exists = Quota::where('association_id', $association->id)
-            ->where('player_id', $player->id)
-            ->where('title', $title)
-            ->exists();
-
-        if ($exists) { $skipped++; continue; }
-
-        Quota::create([
-            'association_id'     => $association->id,
-            'player_id'          => $player->id,
-            'created_by' => auth()->id() ?? $this->systemUserId(),
-            'title'              => $title,
-            'total_amount'       => $config->annual_amount,
-            'installment_amount' => round($config->annual_amount / 2, 2),
-            'paid_amount'        => 0,
-            'status'             => 'pending',
-            'due_date'           => $dueDate,
-        ]);
-
-        $created++;
+    public function updateConfig(Association $association, array $data): AssociationQuotaConfig
+    {
+        $config = $this->getOrCreateConfig($association);
+        $config->update($data);
+        return $config->fresh();
     }
 
-    return ['created' => $created, 'skipped' => $skipped, 'total_players' => $players->count()];
-}
+    public function generateAnnualQuotas(Association $association, int $year): array
+    {
+        $config = $this->getOrCreateConfig($association);
 
-/**
- * Quando um novo jogador é adicionado a uma associação com auto_generate activo,
- * gera a quota do ano corrente se ainda não existir.
- */
-public function generateForNewPlayer(Player $player, Association $association): ?Quota
-{
-    $config = $this->getOrCreateConfig($association);
+        if (!$config->auto_generate || $config->annual_amount <= 0) {
+            return ['skipped' => true, 'reason' => 'auto_generate desactivado ou valor zero'];
+        }
 
-    if (! $config->auto_generate || $config->annual_amount <= 0) {
-        return null;
+        $title   = str_replace('{year}', $year, $config->title_template);
+        $dueDate = "{$year}-{$config->due_month}-{$config->due_day}";
+
+        $players = $association->players()->where('active', true)->get();
+
+        $created = 0;
+        $skipped = 0;
+
+        foreach ($players as $player) {
+            $exists = Quota::where('player_id', $player->id)
+                ->where('title', $title)
+                ->exists();
+
+            if ($exists) { $skipped++; continue; }
+
+            $amount = $this->calculateDiscountedAmount($config->annual_amount, $player);
+
+            Quota::create([
+                'association_id'     => $association->id,
+                'player_id'          => $player->id,
+                'created_by'         => auth()->id() ?? $this->systemUserId(),
+                'title'              => $title,
+                'total_amount'       => $amount,
+                'total_installments' => $config->installments,
+                'installment_amount' => $amount > 0 ? round($amount / $config->installments, 2) : 0,
+                'paid_amount'        => 0,
+                'status'             => $amount === 0 ? 'paid' : 'pending',
+                'due_date'           => $dueDate,
+            ]);
+
+            $created++;
+        }
+
+        return ['created' => $created, 'skipped' => $skipped, 'total_players' => $players->count()];
     }
-
-    $year    = now()->year;
-    $title   = $config->resolveTitle($year);
-    $dueDate = $config->resolveDueDate($year);
-
-    return Quota::firstOrCreate(
-        [
-            'association_id' => $association->id,
-            'player_id'      => $player->id,
-            'title'          => $title,
-        ],
-        [
-            'created_by' => auth()->id() ?? $this->systemUserId(),
-            'total_amount'       => $config->annual_amount,
-            'installment_amount' => round($config->annual_amount / 2, 2),
-            'paid_amount'        => 0,
-            'status'             => 'pending',
-            'due_date'           => $dueDate,
-        ]
-    );
-}
 }
